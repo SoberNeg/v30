@@ -1,0 +1,8 @@
+Pillow
+PyMuPDF
+numpy
+openpyxl
+xlrd
+tkinterdnd2
+paddleocr
+paddlepaddle
