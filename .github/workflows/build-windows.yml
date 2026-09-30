@@ -1,0 +1,64 @@
+name: Build Windows startup-window-fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install "pyinstaller>=6.10,<7"
+          pip install -r requirements.txt
+
+      - name: Syntax check
+        run: python -m py_compile LED_Screen_Designer_v20_27_RZD_ASLS_AUTOFILL_DEBUG_FIX.py
+
+      - name: Build
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed `
+            --name "LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX" `
+            --icon "app.ico" `
+            --collect-all tkinterdnd2 `
+            --collect-all fitz `
+            --collect-all PIL `
+            --hidden-import PIL.ImageTk `
+            --hidden-import PIL.ImageOps `
+            --hidden-import PIL._tkinter_finder `
+            "LED_Screen_Designer_v20_27_RZD_ASLS_AUTOFILL_DEBUG_FIX.py"
+
+      - name: Restore Tcl Tk runtime
+        shell: pwsh
+        run: |
+          $tcl = python -c "import tkinter, pathlib; print(pathlib.Path(tkinter.Tcl().eval('info library')).parent)"
+          $tk = python -c "import tkinter, pathlib; t=tkinter.Tk(); print(pathlib.Path(t.tk.eval('set tk_library'))); t.destroy()"
+          $internal = "dist\LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX\_internal"
+          New-Item -ItemType Directory -Force "$internal\_tcl_data" | Out-Null
+          New-Item -ItemType Directory -Force "$internal\_tk_data" | Out-Null
+          Copy-Item "$tcl\*" "$internal\_tcl_data" -Recurse -Force
+          Copy-Item "$tk\*" "$internal\_tk_data" -Recurse -Force
+          if (!(Test-Path "$internal\_tcl_data\init.tcl")) { throw "init.tcl missing" }
+          if (!(Test-Path "$internal\_tk_data\tk.tcl")) { throw "tk.tcl missing" }
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path "dist\LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX\*" `
+            -DestinationPath "LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX_Windows.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX_Windows
+          path: LED_Screen_Designer_v20_27_STARTUP_WINDOW_FIX_Windows.zip
