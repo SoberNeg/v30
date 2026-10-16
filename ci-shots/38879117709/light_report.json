@@ -1,0 +1,399 @@
+{
+ "theme": "light",
+ "steps": [
+  "shot 01_startup_chooser",
+  "ok chooser",
+  "ok add items",
+  "ok tab led",
+  "shot 02_led_screens",
+  "ok tab static",
+  "shot 03_static",
+  "ok tab journal",
+  "shot 04_journal",
+  "ok tab components",
+  "ok scope whole",
+  "ok report whole",
+  "shot 05_components_whole",
+  "ok scope static",
+  "ok report static",
+  "shot 06_components_static",
+  "ok tab reference",
+  "shot 07_reference"
+ ],
+ "errors": [],
+ "chooser_visible": true,
+ "static_signs": 2,
+ "screens": 0,
+ "components_whole": [
+  {
+   "group": "Электроника",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Блок питания 40 Вт",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Расчётная мощность LED (+20%)",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Установлено LED (для расчёта мощности)",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Фронтальный светодиод 70×15 мм, 1,5 Вт",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Металлические комплектующие",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Алюкобонд 4 мм",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Профиль алюминиевый П-образный 60×20×2 мм",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Профильная труба алюминиевая 40×20×2 мм",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Уголок перфорированный 70×70×40",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Электрика",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Кабель ПВС 3×1,5 мм²",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Кабель ШВВП 2×0,75 мм²",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Наконечник 1,5 мм²",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Соединитель проводов WAGO 2-полюсный",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Соединитель проводов WAGO 3-полюсный",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "group": "Крепёж и метизы",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез оконный 3,9×25 мм",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез ПШ 4,2×12 с буром",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез универсальный 3×12 мм белый цинк потай",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Герметики, клеи и прочее",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Герметик силиконовый бесцветный прозрачный",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Клей космофен",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Молочный Акрил 4 мм",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Скотч двухсторонний 3M",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Термоусадочная трубка",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Фольгированный скотч",
+   "tags": [
+    "static_gray_2"
+   ]
+  }
+ ],
+ "components_static": [
+  {
+   "group": "Электроника",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Блок питания 40 Вт",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Расчётная мощность LED (+20%)",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Установлено LED (для расчёта мощности)",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Фронтальный светодиод 70×15 мм, 1,5 Вт",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Металлические комплектующие",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Алюкобонд 4 мм",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Профиль алюминиевый П-образный 60×20×2 мм",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Профильная труба алюминиевая 40×20×2 мм",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Уголок перфорированный 70×70×40",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Электрика",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Кабель ПВС 3×1,5 мм²",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Кабель ШВВП 2×0,75 мм²",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Наконечник 1,5 мм²",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Соединитель проводов WAGO 2-полюсный",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Соединитель проводов WAGO 3-полюсный",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "group": "Крепёж и метизы",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез оконный 3,9×25 мм",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез ПШ 4,2×12 с буром",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Саморез универсальный 3×12 мм белый цинк потай",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "group": "Герметики, клеи и прочее",
+   "tags": [
+    "component_group"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Герметик силиконовый бесцветный прозрачный",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Клей космофен",
+   "tags": [
+    "static_gray_2"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Молочный Акрил 4 мм",
+   "tags": [
+    "static_gray_3"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Скотч двухсторонний 3M",
+   "tags": [
+    "static_gray_4"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Термоусадочная трубка",
+   "tags": [
+    "static_gray_1"
+   ]
+  },
+  {
+   "src": "РЖД",
+   "name": "Фольгированный скотч",
+   "tags": [
+    "static_gray_2"
+   ]
+  }
+ ]
+}
