@@ -1,3 +1,4 @@
+# V30.73 WINDOWS STARTUP WINDOW FIX (РЖД/МЦД после mainloop)
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
 # V30.48 CUT MAP PRINT — A4 LANDSCAPE, ONE PROFILE PER SHEET
 # V20.68 EXCEL COMPONENTS EXPORT COMPATIBILITY FIX
@@ -55,7 +56,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.72"
+APP_TITLE = "Конструктор LED-экранов V30.73"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2460,19 +2461,61 @@ class ScreenDesigner(BaseTk):
             self.deiconify()
         except Exception:
             pass
-        # V20.22: root должен быть отображаемым до создания modal Toplevel.
-        # На Windows transient-окно, привязанное к withdrawn root, могло остаться невидимым.
-        self.update_idletasks()
+        # V30.73: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
+        # мог остаться невидимым, а главное окно — заблокированным grab'ом.
+        self.after(150, self._run_startup_choice)
+
+    def _log_startup_dialog_error(self, exc):
+        """V30.73: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        import traceback
+        text = traceback.format_exc()
+        log_paths = []
+        candidates = []
+        try:
+            base = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve().parent
+            candidates.append(base / "startup_dialog_error.log")
+        except Exception:
+            pass
+        try:
+            root = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+            folder = root / "LED Screen Designer"
+            folder.mkdir(parents=True, exist_ok=True)
+            candidates.append(folder / "startup_dialog_error.log")
+        except Exception:
+            pass
+        for p in candidates:
+            try:
+                p.write_text(text, encoding="utf-8")
+                log_paths.append(str(p))
+            except Exception:
+                pass
+        try:
+            print(f"[STARTUP] Main project chooser failed: {exc!r}", file=sys.stderr)
+        except Exception:
+            pass
+        try:
+            extra = ("\n\nЛог: " + log_paths[0]) if log_paths else ""
+            messagebox.showerror(
+                "Ошибка окна выбора проекта",
+                f"Не удалось открыть графическое окно выбора РЖД/МЦД.\n{exc}{extra}",
+                parent=self,
+            )
+        except Exception:
+            pass
+
+    def _run_startup_choice(self):
+        """V30.73: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        try:
+            self.update_idletasks()
+        except Exception:
+            pass
         try:
             startup_action = self._show_startup_choice()
         except Exception as exc:
-            # V20.53: не выбираем МЦД молча при сбое стартового окна.
-            # Если окно с логотипами не удалось создать, показываем простой
-            # резервный диалог с теми же вариантами.
-            try:
-                print(f"[STARTUP] Main project chooser failed: {exc!r}", file=sys.stderr)
-            except Exception:
-                pass
+            # V20.53: не выбираем МЦД молча при сбое стартового окна —
+            # показываем ошибку и простой резервный диалог с теми же вариантами.
+            self._log_startup_dialog_error(exc)
             startup_action = self._show_startup_choice_fallback()
         # V30.63: «Журнал проектов» из стартового окна; без выбора — снова стартовое окно.
         log_path = None

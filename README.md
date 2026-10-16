@@ -1,10 +1,16 @@
-# LED Screen Designer V30.72
+# LED Screen Designer V30.73
 
-Файл: `LED_Screen_Designer_v30_72.py`
+Файл: `LED_Screen_Designer_v30_73.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v30_72_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v30_73_Windows.zip` в разделе Artifacts.
+
+V30.73: стартовое окно РЖД/МЦД открывается после запуска mainloop
+(в V30.72 оно создавалось невидимым и блокировало главное окно на Windows);
+ошибка окна пишется в `startup_dialog_error.log` и показывается на экране.
+
+Сборка проверяет запуск: главное окно и окно «Выбор проекта» должны быть видны.
 
 Изменения сборки относительно v20.27:
 - добавлен `pywin32` (экспорт Word/Excel → PDF через Microsoft Office на Windows);

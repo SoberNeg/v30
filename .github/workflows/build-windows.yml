@@ -22,13 +22,13 @@ jobs:
           pip install -r requirements.txt
 
       - name: Syntax check
-        run: python -m py_compile LED_Screen_Designer_v30_72.py
+        run: python -m py_compile LED_Screen_Designer_v30_73.py
 
       - name: Build
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean --onedir --windowed `
-            --name "LED_Screen_Designer_v30_72" `
+            --name "LED_Screen_Designer_v30_73" `
             --icon "app.ico" `
             --collect-all tkinterdnd2 `
             --collect-all fitz `
@@ -39,14 +39,14 @@ jobs:
             --hidden-import win32com.client `
             --hidden-import pythoncom `
             --hidden-import pywintypes `
-            "LED_Screen_Designer_v30_72.py"
+            "LED_Screen_Designer_v30_73.py"
 
       - name: Restore Tcl Tk runtime
         shell: pwsh
         run: |
           $tcl = python -c "import tkinter, pathlib; print(pathlib.Path(tkinter.Tcl().eval('info library')).parent)"
           $tk = python -c "import tkinter, pathlib; t=tkinter.Tk(); print(pathlib.Path(t.tk.eval('set tk_library'))); t.destroy()"
-          $internal = "dist\LED_Screen_Designer_v30_72\_internal"
+          $internal = "dist\LED_Screen_Designer_v30_73\_internal"
           New-Item -ItemType Directory -Force "$internal\_tcl_data" | Out-Null
           New-Item -ItemType Directory -Force "$internal\_tk_data" | Out-Null
           Copy-Item "$tcl\*" "$internal\_tcl_data" -Recurse -Force
@@ -54,25 +54,26 @@ jobs:
           if (!(Test-Path "$internal\_tcl_data\init.tcl")) { throw "init.tcl missing" }
           if (!(Test-Path "$internal\_tk_data\tk.tcl")) { throw "tk.tcl missing" }
 
-      - name: Smoke test (exe must open main window)
+      - name: Smoke test (main window + startup chooser visible)
         shell: pwsh
         run: |
-          $p = Start-Process "dist\LED_Screen_Designer_v30_72\LED_Screen_Designer_v30_72.exe" -PassThru
+          $p = Start-Process "dist\LED_Screen_Designer_v30_73\LED_Screen_Designer_v30_73.exe" -PassThru
           Start-Sleep 45
           if ($p.HasExited) { throw "exe exited early, code=$($p.ExitCode)" }
-          $title = (Get-Process -Id $p.Id).MainWindowTitle
+          $titles = @(.\list_windows.ps1 -ProcessId $p.Id)
           Stop-Process -Id $p.Id -Force
-          Write-Output "Main window: $title"
-          if ($title -notlike "*LED*") { throw "main window not found (title=[$title])" }
+          Write-Output "Visible windows: $($titles -join ' | ')"
+          if (-not ($titles -like "*LED*")) { throw "main window not visible" }
+          if (-not ($titles -contains "Выбор проекта")) { throw "startup chooser (Выбор проекта) not visible" }
 
       - name: Pack
         shell: pwsh
         run: |
           Compress-Archive `
-            -Path "dist\LED_Screen_Designer_v30_72\*" `
-            -DestinationPath "LED_Screen_Designer_v30_72_Windows.zip" -Force
+            -Path "dist\LED_Screen_Designer_v30_73\*" `
+            -DestinationPath "LED_Screen_Designer_v30_73_Windows.zip" -Force
 
       - uses: actions/upload-artifact@v4
         with:
-          name: LED_Screen_Designer_v30_72_Windows
-          path: LED_Screen_Designer_v30_72_Windows.zip
+          name: LED_Screen_Designer_v30_73_Windows
+          path: LED_Screen_Designer_v30_73_Windows.zip

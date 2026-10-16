@@ -2,16 +2,26 @@ name: Diagnose Windows startup
 
 on:
   workflow_dispatch:
+    inputs:
+      src:
+        description: "Python file to test (path in repo or git ref:path)"
+        default: "LED_Screen_Designer_v30_73.py"
 
 jobs:
   diagnose:
     runs-on: windows-latest
     env:
-      SRC: LED_Screen_Designer_v30_72.py
+      SRC: ${{ inputs.src }}
       PYTHONIOENCODING: utf-8
       PYTHONFAULTHANDLER: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Materialize source from git ref (if ref:path)
+        shell: pwsh
+        run: |
+          if ($env:SRC -like "*:*") { git show $env:SRC | Set-Content -Encoding utf8NoBOM -Path diag_src.py; "SRC=diag_src.py" >> $env:GITHUB_ENV }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -96,7 +106,7 @@ jobs:
           $p = Start-Process "dist\LED_WIN\LED_WIN.exe" -PassThru
           Start-Sleep 45
           if (-not $p.HasExited) {
-            $wins = Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { "$($_.ProcessName): $($_.MainWindowTitle)" } | Out-String
+            $wins = (@(.\list_windows.ps1 -ProcessId $p.Id) -join "`n")
             $state = "ALIVE after 45s. Windows:`n$wins"; Stop-Process -Id $p.Id -Force
           } else { $state = "EXITED code=" + $p.ExitCode }
           Write-Output $state
