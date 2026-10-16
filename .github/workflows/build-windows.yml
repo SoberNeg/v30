@@ -54,6 +54,17 @@ jobs:
           if (!(Test-Path "$internal\_tcl_data\init.tcl")) { throw "init.tcl missing" }
           if (!(Test-Path "$internal\_tk_data\tk.tcl")) { throw "tk.tcl missing" }
 
+      - name: Smoke test (exe must open main window)
+        shell: pwsh
+        run: |
+          $p = Start-Process "dist\LED_Screen_Designer_v30_72\LED_Screen_Designer_v30_72.exe" -PassThru
+          Start-Sleep 45
+          if ($p.HasExited) { throw "exe exited early, code=$($p.ExitCode)" }
+          $title = (Get-Process -Id $p.Id).MainWindowTitle
+          Stop-Process -Id $p.Id -Force
+          Write-Output "Main window: $title"
+          if ($title -notlike "*LED*") { throw "main window not found (title=[$title])" }
+
       - name: Pack
         shell: pwsh
         run: |
