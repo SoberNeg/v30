@@ -6,3 +6,4 @@ xlrd
 tkinterdnd2
 paddleocr
 paddlepaddle
+pywin32; sys_platform == "win32"

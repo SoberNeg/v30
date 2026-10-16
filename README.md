@@ -1,11 +1,13 @@
-# v20.27 STARTUP WINDOW FIX
+# LED Screen Designer V30.72
 
-База: LED_Screen_Designer_v20_27_RZD_ASLS_AUTOFILL_DEBUG_FIX(1).py
+Файл: `LED_Screen_Designer_v30_72.py`
 
-Исправлено:
-- стартовый выбор РЖД/МЦД запускается через `after()` после старта mainloop;
-- `grab_set()` выполняется только после отображения Toplevel;
-- добавлен резервный текстовый диалог РЖД/МЦД;
-- ошибка стартового диалога больше не скрывается молча;
-- при ошибке создаётся `startup_dialog_error.log`;
+Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
+(запускается при push в `main` или вручную). Результат — архив
+`LED_Screen_Designer_v30_72_Windows.zip` в разделе Artifacts.
+
+Изменения сборки относительно v20.27:
+- добавлен `pywin32` (экспорт Word/Excel → PDF через Microsoft Office на Windows);
 - сохранён Windows Tcl/Tk packaging fix.
+
+Предыдущая версия (v20.27) доступна в истории репозитория.
