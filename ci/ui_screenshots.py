@@ -70,7 +70,10 @@ def chooser():
             stack.extend(w.winfo_children())
             if w.winfo_class() == "Button":
                 buttons.append(w)
-        buttons[1].invoke()   # РЖД, МЦД, ... -> МЦД
+        logo = [b for b in buttons if str(b.cget("image"))]          # [РЖД, МЦД] — кнопки-логотипы
+        mcd = [b for b in buttons if b.cget("text") == "МЦД"]
+        (mcd or logo[1:2] or buttons[1:2])[0].invoke()
+        report["brand"] = getattr(app, "project_brand_context", None)
 
 
 def tab(text):
