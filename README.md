@@ -1,10 +1,13 @@
-# LED Screen Designer V30.73
+# LED Screen Designer V30.74
 
-Файл: `LED_Screen_Designer_v30_73.py`
+Файл: `LED_Screen_Designer_v30_74.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v30_73_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v30_74_Windows.zip` в разделе Artifacts.
+
+V30.74: переключатель темы «Светлая / Тёмная» (верхняя панель, выбор сохраняется);
+исправлена заливка статических строк во вкладке «Комплектующие».
 
 V30.73: стартовое окно РЖД/МЦД открывается после запуска mainloop
 (в V30.72 оно создавалось невидимым и блокировало главное окно на Windows);

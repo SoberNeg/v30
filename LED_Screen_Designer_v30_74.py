@@ -1,3 +1,4 @@
+# V30.74 THEME LIGHT/DARK + COMPONENTS STATIC FILL FIX
 # V30.73 WINDOWS STARTUP WINDOW FIX (РЖД/МЦД после mainloop)
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
 # V30.48 CUT MAP PRINT — A4 LANDSCAPE, ONE PROFILE PER SHEET
@@ -56,7 +57,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.73"
+APP_TITLE = "Конструктор LED-экранов V30.74"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -3726,10 +3727,13 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        self.components_tree.tag_configure("static_gray_1", background="#4a4a4a", foreground="#ffffff")
-        self.components_tree.tag_configure("static_gray_2", background="#464646", foreground="#ffffff")
-        self.components_tree.tag_configure("static_gray_3", background="#424242", foreground="#ffffff")
-        self.components_tree.tag_configure("static_gray_4", background="#3e3e3e", foreground="#ffffff")
+        # V30.74: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # различались); только фон — цвет текста не навязывается, чтобы не спорить
+        # с тегом «calc_off» и с тёмной темой.
+        self.components_tree.tag_configure("static_gray_1", background="#f2f2f2")
+        self.components_tree.tag_configure("static_gray_2", background="#e8e8e8")
+        self.components_tree.tag_configure("static_gray_3", background="#dedede")
+        self.components_tree.tag_configure("static_gray_4", background="#d4d4d4")
         self.components_tree.tag_configure("component_group", font=("Arial", 10, "bold"),
                                            background="#e8eef5", foreground="#1f2d3d")
 
@@ -9749,6 +9753,8 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
+        # V30.74: градация серого — по порядку строк на экране (после объединения и сортировки).
+        self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
         for parent in list(component_parents.values()):
@@ -9758,6 +9764,19 @@ class ScreenDesigner(BaseTk):
         # V30.43: после перестроения выделение сбрасывается — обнуляем итог.
         try:self._components_update_sum()
         except Exception:pass
+
+    def _components_restripe_static(self):
+        """V30.74: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        tree=getattr(self,"components_tree",None)
+        if tree is None:
+            return
+        n=0
+        for parent in tree.get_children(""):
+            for iid in tree.get_children(parent):
+                tags=[t for t in (tree.item(iid,"tags") or ()) if not str(t).startswith("static_gray_")]
+                if len(tags)!=len(tree.item(iid,"tags") or ()):
+                    tags.append(f"static_gray_{1+(n%4)}"); n+=1
+                    tree.item(iid,tags=tags)
 
     def _component_alpha_sort_key(self, name):
         import re
@@ -13756,7 +13775,7 @@ class ScreenDesigner(BaseTk):
                 unit=str(vals[1] or "").strip()
                 key=(clean_name.casefold(),unit.casefold())
                 if key not in merged:
-                    merged[key]={"name":clean_name,"unit":unit,"cols":[0.0]*5,"weight":0.0,"weight_seen":False,"sources":[]}
+                    merged[key]={"name":clean_name,"unit":unit,"cols":[0.0]*5,"weight":0.0,"weight_seen":False,"sources":[],"static_all":True}
                     order.append(key)
                 rec=merged[key]
                 for j,idx in enumerate((2,3,4,5,6)):
@@ -13765,6 +13784,10 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
+                # V30.74: строка остаётся «статической» (серая заливка), только если
+                # все объединённые позиции пришли от статических указателей.
+                if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
+                    rec["static_all"]=False
                 self.components_tree.delete(iid)
             for key in order:
                 rec=merged[key]
@@ -13772,7 +13795,8 @@ class ScreenDesigner(BaseTk):
                 weight=self._format_component_weight(rec["weight"]) if rec["weight_seen"] else ""
                 src=" / ".join(rec["sources"])
                 supplier=self._supplier_name_for_component(rec["name"])
-                self.components_tree.insert(parent,"end",text=src,values=(rec["name"],rec["unit"],cols[0],cols[1],cols[2],cols[3],cols[4],weight,supplier))
+                self.components_tree.insert(parent,"end",text=src,values=(rec["name"],rec["unit"],cols[0],cols[1],cols[2],cols[3],cols[4],weight,supplier),
+                                            tags=(("static_gray_1",) if rec["static_all"] else ()))
 
     def _components_print_rows(self):
         """Текущие строки вкладки Комплектующие в порядке отображения."""
@@ -22753,6 +22777,462 @@ def _v3072_supplier_rows(self, supplier_name):
                      "source": "", "supplier": supplier_name})
     return rows
 ScreenDesigner._v3063_supplier_rows = _v3072_supplier_rows
+
+
+# =====================================================================
+# V30.74 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# Переключатель — в верхней панели (справа от «Журнал проектов»).
+# Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
+#
+# Как работает тёмная тема:
+#   • ttk-виджеты — тема «clam» с тёмной палитрой (светлая — родная тема Windows);
+#   • классические tk-виджеты и явные цвета (подписи, подсветки, теги строк
+#     таблиц и текстовых полей) пересчитываются автоматически: светлые фоны
+#     темнеют, тёмный текст светлеет, оттенок цвета сохраняется. Исходные цвета
+#     запоминаются и полностью восстанавливаются при возврате к светлой теме;
+#   • новые окна и диалоги подхватывают тему при появлении на экране;
+#   • холсты-чертежи и превью печати НЕ перекрашиваются — они изображают бумагу;
+#   • заголовок окна Windows 10/11 тоже становится тёмным.
+# =====================================================================
+import colorsys as _v3074_colorsys
+
+THEME_LIGHT = "light"
+THEME_DARK = "dark"
+THEME_LABELS = {THEME_LIGHT: "Светлая", THEME_DARK: "Тёмная"}
+
+_V3074_DARK = {
+    "bg": "#1f2023",        # окно / рамки
+    "panel": "#26282c",     # группы, заголовки таблиц
+    "field": "#2b2d31",     # поля ввода, таблицы
+    "fg": "#e4e6eb",        # основной текст
+    "muted": "#9aa0a6",     # второстепенный текст / disabled
+    "border": "#3d4046",
+    "button": "#33363c",
+    "button_active": "#3f434a",
+    "select": "#2d5b8c",
+    "select_fg": "#ffffff",
+    "focus": "#4a8fd8",
+}
+
+_V3074_TK_CLASSES = ("Toplevel", "Tk", "Frame", "Label", "Button", "Entry", "Text", "Listbox",
+                     "Checkbutton", "Radiobutton", "Labelframe", "Spinbox", "Scale", "Message",
+                     "Menubutton", "Menu", "Canvas", "Scrollbar", "PanedWindow")
+_V3074_TK_COLOR_OPTS = {
+    # option: "bg" — фоновый цвет, "fg" — цвет текста/линий
+    "background": "bg", "activebackground": "bg", "readonlybackground": "bg",
+    "selectcolor": "bg", "troughcolor": "bg", "highlightbackground": "bg",
+    "disabledbackground": "bg",
+    "foreground": "fg", "activeforeground": "fg", "disabledforeground": "fg",
+    "insertbackground": "fg", "highlightcolor": "fg",
+}
+_V3074_TAG_OPTS = {"background": "bg", "foreground": "fg"}
+_V3074_TTK_WIDGET_OPTS = {"foreground": "fg", "background": "bg"}
+
+_v3074_state = {"theme": THEME_LIGHT, "native_theme": None, "native_frame_rgb": None, "app": None}
+_v3074_path_orig = {}     # path -> {option: original} для виджетов без python-объекта
+
+
+def _v3074_settings_path():
+    if sys.platform.startswith("win"):
+        root = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+    elif sys.platform == "darwin":
+        root = Path.home() / "Library" / "Application Support"
+    else:
+        root = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+    return root / "LED Screen Designer" / "ui_settings.json"
+
+
+def _v3074_load_theme():
+    try:
+        data = json.loads(_v3074_settings_path().read_text(encoding="utf-8"))
+        return THEME_DARK if data.get("theme") == THEME_DARK else THEME_LIGHT
+    except Exception:
+        return THEME_LIGHT
+
+
+def _v3074_save_theme(theme):
+    try:
+        path = _v3074_settings_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                data = {}
+        except Exception:
+            data = {}
+        data["theme"] = theme
+        _atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
+    except Exception:
+        pass
+
+
+# ---------- преобразование цветов для тёмной темы ----------
+_v3074_color_cache = {}
+
+
+def _v3074_rgb(widget, color):
+    try:
+        r, g, b = widget.winfo_rgb(color)
+        return r / 65535.0, g / 65535.0, b / 65535.0
+    except Exception:
+        return None
+
+
+def _v3074_hex(r, g, b):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, int(round(v * 255)))) for v in (r, g, b))
+
+
+def _v3074_dark_color(widget, color, kind):
+    """Цвет светлой темы -> цвет тёмной темы. kind: 'bg' или 'fg'."""
+    if color in (None, "") or not isinstance(color, str):
+        return color
+    key = (color, kind)
+    if key in _v3074_color_cache:
+        return _v3074_color_cache[key]
+    rgb = _v3074_rgb(widget, color)
+    if rgb is None:
+        return color
+    h, l, s = _v3074_colorsys.rgb_to_hls(*rgb)
+    out = color
+    if kind == "bg":
+        native = _v3074_state.get("native_frame_rgb")
+        if native is not None and max(abs(a - b) for a, b in zip(rgb, native)) <= 0.004:
+            out = _V3074_DARK["bg"]         # родной фон окна Windows -> фон тёмной темы
+        elif l >= 0.99:
+            out = _V3074_DARK["field"]      # белый (поля, таблицы) -> фон полей
+        elif l >= 0.60:                     # светлый фон -> тёмный, порядок светлоты сохраняется
+            nl = 0.17 + (1.0 - l) * 1.1
+            if s > 0.20:                    # пастель (жёлтая, зелёная, голубая подсветка)
+                nl = min(0.30, nl + 0.06)
+                ns = min(s, 0.35)
+            else:
+                nl = min(0.42, nl)
+                ns = s * 0.3
+            out = _v3074_hex(*_v3074_colorsys.hls_to_rgb(h, nl, ns))
+    else:
+        if l <= 0.55:                       # тёмный текст -> светлый
+            if s > 0.25:
+                nl = max(0.66, l)           # цветной текст: тот же оттенок, светлее
+                ns = min(1.0, s)
+            else:
+                nl = 0.90 - l * 0.55        # чёрный -> почти белый, серый -> светло-серый
+                ns = s
+            out = _v3074_hex(*_v3074_colorsys.hls_to_rgb(h, nl, ns))
+    _v3074_color_cache[key] = out
+    return out
+
+
+# ---------- хранение исходных цветов ----------
+def _v3074_orig_store(w):
+    store = getattr(w, "_v3074_orig", None)
+    if store is None:
+        try:
+            store = {}
+            w._v3074_orig = store
+        except Exception:
+            store = _v3074_path_orig.setdefault(str(w), {})
+    return store
+
+
+def _v3074_is_paper_canvas(w):
+    """Холст-чертёж / превью печати — не перекрашиваем. Холст-контейнер прокрутки
+    (фон = фон окна) перекрашиваем вместе с окном."""
+    try:
+        if w.winfo_class() != "Canvas":
+            return False
+        store = _v3074_orig_store(w)
+        bg = store.get("background", w.cget("background"))
+        rgb = _v3074_rgb(w, bg)
+        native = _v3074_state.get("native_frame_rgb")
+        if rgb is None or native is None:
+            return True
+        return max(abs(a - b) for a, b in zip(rgb, native)) > 0.02
+    except Exception:
+        return True
+
+
+def _v3074_apply_widget(w, theme):
+    """Перекрашивает один виджет (без потомков)."""
+    try:
+        cls = w.winfo_class()
+    except Exception:
+        return
+    if cls in _V3074_TK_CLASSES:
+        if cls == "Canvas" and _v3074_is_paper_canvas(w):
+            return
+        opts = _V3074_TK_COLOR_OPTS
+    elif cls == "TLabel":
+        opts = _V3074_TTK_WIDGET_OPTS
+    else:
+        return
+    store = _v3074_orig_store(w)
+    for opt, kind in opts.items():
+        try:
+            if opt not in store:
+                if theme == THEME_LIGHT:
+                    continue                 # в светлой теме нечего восстанавливать
+                cur = w.cget(opt)
+                store[opt] = str(cur) if cur is not None else ""
+            orig = store[opt]
+            if cls == "TLabel" and orig == "":
+                continue                     # цвет берётся из стиля ttk
+            new = orig if theme == THEME_LIGHT else _v3074_dark_color(w, orig, kind)
+            if str(w.cget(opt)) != str(new):
+                w.configure(**{opt: new})
+        except Exception:
+            pass
+    if cls in ("Toplevel", "Tk"):
+        _v3074_titlebar(w, theme)
+
+
+def _v3074_apply_tree(root, theme):
+    stack = [root]
+    while stack:
+        w = stack.pop()
+        _v3074_apply_widget(w, theme)
+        try:
+            cls = w.winfo_class()
+            if cls == "Treeview":
+                _v3074_apply_tags(w, theme)
+            elif cls == "Text":
+                _v3074_apply_tags(w, theme)
+        except Exception:
+            pass
+        try:
+            stack.extend(w.winfo_children())
+        except Exception:
+            pass
+
+
+# ---------- цвета тегов строк (Treeview) и текста (Text) ----------
+_v3074_orig_tv_tag_configure = ttk.Treeview.tag_configure
+_v3074_orig_text_tag_configure = tk.Text.tag_configure
+
+
+def _v3074_tag_store(widget):
+    store = getattr(widget, "_v3074_tags", None)
+    if store is None:
+        store = {}
+        try:
+            widget._v3074_tags = store
+        except Exception:
+            pass
+    return store
+
+
+def _v3074_tag_configure_factory(orig_fn):
+    def patched(self, tagname, option=None, **kw):
+        color_kw = {k: v for k, v in kw.items() if k in _V3074_TAG_OPTS}
+        if color_kw:
+            _v3074_tag_store(self).setdefault(tagname, {}).update({k: str(v) for k, v in color_kw.items()})
+            if _v3074_state["theme"] == THEME_DARK:
+                kw = dict(kw)
+                for k, v in color_kw.items():
+                    kw[k] = _v3074_dark_color(self, str(v), _V3074_TAG_OPTS[k])
+        return orig_fn(self, tagname, option, **kw)
+    return patched
+
+
+ttk.Treeview.tag_configure = _v3074_tag_configure_factory(_v3074_orig_tv_tag_configure)
+ttk.Treeview.tag_config = ttk.Treeview.tag_configure
+tk.Text.tag_configure = _v3074_tag_configure_factory(_v3074_orig_text_tag_configure)
+tk.Text.tag_config = tk.Text.tag_configure
+
+
+def _v3074_apply_tags(widget, theme):
+    orig_fn = _v3074_orig_tv_tag_configure if widget.winfo_class() == "Treeview" else _v3074_orig_text_tag_configure
+    for tag, colors in list(_v3074_tag_store(widget).items()):
+        kw = {}
+        for k, v in colors.items():
+            kw[k] = v if theme == THEME_LIGHT else _v3074_dark_color(widget, v, _V3074_TAG_OPTS[k])
+        try:
+            orig_fn(widget, tag, None, **kw)
+        except Exception:
+            pass
+
+
+# ---------- тёмный заголовок окна Windows 10/11 ----------
+def _v3074_titlebar(win, theme):
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+        win.update_idletasks()
+        hwnd = ctypes.windll.user32.GetParent(win.winfo_id()) or win.winfo_id()
+        val = ctypes.c_int(1 if theme == THEME_DARK else 0)
+        for attr in (20, 19):   # DWMWA_USE_IMMERSIVE_DARK_MODE (новые / старые сборки Win10)
+            if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(val), ctypes.sizeof(val)) == 0:
+                break
+        # перерисовать рамку окна
+        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020)
+    except Exception:
+        pass
+
+
+# ---------- стили ttk ----------
+def _v3074_configure_ttk(app, theme):
+    style = ttk.Style(app)
+    if _v3074_state["native_theme"] is None:
+        _v3074_state["native_theme"] = style.theme_use()
+    if theme == THEME_LIGHT:
+        try:
+            style.theme_use(_v3074_state["native_theme"])
+        except Exception:
+            pass
+        return
+    p = _V3074_DARK
+    try:
+        style.theme_use("clam")
+    except Exception:
+        return
+    style.configure(".", background=p["bg"], foreground=p["fg"], fieldbackground=p["field"],
+                    bordercolor=p["border"], darkcolor=p["bg"], lightcolor=p["panel"],
+                    troughcolor=p["panel"], selectbackground=p["select"], selectforeground=p["select_fg"],
+                    insertcolor=p["fg"], focuscolor=p["focus"], arrowcolor=p["fg"])
+    style.map(".", foreground=[("disabled", p["muted"])], background=[("disabled", p["bg"])])
+    for name in ("TFrame", "TLabel", "TLabelframe", "TPanedwindow", "TSeparator", "TSizegrip"):
+        style.configure(name, background=p["bg"], foreground=p["fg"])
+    style.configure("TLabelframe", bordercolor=p["border"], lightcolor=p["bg"], darkcolor=p["bg"])
+    style.configure("TLabelframe.Label", background=p["bg"], foreground=p["fg"])
+    style.configure("TButton", background=p["button"], foreground=p["fg"], bordercolor=p["border"],
+                    lightcolor=p["button"], darkcolor=p["button"], focusthickness=1)
+    style.map("TButton",
+              background=[("disabled", p["bg"]), ("pressed", p["select"]), ("active", p["button_active"])],
+              foreground=[("disabled", p["muted"])],
+              lightcolor=[("pressed", p["select"]), ("active", p["button_active"])],
+              darkcolor=[("pressed", p["select"]), ("active", p["button_active"])])
+    style.configure("TMenubutton", background=p["button"], foreground=p["fg"], arrowcolor=p["fg"])
+    style.map("TMenubutton", background=[("active", p["button_active"])])
+    for name in ("TCheckbutton", "TRadiobutton"):
+        style.configure(name, background=p["bg"], foreground=p["fg"],
+                        indicatorbackground=p["field"], indicatorforeground=p["fg"], upperbordercolor=p["border"],
+                        lowerbordercolor=p["border"])
+        style.map(name,
+                  background=[("active", p["bg"])],
+                  foreground=[("disabled", p["muted"])],
+                  indicatorbackground=[("selected", p["select"]), ("pressed", p["button_active"]), ("active", p["button_active"])],
+                  indicatorforeground=[("selected", p["select_fg"])])
+    for name in ("TEntry", "TCombobox", "TSpinbox"):
+        style.configure(name, fieldbackground=p["field"], foreground=p["fg"], background=p["button"],
+                        bordercolor=p["border"], lightcolor=p["field"], darkcolor=p["field"],
+                        insertcolor=p["fg"], arrowcolor=p["fg"],
+                        selectbackground=p["select"], selectforeground=p["select_fg"])
+        style.map(name,
+                  fieldbackground=[("readonly", p["field"]), ("disabled", p["bg"])],
+                  foreground=[("disabled", p["muted"])],
+                  background=[("active", p["button_active"])],
+                  bordercolor=[("focus", p["focus"])],
+                  selectbackground=[("readonly", p["select"])],
+                  selectforeground=[("readonly", p["select_fg"])])
+    style.configure("TNotebook", background=p["bg"], bordercolor=p["border"], tabmargins=(2, 4, 2, 0))
+    style.configure("TNotebook.Tab", background=p["panel"], foreground=p["muted"], bordercolor=p["border"],
+                    lightcolor=p["panel"], padding=(10, 4))
+    style.map("TNotebook.Tab",
+              background=[("selected", p["field"]), ("active", p["button_active"])],
+              foreground=[("selected", p["fg"]), ("active", p["fg"])],
+              lightcolor=[("selected", p["field"])])
+    style.configure("Treeview", background=p["field"], fieldbackground=p["field"], foreground=p["fg"],
+                    bordercolor=p["border"], lightcolor=p["field"], darkcolor=p["field"])
+    style.map("Treeview",
+              background=[("selected", p["select"])],
+              foreground=[("selected", p["select_fg"])])
+    style.configure("Treeview.Heading", background=p["panel"], foreground=p["fg"], bordercolor=p["border"],
+                    lightcolor=p["panel"], darkcolor=p["panel"], relief="flat")
+    style.map("Treeview.Heading", background=[("active", p["button_active"])])
+    for name in ("Vertical.TScrollbar", "Horizontal.TScrollbar", "TScrollbar"):
+        style.configure(name, background=p["button"], troughcolor=p["bg"], bordercolor=p["bg"],
+                        lightcolor=p["button"], darkcolor=p["button"], arrowcolor=p["fg"], gripcount=0)
+        style.map(name, background=[("active", p["button_active"]), ("pressed", p["select"])])
+    for name in ("Horizontal.TProgressbar", "Vertical.TProgressbar"):
+        style.configure(name, background=p["focus"], troughcolor=p["panel"], bordercolor=p["border"],
+                        lightcolor=p["focus"], darkcolor=p["focus"])
+    style.configure("TScale", background=p["button"], troughcolor=p["panel"])
+
+
+# ---------- применение темы ----------
+def _v3074_apply_theme(app, theme, save=False):
+    theme = THEME_DARK if theme == THEME_DARK else THEME_LIGHT
+    _v3074_state["theme"] = theme
+    _v3074_configure_ttk(app, theme)
+    _v3074_apply_tree(app, theme)
+    try:
+        var = getattr(app, "theme_var", None)
+        if var is not None and var.get() != theme:
+            var.set(theme)
+    except Exception:
+        pass
+    if save:
+        _v3074_save_theme(theme)
+
+
+def _v3074_on_map(event):
+    w = event.widget
+    if isinstance(w, str):
+        app = _v3074_state.get("app")
+        try:
+            w = app.nametowidget(w)
+        except Exception:
+            return
+    try:
+        theme = _v3074_state["theme"]
+        if theme == THEME_DARK or getattr(w, "_v3074_orig", None) or str(w) in _v3074_path_orig:
+            if w.winfo_class() in ("Toplevel", "Tk"):
+                _v3074_apply_tree(w, theme)     # новое окно / диалог — целиком
+            else:
+                _v3074_apply_widget(w, theme)
+                if w.winfo_class() in ("Treeview", "Text"):
+                    _v3074_apply_tags(w, theme)
+    except Exception:
+        pass
+
+
+def _v3074_install(app):
+    _v3074_state["app"] = app
+    style = ttk.Style(app)
+    _v3074_state["native_theme"] = style.theme_use()
+    _v3074_state["native_frame_rgb"] = _v3074_rgb(app, style.lookup("TFrame", "background") or "SystemButtonFace")
+    for cls in _V3074_TK_CLASSES + ("TLabel", "Treeview"):
+        try:
+            app.bind_class(cls, "<Map>", _v3074_on_map, add="+")
+        except Exception:
+            pass
+
+
+def _v3074_add_theme_switch(app):
+    """Переключатель «Тема: Светлая / Тёмная» в верхней панели проекта."""
+    try:
+        bar = app.project_name_entry.master
+    except Exception:
+        return
+    app.theme_var = tk.StringVar(value=_v3074_state["theme"])
+    box = ttk.Frame(bar)
+    box.pack(side="right", padx=(12, 0))
+    ttk.Label(box, text="Тема:", font=("Arial", 10, "bold")).pack(side="left", padx=(0, 4))
+    for value in (THEME_LIGHT, THEME_DARK):
+        ttk.Radiobutton(box, text=THEME_LABELS[value], value=value, variable=app.theme_var,
+                        command=lambda: _v3074_apply_theme(app, app.theme_var.get(), save=True)
+                        ).pack(side="left", padx=(0, 6))
+    app.theme_switch_frame = box
+
+
+_v3074_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3074_build_ui(self):
+    _v3074_install(self)
+    _v3074_orig_build_ui(self)
+    _v3074_add_theme_switch(self)
+    theme = _v3074_load_theme()
+    if os.environ.get("LED_THEME") in (THEME_LIGHT, THEME_DARK):   # для автотеста сборки
+        theme = os.environ["LED_THEME"]
+    _v3074_state["theme"] = theme
+    if theme == THEME_DARK:
+        _v3074_apply_theme(self, THEME_DARK)
+    self.theme_var.set(theme)
+
+
+ScreenDesigner._build_ui = _v3074_build_ui
+ScreenDesigner.apply_theme = lambda self, theme: _v3074_apply_theme(self, theme, save=True)
 
 
 if __name__ == "__main__":
