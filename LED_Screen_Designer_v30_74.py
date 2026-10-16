@@ -3730,10 +3730,10 @@ class ScreenDesigner(BaseTk):
         # V30.74: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
-        self.components_tree.tag_configure("static_gray_1", background="#f2f2f2")
-        self.components_tree.tag_configure("static_gray_2", background="#e8e8e8")
-        self.components_tree.tag_configure("static_gray_3", background="#dedede")
-        self.components_tree.tag_configure("static_gray_4", background="#d4d4d4")
+        self.components_tree.tag_configure("static_gray_1", background="#ececec")
+        self.components_tree.tag_configure("static_gray_2", background="#e3e3e3")
+        self.components_tree.tag_configure("static_gray_3", background="#dadada")
+        self.components_tree.tag_configure("static_gray_4", background="#d1d1d1")
         self.components_tree.tag_configure("component_group", font=("Arial", 10, "bold"),
                                            background="#e8eef5", foreground="#1f2d3d")
 
