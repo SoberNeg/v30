@@ -22,13 +22,13 @@ jobs:
           pip install -r requirements.txt
 
       - name: Syntax check
-        run: python -m py_compile LED_Screen_Designer_v30_88_1.py
+        run: python -m py_compile LED_Screen_Designer_v30_89_1.py
 
       - name: Build
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean --onedir --windowed `
-            --name "LED_Screen_Designer_v30_88_1" `
+            --name "LED_Screen_Designer_v30_89_1" `
             --icon "app.ico" `
             --collect-all tkinterdnd2 `
             --collect-all fitz `
@@ -39,14 +39,14 @@ jobs:
             --hidden-import win32com.client `
             --hidden-import pythoncom `
             --hidden-import pywintypes `
-            "LED_Screen_Designer_v30_88_1.py"
+            "LED_Screen_Designer_v30_89_1.py"
 
       - name: Restore Tcl Tk runtime
         shell: pwsh
         run: |
           $tcl = python -c "import tkinter, pathlib; print(pathlib.Path(tkinter.Tcl().eval('info library')).parent)"
           $tk = python -c "import tkinter, pathlib; t=tkinter.Tk(); print(pathlib.Path(t.tk.eval('set tk_library'))); t.destroy()"
-          $internal = "dist\LED_Screen_Designer_v30_88_1\_internal"
+          $internal = "dist\LED_Screen_Designer_v30_89_1\_internal"
           New-Item -ItemType Directory -Force "$internal\_tcl_data" | Out-Null
           New-Item -ItemType Directory -Force "$internal\_tk_data" | Out-Null
           Copy-Item "$tcl\*" "$internal\_tcl_data" -Recurse -Force
@@ -57,7 +57,7 @@ jobs:
       - name: Smoke test (main window + startup chooser visible)
         shell: pwsh
         run: |
-          $p = Start-Process "dist\LED_Screen_Designer_v30_88_1\LED_Screen_Designer_v30_88_1.exe" -PassThru
+          $p = Start-Process "dist\LED_Screen_Designer_v30_89_1\LED_Screen_Designer_v30_89_1.exe" -PassThru
           Start-Sleep 45
           if ($p.HasExited) { throw "exe exited early, code=$($p.ExitCode)" }
           $titles = @(.\list_windows.ps1 -ProcessId $p.Id)
@@ -70,10 +70,10 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive `
-            -Path "dist\LED_Screen_Designer_v30_88_1\*" `
-            -DestinationPath "LED_Screen_Designer_v30_88_1_Windows.zip" -Force
+            -Path "dist\LED_Screen_Designer_v30_89_1\*" `
+            -DestinationPath "LED_Screen_Designer_v30_89_1_Windows.zip" -Force
 
       - uses: actions/upload-artifact@v4
         with:
-          name: LED_Screen_Designer_v30_88_1_Windows
-          path: LED_Screen_Designer_v30_88_1_Windows.zip
+          name: LED_Screen_Designer_v30_89_1_Windows
+          path: LED_Screen_Designer_v30_89_1_Windows.zip
