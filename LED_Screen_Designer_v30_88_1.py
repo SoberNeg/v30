@@ -1,4 +1,4 @@
-# V30.85.1 = V30.85 + перенесённые исправления сборки Windows:
+# V30.88.1 = V30.88 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.85.1"
+APP_TITLE = "Конструктор LED-экранов V30.88.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2487,13 +2487,13 @@ class ScreenDesigner(BaseTk):
             self.deiconify()
         except Exception:
             pass
-        # V30.85.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V30.88.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V30.85.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V30.88.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2531,7 +2531,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V30.85.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V30.88.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3752,7 +3752,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V30.85.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V30.88.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -8263,7 +8263,9 @@ class ScreenDesigner(BaseTk):
             for n,u,q in fixed:add(n,u,q*qprod)
             fans=max(1,math.ceil((w*h/1_000_000.0)/0.7))*qprod
             add("Вентилятор с решеткой","шт",fans); add("площадка под вентилятор мцд","шт",fans)
-            add("Площадки под блоки мцд","шт",psu); add("DIN-рейка","шт",qprod)
+            add("Площадки под блоки мцд","шт",psu)
+            # V30.87: DIN-рейка — отрезок 100 мм на изделие, в закупку идёт метрами.
+            add("DIN-рейка","м.п.",0.1*qprod)
             # V30.39: периметр уголка 40×20×2 по справочнику. Секция
             # «LED-экраны / МЦД / 2 стороны» требует удвоенного суммарного
             # периметра, «1 сторона» — одинарного; sides ∈ {1,2} даёт обе нормы.
@@ -8288,7 +8290,14 @@ class ScreenDesigner(BaseTk):
             case_row=self._mcd_case_component_row(w,h,175)
             if case_row:
                 n,u,cq=case_row; add(n,u,cq*qprod)
-            for n,u,q in [("Кабель ВВГ-Пнг(А)-LS 3×1,5 мм²","м",1.5),("Кабель ШВВП 2×0,75 мм²","м",0.5),("Кабель ПВС 3×1,5 мм²","м",1.5),("Наконечник 0,75 мм²","шт",4),("Наконечник 1,5 мм²","шт",12),("клеммная колодка 3 винтовая","шт",1),("UTP заводские 1м indoor","шт",2),("UTP заводские 1.5м indoor","шт",2),("UTP заводские 2.0м indoor","шт",1),("UTP заводские 3.0м indoor","шт",1),("провод DVI-HDMI","шт",1),("переходник HDMI - Микро HDMI","шт",1),("Заклепка 4.8*12","шт",36),("Заклепка резьбовая М6","шт",26),("винт М6х25 потай","шт",26),("винт M5х80","шт",10),("гайка М5 нейлон","шт",22),("винт м5х12","шт",12),("Заклепка резьбовая М3","шт",20),("Саморез ПШ со сверлом 4,2х13","шт",3),("Гайка М4 с нейлоном","шт",8),("Винт полусфера М4×30","шт",8),("Винт полусфера М4*20","шт",6),("шайба М4 увелич поле","шт",6),("заклепка резьбовая М5","шт",25),("Болт внутр шестигранник 5х20","шт",25),("шайба уплот кровельная 4,8х14","шт",25),("заглушка декоротивная 16","шт",25),("силикон герметик","гр",30),("втулка винипласт","шт",3),("Пенопласт листовой","Не задано",1),("Картон листовой","Не задано",1)]: add(n,u,q*qprod)
+            for n,u,q in [("Кабель ВВГ-Пнг(А)-LS 3×1,5 мм²","м",1.5),("Кабель ШВВП 2×0,75 мм²","м",0.5),("Кабель ПВС 3×1,5 мм²","м",1.5),("Наконечник 0,75 мм²","шт",4),("Наконечник 1,5 мм²","шт",12),("клеммная колодка 3 винтовая","шт",1),("UTP заводские 1м indoor","шт",2),("UTP заводские 1.5м indoor","шт",2),("UTP заводские 2.0м indoor","шт",1),("UTP заводские 3.0м indoor","шт",1),("провод DVI-HDMI","шт",1),("переходник HDMI - Микро HDMI","шт",1),("Заклепка 4.8*12","шт",36),("Заклепка резьбовая М6","шт",26),("винт М6х25 потай","шт",26),("винт м5х12","шт",12),("Заклепка резьбовая М3","шт",20),("Саморез ПШ со сверлом 4,2х13","шт",3),("Гайка М4 с нейлоном","шт",8),("Винт полусфера М4×30","шт",8),("Винт полусфера М4*20","шт",6),("шайба М4 увелич поле","шт",6),("заклепка резьбовая М5","шт",25),("Болт внутр шестигранник 5х20","шт",25),("шайба уплот кровельная 4,8х14","шт",25),("заглушка декоротивная 16","шт",25),("силикон герметик","гр",30),("втулка винипласт","шт",3),("Пенопласт листовой","Не задано",1),("Картон листовой","Не задано",1)]: add(n,u,q*qprod)
+            # V30.87: винт М5×80 не применяется на изделиях с профилем Гефест,
+            # поэтому и гайка М5 считается только по фактическим винтам.
+            uses_gefest = h > 800
+            screws_m5_80 = 0 if uses_gefest else 10
+            add("винт M5х80","шт",screws_m5_80*qprod)
+            add("гайка М5 нейлон","шт",(screws_m5_80+12)*qprod)
+
             # Любые площадки: MRV + вентилятор + MSD + mini-PC + PVC + БП.
             platform_count=(1+fans/qprod+1+1+1+psu/qprod)*qprod
             add("Заклепка резьбовая М4","шт",platform_count*2)
@@ -8449,6 +8458,10 @@ class ScreenDesigner(BaseTk):
                     self._cut_add_entry(out,"angle40",([aw,aw,ah,ah]*msides)*qprod,
                         f"{self._format_component_qty(aw)} × {self._format_component_qty(ah)} мм × ({qprod} изд.)",
                         qprod,title)
+                # V30.87: DIN-рейка — отрезок 100 мм на изделие, закупается в метрах.
+                if self._cut_bom_has(bom,"din"):
+                    self._cut_add_entry(out,"din",[100]*qprod,
+                        f"100 мм × {qprod} шт. ({qprod} изд.)",qprod,title)
                 # Гефест: BOM уже определяет условие и количество; длина каждого = H.
                 if self._cut_bom_has(bom,"gefest"):
                     gefest_row=next((r for r in bom if self._cut_material_key(r[0])=="gefest"),None)
@@ -9779,7 +9792,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V30.85.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V30.88.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9792,7 +9805,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V30.85.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V30.88.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13814,7 +13827,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V30.85.1: строка остаётся «статической» (серая заливка), только если
+                # V30.88.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -23843,8 +23856,9 @@ V3077_MATERIAL_LABELS = {
     "gefest": "Профиль Гефест",
     "rod10": "Шпилька М10",
     "rod8": "Шпилька М8",
+    "din": "DIN-рейка",
 }
-V3077_SKIP_KEYS = ("din",)
+V3077_SKIP_KEYS = ()   # V30.87: DIN-рейка выводится как отрезки 100 мм
 # Материалы, которые режутся контуром по габариту изделия.
 V3077_CONTOUR_KEYS = ("angle30", "angle40", "u60", "tube40")
 
@@ -25099,7 +25113,7 @@ def _v3085_supplier_rows(self, supplier_name):
 ScreenDesigner._v3063_supplier_rows = _v3085_supplier_rows
 
 
-def _v3085_build_supplier_pages(self, rows, supplier_name):
+def _v3085_build_supplier_pages(self, rows, supplier_name, page_offset=0):
     from PIL import Image, ImageDraw
     W, H = 2480, 3508
     margin = 120; header_h = 290; row_h = 76
@@ -25126,7 +25140,7 @@ def _v3085_build_supplier_pages(self, rows, supplier_name):
         small = self._font_for_print(25, False)
         d.text((margin, 145), f"Проект: {project}", font=small, fill="black")
         d.text((margin, 185), f"Поставщик: {supplier_name}", font=self._font_for_print(27, True), fill="black")
-        d.text((margin, 225), f"Страница {page_no}", font=small, fill="black")
+        d.text((margin, 225), f"Страница {page_no + page_offset}", font=small, fill="black")
         y = header_h
         for i in range(len(labels)):
             d.rectangle((cols[i], y, cols[i + 1], y + row_h), outline="black", width=2)
@@ -25228,8 +25242,425 @@ for _name, _fn in list({
     setattr(ScreenDesigner, _name, _fn)
 
 
+
 # =====================================================================
-# V30.85.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V30.86 — справочник динамики МЦД: вместо «Фиксированная норма на одно
+# изделие МЦД.» в каждой строке записан фактический алгоритм расхода,
+# как его считает программа: норма, на что она умножается и от чего
+# не зависит. Заодно исправлены три единицы измерения.
+# Сам расчёт не меняется — меняются только тексты справочника.
+# =====================================================================
+
+V3086_SECTIONS = ("LED-экраны / МЦД / 1 сторона", "LED-экраны / МЦД / 2 стороны")
+V3086_TAIL = " Не зависит от габаритов и числа сторон; умножается на количество изделий."
+
+
+def _v3086_fixed(amount, unit="шт."):
+    return f"Постоянная норма: {amount} {unit} на изделие." + V3086_TAIL
+
+
+V3086_MODULE_RULE = (
+    "По раскладке изделия: количество модулей на одну сторону × число сторон × количество изделий. "
+    "В расчёт попадает только выбранный в изделии тип модуля."
+)
+
+V3086_RULES = {
+    # Электроника
+    "Резиновое  уплотнение модуля": "1 шт. на каждый LED-модуль: равно общему количеству модулей изделия.",
+    "Магнит крепления LED-модуля": (
+        "4 шт. на каждый LED-модуль. Исключение: для изделий 1780×580 и 1380×740 мм магниты не применяются."
+    ),
+    "Блок питания 200Вт 4,5В 40А": (
+        "1 блок на 4 LED-модуля с округлением вверх: ceil(всего модулей / 4). "
+        "Модули считаются по обеим сторонам изделия."
+    ),
+    "Площадки под блоки мцд": "1 площадка на каждый блок питания: равно рассчитанному количеству блоков.",
+    "Вентилятор с решеткой": (
+        "1 вентилятор на 0,7 м² лицевой площади, с округлением вверх, но не менее одного на изделие: "
+        "max(1; ceil(W × H / 1 000 000 / 0,7)). Площадь берётся по одной стороне."
+    ),
+    "площадка под вентилятор мцд": "1 площадка на каждый вентилятор: равно рассчитанному количеству вентиляторов.",
+    "Термодатчик на кулер": _v3086_fixed(1),
+    "карта MSD": _v3086_fixed(1),
+    "площадка под MSD МЦД": "1 площадка на каждую карту MSD: 1 шт. на изделие.",
+    "мини-пк Rassberry pi": _v3086_fixed(1),
+    "площадка под мини-пк МЦД": "1 площадка на каждый мини-ПК: 1 шт. на изделие.",
+    "площадка ПВХ мини-пк": "1 площадка на каждый мини-ПК: 1 шт. на изделие.",
+    "провод питания мини-пк ПугВ-0,3 синий/черн": _v3086_fixed("0,5", "м.п."),
+    "провод питания мини-пк ПугВ-0,3 красный": _v3086_fixed("0,5", "м.п."),
+    "наконечник питания мини-ПК BLS1": _v3086_fixed(4),
+    # Металлические комплектующие
+    "пластина соединительная СТ3": _v3086_fixed(4),
+    "DIN-рейка": (
+        "1 отрезок 100 мм на изделие (равно количеству термодатчиков). "
+        "В закупке переводится в метры: количество отрезков × 0,1 м.п., хлыст 2000 мм."
+    ),
+    "Уголок алюминиевый 30×20×2 мм": (
+        "По 2 отрезка 50 мм на каждый профиль Гефест: 0,1 м.п. × количество профилей Гефест. "
+        "Если Гефест не применяется (высота изделия ≤ 800 мм), позиция не рассчитывается."
+    ),
+    "Уголок алюминиевый 40×20×2 мм": (
+        "Контур по сторонам, уменьшенным на 180 мм, на каждую сторону изделия: "
+        "2 × ((W − 180) + (H − 180)) / 1000 × число сторон, м.п."
+    ),
+    "Профиль Гефест": (
+        "Применяется при высоте изделия свыше 800 мм. Длина профиля = высота изделия. "
+        "Количество = (модулей по горизонтали + 1) × число сторон, где модулей по горизонтали = "
+        "округление(W / ширину модуля)."
+    ),
+    # Электрика
+    "Кабель ВВГ-Пнг(А)-LS 3×1,5 мм²": _v3086_fixed("1,5", "м.п."),
+    "Кабель ШВВП 2×0,75 мм²": _v3086_fixed("0,5", "м.п."),
+    "Кабель ПВС 3×1,5 мм²": _v3086_fixed("1,5", "м.п."),
+    "Наконечник 0,75 мм²": _v3086_fixed(4),
+    "Наконечник 1,5 мм²": _v3086_fixed(12),
+    "клеммная колодка 3 винтовая": _v3086_fixed(1),
+    "UTP заводские 1м indoor": _v3086_fixed(2),
+    "UTP заводские 1.5м indoor": _v3086_fixed(2),
+    "UTP заводские 2.0м indoor": _v3086_fixed(1),
+    "UTP заводские 3.0м indoor": _v3086_fixed(1),
+    "провод DVI-HDMI": _v3086_fixed(1),
+    "переходник HDMI - Микро HDMI": _v3086_fixed(1),
+    # Крепёж и метизы
+    "Заклепка 4.8*12": _v3086_fixed(36),
+    "Заклепка резьбовая М6": (
+        _v3086_fixed(26) + " При профиле Гефест позиция не нужна, но расчёт её сейчас не исключает."
+    ),
+    "винт М6х25 потай": (
+        "26 шт. на изделие — равно количеству заклёпок М6." + V3086_TAIL
+        + " При профиле Гефест позиция не нужна, но расчёт её сейчас не исключает."
+    ),
+    "винт M5х80": (
+        "10 шт. на изделие. Не применяется на изделиях с профилем Гефест (высота свыше 800 мм) — "
+        "там позиция не рассчитывается."
+    ),
+    "гайка М5 нейлон": (
+        "Равна сумме винтов М5×80 и М5×12: 22 шт. на изделие, а на изделиях с профилем Гефест — "
+        "12 шт., так как винт М5×80 там не применяется."
+    ),
+    "винт м5х12": _v3086_fixed(12),
+    "Заклепка резьбовая М3": _v3086_fixed(20),
+    "Заклепка резьбовая М4": (
+        "2 шт. на каждую площадку изделия: 2 × (1 площадка МРВ + вентиляторы + MSD + мини-ПК + ПВХ + блоки питания). "
+        "Внимание: площадки под МРВ считаются здесь как одна, хотя самих площадок столько же, сколько приёмных карт."
+    ),
+    "Винт М3×6": "20 шт. на изделие плюс 2 шт. на каждый блок питания.",
+    "Саморез ПШ со сверлом 4,2х13": _v3086_fixed(3),
+    "Гайка М4 с нейлоном": _v3086_fixed(8),
+    "Винт полусфера М4×30": _v3086_fixed(8),
+    "Винт полусфера М4*20": _v3086_fixed(6),
+    "шайба М4 увелич поле": _v3086_fixed(6),
+    "заклепка резьбовая М5": _v3086_fixed(25),
+    "Болт внутр шестигранник 5х20": _v3086_fixed(25),
+    "шайба уплот кровельная 4,8х14": _v3086_fixed(25),
+    "заглушка декоротивная 16": _v3086_fixed(25),
+    # Герметики, клеи и прочее
+    "силикон герметик": _v3086_fixed(30, "гр."),
+    "втулка винипласт": _v3086_fixed(3),
+    "Праймер": "2,5 г на каждый 1 м.п. двухстороннего скотча 3М: 2,5 × длину скотча.",
+    "Скотч двухсторонний 3M": "Равен расчётной длине уголка 40×20×2 мм, м.п.",
+    "Уплотнитель 12х10мм": "Двойной периметр изделия: 2 × 2 × (W + H) / 1000, м.п.",
+    "Пенопласт листовой": _v3086_fixed(1),
+    "Картон листовой": _v3086_fixed(1),
+}
+
+# Единицы, которые в справочнике были записаны неверно.
+V3086_UNITS = {
+    "DIN-рейка": "м.п.",
+    "Уплотнитель 12х10мм": "м.п.",
+    "Праймер": "гр.",
+}
+
+
+V3087_SIDE_DEPENDENT = ("заклепка резьбовая М5", "Болт внутр шестигранник 5х20",
+                        "шайба уплот кровельная 4,8х14", "заглушка декоротивная 16")
+V3087_SIDE_NOTE = (
+    "Расчёт даёт 25 шт. на изделие независимо от числа сторон. "
+    "В колонке «Кол-во» для односторонних изделий указано 15 шт. — расхождение пока не устранено."
+)
+
+
+def _v3086_reference_rule(data):
+    """Записывает алгоритмы расхода в обе секции динамики МЦД."""
+    for section in V3086_SECTIONS:
+        rows = (data or {}).get(section)
+        if not rows:
+            continue
+        for row in rows:
+            if not row:
+                continue
+            name = str(row[0]).strip()
+            while len(row) < 5:
+                row.append("")
+            if name.startswith("LED-модуль"):
+                row[1] = V3086_MODULE_RULE
+                continue
+            rule = V3086_RULES.get(name)
+            if rule:
+                row[1] = rule
+            unit = V3086_UNITS.get(name)
+            if unit:
+                row[3] = unit
+            # V30.87: у односторонних изделий норма в справочнике 15 шт., а расчёт даёт 25.
+            if name in V3087_SIDE_DEPENDENT and section.endswith("1 сторона"):
+                row[1] = V3087_SIDE_NOTE
+    return data
+
+
+_v3086_orig_reference_defaults = ScreenDesigner._reference_defaults
+ScreenDesigner._reference_defaults = lambda self: _v3086_reference_rule(_v3086_orig_reference_defaults(self))
+_v3086_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_load = lambda self: _v3086_reference_rule(_v3086_orig_reference_load(self))
+
+
+# =====================================================================
+# V30.88 — список по поставщику: сводный лист целиком на одной странице.
+#   • Сводка печатается в несколько колонок на листе, кегль подбирается
+#     автоматически, но не мельче V3088_MIN_FONT_PX (≈5,3 pt).
+#   • Жёлтые итоги (погонаж, блоки питания, светодиоды) перенесены
+#     вниз листа, под сводку.
+#   • Подробный список по артикулам идёт дальше, со страницы 2,
+#     прежним видом.
+# =====================================================================
+
+V3088_MIN_FONT_PX = 22          # нижняя граница кегля сводного листа
+V3088_MIN_CELL_FONT_PX = 20     # отдельная ячейка не мельче (≈5 pt при 300 dpi)
+V3088_MAX_FONT_PX = 24
+V3088_MIN_ROW_PX = 58
+V3088_MAX_ROW_PX = 76
+V3088_MAX_COLUMNS = 3
+V3088_FILL_TOTAL = (255, 242, 204)
+V3088_FILL_GROUP = (235, 239, 244)
+
+
+def _v3088_split_rows(rows):
+    """Делит строки на жёлтые итоги, сводку и подробную часть."""
+    totals, summary, detail, seen_break = [], [], [], False
+    for row in rows or []:
+        kind = row.get("kind", "item")
+        if kind == "pagebreak":
+            seen_break = True
+            continue
+        if seen_break:
+            detail.append(row)
+        elif kind == "total":
+            totals.append(row)
+        else:
+            summary.append(row)
+    return totals, summary, detail
+
+
+def _v3088_blocks(summary):
+    """Сводка как плоский список ячеек: заголовки разделов и позиции."""
+    blocks, last_group = [], None
+    for row in summary:
+        group = str(row.get("group", "") or "")
+        if group != last_group:
+            blocks.append({"type": "group", "text": group})
+            last_group = group
+        blocks.append({"type": "row", "row": row})
+    return blocks
+
+
+def _v3088_build_summary_pages(self, totals, summary, supplier_name, page_no=1):
+    """Сводный лист: позиции в несколько колонок, итоги внизу."""
+    from PIL import Image, ImageDraw
+    W, H = 2480, 3508
+    margin = 120
+    header_h = 290
+    project = str(self.project_name_var.get().strip() or self.project_name)
+    blocks = _v3088_blocks(summary)
+
+    def fit(d, text, maxw, size, bold=False):
+        """Кегль ячейки уменьшается не ниже V3088_MIN_CELL_FONT_PX."""
+        f = self._font_for_print(size, bold); t = str(text or "")
+        while size > V3088_MIN_CELL_FONT_PX and f.getbbox(t)[2] > maxw:
+            size -= 1; f = self._font_for_print(size, bold)
+        return f
+
+    def shorten(d, text, maxw, font):
+        """Если и на минимальном кегле не влезает — убираем середину названия,
+        чтобы сохранить размер или артикул в конце строки."""
+        t = str(text or "")
+        if d.textbbox((0, 0), t, font=font)[2] <= maxw:
+            return t
+        head, tail = t, ""
+        # Хвост — последнее «слово» с размером: «… 1010×200,5 мм».
+        parts = t.rsplit(" ", 3)
+        if len(parts) == 4 and any(ch.isdigit() for ch in parts[-2]):
+            tail = " " + " ".join(parts[-2:])
+            head = " ".join(parts[:-2])
+        while head and d.textbbox((0, 0), head + "…" + tail, font=font)[2] > maxw:
+            head = head[:-1]
+        if head:
+            return head + "…" + tail
+        t = str(text or "")
+        while t and d.textbbox((0, 0), t + "…", font=font)[2] > maxw:
+            t = t[:-1]
+        return (t + "…") if t else ""
+
+    def qty_text(row):
+        if row.get("qty") is None:
+            return ""
+        return self._format_component_qty(round(float(row["qty"]), 3))
+
+    # Высота нижнего блока итогов: заголовки разделов + строки.
+    total_blocks = _v3088_blocks(totals) if totals else []
+
+    def layout(columns, row_px):
+        """Помещается ли сводка при таком числе колонок и высоте строки."""
+        totals_h = len(total_blocks) * row_px + (row_px if total_blocks else 0)
+        body_top = header_h + row_px            # + строка шапки таблицы
+        body_bottom = H - margin - totals_h - (40 if total_blocks else 0)
+        per_col = int((body_bottom - body_top) // row_px)
+        return per_col, per_col * columns >= len(blocks)
+
+    chosen = None
+    for columns in range(1, V3088_MAX_COLUMNS + 1):
+        for row_px in range(V3088_MAX_ROW_PX, V3088_MIN_ROW_PX - 1, -2):
+            per_col, ok = layout(columns, row_px)
+            if ok and per_col > 0:
+                chosen = (columns, row_px, per_col)
+                break
+        if chosen:
+            break
+    if not chosen:
+        per_col, _ = layout(V3088_MAX_COLUMNS, V3088_MIN_ROW_PX)
+        chosen = (V3088_MAX_COLUMNS, V3088_MIN_ROW_PX, max(1, per_col))
+    columns, row_px, per_col = chosen
+    font_px = max(V3088_MIN_FONT_PX, min(V3088_MAX_FONT_PX, int(round(row_px * 24 / 76.0))))
+
+    # Заголовок раздела не должен оставаться последней строкой колонки.
+    padded, cursor = [], 0
+    for block in blocks:
+        if block["type"] == "group" and per_col > 1 and (cursor % per_col) == per_col - 1:
+            padded.append({"type": "blank"})
+            cursor += 1
+        padded.append(block)
+        cursor += 1
+    if len(padded) <= per_col * columns or len(padded) <= len(blocks):
+        blocks = padded
+
+    pages = []
+    chunk_size = per_col * columns
+    chunks = [blocks[i:i + chunk_size] for i in range(0, len(blocks), chunk_size)] or [[]]
+    for index, chunk in enumerate(chunks):
+        im = Image.new("RGB", (W, H), "white"); d = ImageDraw.Draw(im)
+        d.text((margin, 80), "КОМПЛЕКТУЮЩИЕ ПО ПОСТАВЩИКУ", font=self._font_for_print(44, True), fill="black")
+        small = self._font_for_print(25, False)
+        d.text((margin, 145), f"Проект: {project}", font=small, fill="black")
+        d.text((margin, 185), f"Поставщик: {supplier_name}", font=self._font_for_print(27, True), fill="black")
+        d.text((margin, 225), f"Страница {page_no + index}", font=small, fill="black")
+        d.text((margin + 900, 225), "Сводно по комплектующим", font=self._font_for_print(25, True), fill="black")
+        im._selectable_text_layer = []
+
+        avail = W - 2 * margin
+        gap = 30
+        col_w = (avail - gap * (columns - 1)) / float(columns)
+        # Доли колонки: №, комплектующая, ед., кол-во, заказ.
+        shares = (0.07, 0.56, 0.08, 0.14, 0.15)
+        heads = ("№", "Комплектующая", "Ед.", "Кол-во", "Заказ")
+        head_font = self._font_for_print(max(16, font_px - 2), True)
+        y0 = header_h
+        for c in range(columns):
+            x = margin + c * (col_w + gap)
+            edges = [x]
+            for share in shares:
+                edges.append(edges[-1] + col_w * share)
+            edges[-1] = x + col_w
+            for i, label in enumerate(heads):
+                d.rectangle((edges[i], y0, edges[i + 1], y0 + row_px), outline="black", width=2)
+                d.text((edges[i] + 6, y0 + row_px * 0.22), label, font=head_font, fill="black")
+
+        number = 1 + sum(1 for b in blocks[:index * chunk_size] if b["type"] == "row")
+        for position, block in enumerate(chunk):
+            c, line = divmod(position, per_col)
+            x = margin + c * (col_w + gap)
+            y = y0 + row_px + line * row_px
+            edges = [x]
+            for share in shares:
+                edges.append(edges[-1] + col_w * share)
+            edges[-1] = x + col_w
+            if block["type"] == "blank":
+                continue
+            if block["type"] == "group":
+                d.rectangle((x, y, x + col_w, y + row_px), fill=V3088_FILL_GROUP, outline="black", width=2)
+                f = fit(d, block["text"], col_w - 16, font_px, True)
+                text = shorten(d, block["text"], col_w - 16, f)
+                d.text((x + 8, y + row_px * 0.22), text, font=f, fill="black")
+                im._selectable_text_layer.append({"text": block["text"],
+                                                  "bbox": (x + 8, y + 4, x + col_w - 8, y + row_px - 4),
+                                                  "font_size": font_px})
+                continue
+            row = block["row"]
+            values = (str(number), str(row.get("name", "")), str(row.get("unit", "")), qty_text(row), "")
+            number += 1
+            for i, value in enumerate(values):
+                d.rectangle((edges[i], y, edges[i + 1], y + row_px), outline="black", width=2)
+                f = fit(d, value, edges[i + 1] - edges[i] - 12, font_px, False)
+                value = shorten(d, value, edges[i + 1] - edges[i] - 12, f)
+                box = d.textbbox((0, 0), value, font=f); tw = box[2] - box[0]
+                tx = edges[i] + 6 if i == 1 else (edges[i] + edges[i + 1] - tw) / 2
+                d.text((tx, y + row_px * 0.22), value, font=f, fill="black")
+                im._selectable_text_layer.append({"text": value,
+                                                  "bbox": (edges[i] + 4, y + 4, edges[i + 1] - 4, y + row_px - 4),
+                                                  "font_size": font_px})
+
+        # Жёлтые итоги — внизу последнего сводного листа.
+        if total_blocks and index == len(chunks) - 1:
+            t_widths = (0.62, 0.08, 0.14, 0.16)
+            t_edges = [margin]
+            for share in t_widths:
+                t_edges.append(t_edges[-1] + avail * share)
+            t_edges[-1] = W - margin
+            ty = H - margin - len(total_blocks) * row_px
+            d.text((margin, ty - 38), "ИТОГИ", font=self._font_for_print(max(18, font_px), True), fill="black")
+            for block in total_blocks:
+                if block["type"] == "group":
+                    d.rectangle((margin, ty, W - margin, ty + row_px), fill=V3088_FILL_GROUP, outline="black", width=2)
+                    f = fit(d, block["text"], avail - 16, font_px, True)
+                    d.text((margin + 8, ty + row_px * 0.22), block["text"], font=f, fill="black")
+                    im._selectable_text_layer.append({"text": block["text"],
+                                                      "bbox": (margin + 8, ty + 4, W - margin - 8, ty + row_px - 4),
+                                                      "font_size": font_px})
+                    ty += row_px
+                    continue
+                row = block["row"]
+                values = (str(row.get("name", "")), str(row.get("unit", "")), qty_text(row), "")
+                for i, value in enumerate(values):
+                    d.rectangle((t_edges[i], ty, t_edges[i + 1], ty + row_px),
+                                fill=V3088_FILL_TOTAL, outline="black", width=2)
+                    f = fit(d, value, t_edges[i + 1] - t_edges[i] - 12, font_px, True)
+                    value = shorten(d, value, t_edges[i + 1] - t_edges[i] - 12, f)
+                    box = d.textbbox((0, 0), value, font=f); tw = box[2] - box[0]
+                    tx = t_edges[i] + 6 if i == 0 else (t_edges[i] + t_edges[i + 1] - tw) / 2
+                    d.text((tx, ty + row_px * 0.22), value, font=f, fill="black")
+                    im._selectable_text_layer.append({"text": value,
+                                                      "bbox": (t_edges[i] + 4, ty + 4, t_edges[i + 1] - 4, ty + row_px - 4),
+                                                      "font_size": font_px})
+                ty += row_px
+        pages.append(im)
+    return pages
+
+
+_v3088_orig_build_pages = ScreenDesigner._v3063_build_supplier_pages
+
+
+def _v3088_build_supplier_pages(self, rows, supplier_name):
+    totals, summary, detail = _v3088_split_rows(rows)
+    if not summary and not totals:
+        return _v3088_orig_build_pages(self, rows, supplier_name)
+    pages = _v3088_build_summary_pages(self, totals, summary, supplier_name, page_no=1)
+    if detail:
+        pages += _v3088_orig_build_pages(self, detail, supplier_name, page_offset=len(pages))
+    return pages
+
+
+ScreenDesigner._v3063_build_supplier_pages = _v3088_build_supplier_pages
+ScreenDesigner._v3088_build_summary_pages = _v3088_build_summary_pages
+
+# =====================================================================
+# V30.88.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #

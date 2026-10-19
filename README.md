@@ -1,10 +1,12 @@
-# LED Screen Designer V30.85.1
+# LED Screen Designer V30.88.1
 
-Файл: `LED_Screen_Designer_v30_85_1.py`
+Файл: `LED_Screen_Designer_v30_88_1.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v30_85_1_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v30_88_1_Windows.zip` в разделе Artifacts.
+
+V30.88.1 = V30.88 (автор) + те же перенесённые исправления.
 
 V30.85.1 = V30.85 (автор) + перенесённые исправления: стартовое окно РЖД/МЦД
 после mainloop, тема «Светлая / Тёмная», заливка статических строк в «Комплектующих».
