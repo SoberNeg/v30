@@ -5,7 +5,7 @@ on:
     inputs:
       src:
         description: "Python file to test (path in repo or git ref:path)"
-        default: "LED_Screen_Designer_v30_74.py"
+        default: "LED_Screen_Designer_v30_85_1.py"
 
 jobs:
   diagnose:

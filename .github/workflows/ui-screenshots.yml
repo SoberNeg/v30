@@ -5,7 +5,7 @@ on:
     inputs:
       src:
         description: "Python file to test"
-        default: "LED_Screen_Designer_v30_74.py"
+        default: "LED_Screen_Designer_v30_85_1.py"
 
 permissions:
   contents: write
