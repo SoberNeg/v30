@@ -1,4 +1,4 @@
-# V30.89.1 = V30.89 + перенесённые исправления сборки Windows:
+# V30.92.1 = V30.92 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.89.1"
+APP_TITLE = "Конструктор LED-экранов V30.92.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2487,13 +2487,13 @@ class ScreenDesigner(BaseTk):
             self.deiconify()
         except Exception:
             pass
-        # V30.89.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V30.92.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V30.89.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V30.92.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2531,7 +2531,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V30.89.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V30.92.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3712,7 +3712,8 @@ class ScreenDesigner(BaseTk):
 
         comp_columns = (
             "name", "unit", "c960960", "c960640",
-            "c640960", "c640640", "total", "weight", "supplier"
+            "c640960", "c640640", "total", "weight", "supplier",
+            "status", "upd"          # V30.90: статус заказа и УПД
         )
         self.components_tree = ttk.Treeview(
             table_box,
@@ -3732,6 +3733,8 @@ class ScreenDesigner(BaseTk):
             "total": "Итого",
             "weight": "Расчётный вес, кг",
             "supplier": "Поставщик",
+            "status": "Статус",
+            "upd": "УПД",
         }
         for key, heading in headings.items():
             self.components_tree.heading(key, text=heading)
@@ -3743,6 +3746,8 @@ class ScreenDesigner(BaseTk):
                 key, width=82, anchor="center", stretch=False
             )
         self.components_tree.column("supplier", width=190, anchor="w", stretch=True)
+        self.components_tree.column("status", width=150, anchor="w", stretch=False)
+        self.components_tree.column("upd", width=110, anchor="center", stretch=False)
 
         comp_ybar = ttk.Scrollbar(
             table_box,
@@ -3752,7 +3757,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V30.89.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V30.92.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -8293,10 +8298,13 @@ class ScreenDesigner(BaseTk):
             for n,u,q in [("Кабель ВВГ-Пнг(А)-LS 3×1,5 мм²","м",1.5),("Кабель ШВВП 2×0,75 мм²","м",0.5),("Кабель ПВС 3×1,5 мм²","м",1.5),("Наконечник 0,75 мм²","шт",4),("Наконечник 1,5 мм²","шт",12),("Клеммная колодка 3 винтовая","шт",1),("UTP заводские 1м indoor","шт",2),("UTP заводские 1.5м indoor","шт",2),("UTP заводские 2.0м indoor","шт",1),("UTP заводские 3.0м indoor","шт",1),("Провод DVI-HDMI","шт",1),("Переходник HDMI — Микро HDMI","шт",1),("Заклёпка 4.8*12","шт",36),("Заклёпка резьбовая М6","шт",26),("Винт М6х25 потай","шт",26),("Винт М5х12","шт",12),("Заклёпка резьбовая М3","шт",20),("Саморез ПШ со сверлом 4,2х13","шт",3),("Гайка М4 с нейлоном","шт",8),("Винт полусфера М4×30","шт",8),("Винт полусфера М4*20","шт",6),("Шайба М4 увеличенное поле","шт",6),("Заклёпка резьбовая М5","шт",25),("Болт внутр шестигранник 5х20","шт",25),("Шайба уплотнительная кровельная 4,8х14","шт",25),("Заглушка декоративная 16","шт",25),("Силикон герметик","гр",30),("Втулка винипласт","шт",3),("Пенопласт листовой","Не задано",1),("Картон листовой","Не задано",1)]: add(n,u,q*qprod)
             # V30.87: винт М5×80 не применяется на изделиях с профилем Гефест,
             # поэтому и гайка М5 считается только по фактическим винтам.
+            # V30.90: винт М5×80 — только на экранах МЦД без профиля Гефест:
+            # 7 шт. на одностороннее изделие и 10 шт. на двустороннее.
+            # Гайка М5 ставится по одной на каждый такой винт и больше нигде.
             uses_gefest = h > 800
-            screws_m5_80 = 0 if uses_gefest else 10
+            screws_m5_80 = 0 if uses_gefest else (10 if sides >= 2 else 7)
             add("Винт М5х80","шт",screws_m5_80*qprod)
-            add("Гайка М5 нейлон","шт",(screws_m5_80+12)*qprod)
+            add("Гайка М5 нейлон","шт",screws_m5_80*qprod)
 
             # Любые площадки: MRV + вентилятор + MSD + mini-PC + PVC + БП.
             platform_count=(1+fans/qprod+1+1+1+psu/qprod)*qprod
@@ -9792,7 +9800,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V30.89.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V30.92.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9805,7 +9813,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V30.89.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V30.92.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13827,7 +13835,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V30.89.1: строка остаётся «статической» (серая заливка), только если
+                # V30.92.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -25331,12 +25339,13 @@ V3086_RULES = {
         + " При профиле Гефест позиция не нужна, но расчёт её сейчас не исключает."
     ),
     "Винт М5х80": (
-        "10 шт. на изделие. Не применяется на изделиях с профилем Гефест (высота свыше 800 мм) — "
-        "там позиция не рассчитывается."
+        "Применяется только на экранах МЦД без профиля Гефест (высота изделия до 800 мм включительно): "
+        "7 шт. на одностороннее изделие, 10 шт. на двустороннее. От габаритов не зависит, "
+        "умножается на количество изделий."
     ),
     "Гайка М5 нейлон": (
-        "Равна сумме винтов М5×80 и М5×12: 22 шт. на изделие, а на изделиях с профилем Гефест — "
-        "12 шт., так как винт М5×80 там не применяется."
+        "Ставится по одной на каждый винт М5×80 и больше нигде не применяется: 7 шт. на одностороннее "
+        "изделие, 10 шт. на двустороннее. На экранах с профилем Гефест не рассчитывается."
     ),
     "Винт М5х12": _v3086_fixed(12),
     "Заклёпка резьбовая М3": _v3086_fixed(20),
@@ -25365,6 +25374,9 @@ V3086_RULES = {
 }
 
 # Единицы, которые в справочнике были записаны неверно.
+# Колонка «Кол-во» для позиций, зависящих от числа сторон.
+V3086_QTY = {"Винт М5х80": "По расчёту", "Гайка М5 нейлон": "По расчёту"}
+
 V3086_UNITS = {
     "DIN-рейка": "м.п.",
     "Уплотнитель 12х10мм": "м.п.",
@@ -25401,6 +25413,9 @@ def _v3086_reference_rule(data):
             unit = V3086_UNITS.get(name)
             if unit:
                 row[3] = unit
+            qty = V3086_QTY.get(name)
+            if qty:
+                row[2] = qty
             # V30.87: у односторонних изделий норма в справочнике 15 шт., а расчёт даёт 25.
             if name in V3087_SIDE_DEPENDENT and section.endswith("1 сторона"):
                 row[1] = V3087_SIDE_NOTE
@@ -25743,8 +25758,636 @@ def _v3089_reference_load(self):
 ScreenDesigner._reference_load = _v3089_reference_load
 
 
+
 # =====================================================================
-# V30.89.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V30.90 — вкладка «Комплектующие»: статус заказа, УПД и сортировка.
+#   • Колонки «Статус» и «УПД» с заливкой ячейки цветом значения.
+#   • Назначение по правому щелчку для всех выделенных строк.
+#   • Значения хранятся в проекте по ключу комплектующей и попадают
+#     в журнал изменений проекта.
+#   • Сортировка по щелчку на заголовке — внутри подразделов,
+#     без переноса строк между ними. Печать всегда в исходном порядке.
+# =====================================================================
+
+V3090_STATUS_ORDER = ("Заказ отправлен", "Счёт получен", "Счёт оплачен", "Товар получен")
+V3090_UPD_ORDER = ("Запрошен", "Получен")
+V3090_STATUS_COLORS = {
+    "Заказ отправлен": "#F9CFC3",
+    "Счёт получен": "#FCE6C6",
+    "Счёт оплачен": "#EFEFC2",
+    "Товар получен": "#CBE8D4",
+}
+V3090_UPD_COLORS = {"Запрошен": "#FCF3C4", "Получен": "#CBE8D4"}
+V3090_NUMERIC_COLUMNS = ("c960960", "c960640", "c640960", "c640640", "total", "weight")
+
+
+# ---------------------------------------------------------------------
+# Хранение значений
+# ---------------------------------------------------------------------
+def _v3090_maps(self):
+    for name in ("project_component_status", "project_component_upd"):
+        if not isinstance(getattr(self, name, None), dict):
+            setattr(self, name, {})
+    return self.project_component_status, self.project_component_upd
+
+
+def _v3090_value(self, name, which):
+    status, upd = _v3090_maps(self)
+    key = self._component_supplier_key(name)
+    return (status if which == "status" else upd).get(key, "")
+
+
+def _v3090_set_value(self, name, which, value):
+    status, upd = _v3090_maps(self)
+    store = status if which == "status" else upd
+    key = self._component_supplier_key(name)
+    if value:
+        store[key] = value
+    else:
+        store.pop(key, None)
+
+
+# ---------------------------------------------------------------------
+# Заливка ячеек: плашки поверх таблицы
+# ---------------------------------------------------------------------
+def _v3090_rows(tree, parent=""):
+    for iid in tree.get_children(parent):
+        yield iid
+        for child in _v3090_rows(tree, iid):
+            yield child
+
+
+def _v3090_paint(self):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    chips = getattr(self, "_v3090_chips", None)
+    if chips is None:
+        chips = {}
+        self._v3090_chips = chips
+    used = set()
+    try:
+        for iid in _v3090_rows(tree):
+            if "component_group" in (tree.item(iid, "tags") or ()):
+                continue
+            for column, colors in (("status", V3090_STATUS_COLORS), ("upd", V3090_UPD_COLORS)):
+                value = str(tree.set(iid, column) or "")
+                if not value:
+                    continue
+                box = tree.bbox(iid, column)
+                if not box:
+                    continue
+                x, y, w, h = box
+                key = (iid, column)
+                chip = chips.get(key)
+                if chip is None:
+                    chip = tk.Label(tree, anchor="w", padx=6, font=("Arial", 9))
+                    chips[key] = chip
+                chip.configure(text=value, bg=colors.get(value, "#FFFFFF"), fg="#1f2d3d")
+                chip.place(x=x, y=y, width=w, height=h)
+                used.add(key)
+    except Exception:
+        return
+    for key, chip in list(chips.items()):
+        if key not in used:
+            try:
+                chip.place_forget()
+            except Exception:
+                pass
+
+
+def _v3090_schedule_paint(self, _event=None):
+    if getattr(self, "_v3090_paint_pending", False):
+        return
+    self._v3090_paint_pending = True
+
+    def run():
+        self._v3090_paint_pending = False
+        _v3090_paint(self)
+    try:
+        self.after(20, run)
+    except Exception:
+        self._v3090_paint_pending = False
+
+
+def _v3090_watch(self):
+    """Плашки держатся на своих ячейках при прокрутке и перерисовке."""
+    tree = getattr(self, "components_tree", None)
+    if tree is not None:
+        try:
+            view = tree.yview()
+            if view != getattr(self, "_v3090_last_view", None):
+                self._v3090_last_view = view
+                _v3090_paint(self)
+        except Exception:
+            pass
+    try:
+        self.after(250, lambda: _v3090_watch(self))
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------
+# Значения в таблице, сортировка и исходный порядок
+# ---------------------------------------------------------------------
+def _v3090_fill_values(self):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    base = {}
+    for parent in tree.get_children(""):
+        base[parent] = list(tree.get_children(parent))
+        for iid in base[parent]:
+            values = tree.item(iid, "values")
+            if not values:
+                continue
+            name = str(values[0] or "")
+            tree.set(iid, "status", _v3090_value(self, name, "status"))
+            tree.set(iid, "upd", _v3090_value(self, name, "upd"))
+    self._v3090_base_order = base
+
+
+def _v3090_sort_state(self):
+    state = getattr(self, "_v3090_sort", None)
+    if state is None:
+        meta = getattr(self, "project_metadata", None)
+        saved = (meta or {}).get("components_sort") if isinstance(meta, dict) else None
+        state = tuple(saved) if isinstance(saved, (list, tuple)) and len(saved) == 2 else None
+        self._v3090_sort = state
+    return state
+
+
+def _v3090_natural_key(text):
+    parts = re.split(r"(\d+(?:[.,]\d+)?)", str(text or "").casefold().replace("ё", "е"))
+    out = []
+    for i, part in enumerate(parts):
+        if i % 2:
+            try:
+                out.append((0, float(part.replace(",", "."))))
+            except Exception:
+                out.append((1, part))
+        elif part:
+            out.append((1, part))
+    return out
+
+
+def _v3090_row_key(self, tree, iid, column):
+    value = str(tree.set(iid, column) or "").strip()
+    if column == "status":
+        return (V3090_STATUS_ORDER.index(value) if value in V3090_STATUS_ORDER else len(V3090_STATUS_ORDER),)
+    if column == "upd":
+        return (V3090_UPD_ORDER.index(value) if value in V3090_UPD_ORDER else len(V3090_UPD_ORDER),)
+    if column in V3090_NUMERIC_COLUMNS:
+        try:
+            return (0, float(value.replace(" ", "").replace(",", ".")))
+        except Exception:
+            return (1, 0.0)
+    return (0 if value else 1, _v3090_natural_key(value))
+
+
+def _v3090_apply_sort(self):
+    tree = getattr(self, "components_tree", None)
+    base = getattr(self, "_v3090_base_order", None)
+    if tree is None or not base:
+        return
+    state = _v3090_sort_state(self)
+    for parent, items in base.items():
+        if not tree.exists(parent):
+            continue
+        rows = [iid for iid in items if tree.exists(iid)]
+        if state:
+            column, direction = state
+            rows = sorted(rows, key=lambda iid: _v3090_row_key(self, tree, iid, column),
+                          reverse=(direction == "desc"))
+        for index, iid in enumerate(rows):
+            tree.move(iid, parent, index)
+
+
+def _v3090_set_sort(self, column):
+    state = _v3090_sort_state(self)
+    if state and state[0] == column:
+        self._v3090_sort = (column, "desc") if state[1] == "asc" else None
+    else:
+        self._v3090_sort = (column, "asc")
+    meta = getattr(self, "project_metadata", None)
+    if isinstance(meta, dict):
+        if self._v3090_sort:
+            meta["components_sort"] = list(self._v3090_sort)
+        else:
+            meta.pop("components_sort", None)
+    _v3090_apply_sort(self)
+    _v3090_update_headings(self)
+    _v3090_schedule_paint(self)
+
+
+def _v3090_update_headings(self):
+    tree = getattr(self, "components_tree", None)
+    titles = getattr(self, "_v3090_titles", None)
+    if tree is None or not titles:
+        return
+    state = _v3090_sort_state(self)
+    for column, title in titles.items():
+        mark = ""
+        if state and state[0] == column:
+            mark = "  ▲" if state[1] == "asc" else "  ▼"
+        try:
+            tree.heading(column, text=title + mark)
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------
+# Контекстное меню
+# ---------------------------------------------------------------------
+def _v3090_assign(self, which, value):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    changed = 0
+    for iid in tree.selection():
+        if "component_group" in (tree.item(iid, "tags") or ()):
+            continue
+        values = tree.item(iid, "values")
+        if not values:
+            continue
+        _v3090_set_value(self, str(values[0] or ""), which, value)
+        tree.set(iid, which, value)
+        changed += 1
+    if changed:
+        self._project_dirty = True
+        _v3090_apply_sort(self)
+        _v3090_schedule_paint(self)
+
+
+def _v3090_menu(self, event):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    iid = tree.identify_row(event.y)
+    if iid and iid not in tree.selection():
+        tree.selection_set(iid)
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Копировать", command=self._v3084_copy_components)
+    menu.add_command(label="Выделить всё", command=self._v3084_select_all_components)
+    menu.add_separator()
+    menu.add_command(label="Статус", state="disabled")
+    for value in V3090_STATUS_ORDER:
+        menu.add_command(label=f"    {value}", command=lambda v=value: _v3090_assign(self, "status", v))
+    menu.add_command(label="    Снять отметку", command=lambda: _v3090_assign(self, "status", ""))
+    menu.add_separator()
+    menu.add_command(label="УПД", state="disabled")
+    for value in V3090_UPD_ORDER:
+        menu.add_command(label=f"    {value}", command=lambda v=value: _v3090_assign(self, "upd", v))
+    menu.add_command(label="    Снять отметку", command=lambda: _v3090_assign(self, "upd", ""))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+# ---------------------------------------------------------------------
+# Подключение к таблице
+# ---------------------------------------------------------------------
+_v3090_orig_refresh = ScreenDesigner._refresh_components_table
+
+
+def _v3090_show_columns(self):
+    """Базовый метод переназначает displaycolumns — возвращаем «Статус» и «УПД»."""
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    display = list(tree["displaycolumns"])
+    if not display or display == ["#all"]:
+        display = list(tree["columns"])
+    for column in ("status", "upd"):
+        if column not in display:
+            display.append(column)
+    tree.configure(displaycolumns=tuple(display))
+
+
+def _v3090_refresh_components_table(self, *args, **kwargs):
+    result = _v3090_orig_refresh(self, *args, **kwargs)
+    try:
+        _v3090_show_columns(self)
+        _v3090_fill_values(self)
+        _v3090_apply_sort(self)
+        _v3090_update_headings(self)
+        _v3090_schedule_paint(self)
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._refresh_components_table = _v3090_refresh_components_table
+
+
+_v3090_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3090_build_ui(self):
+    _v3090_orig_build_ui(self)
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    try:
+        _v3090_show_columns(self)
+        titles = {}
+        for column in tree["columns"]:
+            titles[column] = str(tree.heading(column).get("text") or "")
+            tree.heading(column, command=lambda c=column: _v3090_set_sort(self, c))
+        self._v3090_titles = titles
+        for sequence in ("<Configure>", "<MouseWheel>", "<Button-4>", "<Button-5>",
+                         "<<TreeviewOpen>>", "<<TreeviewClose>>", "<ButtonRelease-1>", "<KeyRelease>"):
+            tree.bind(sequence, lambda e: _v3090_schedule_paint(self), add="+")
+        _v3090_watch(self)
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v3090_build_ui
+
+
+# ---------------------------------------------------------------------
+# Печать и выгрузка всегда в исходном порядке
+# ---------------------------------------------------------------------
+def _v3090_components_print_rows(self):
+    """Строки вкладки в исходном порядке справочника, без учёта сортировки."""
+    tree = self.components_tree
+    base = getattr(self, "_v3090_base_order", None) or {}
+    rows = []
+    for parent in tree.get_children(""):
+        group = tree.item(parent, "text")
+        order = [iid for iid in base.get(parent, []) if tree.exists(iid)] or list(tree.get_children(parent))
+        for iid in order:
+            values = list(tree.item(iid, "values"))
+            if len(values) < 8:
+                continue
+            rows.append({
+                "group": group, "source": str(tree.item(iid, "text") or ""),
+                "name": str(values[0] or ""), "unit": str(values[1] or ""),
+                "qty": str(values[6] or ""), "weight": str(values[7] or ""),
+                "supplier": str(values[8] or "") if len(values) > 8 else "",
+                "status": str(values[9] or "") if len(values) > 9 else "",
+                "upd": str(values[10] or "") if len(values) > 10 else "",
+            })
+    return rows
+
+
+ScreenDesigner._components_print_rows = _v3090_components_print_rows
+
+
+# ---------------------------------------------------------------------
+# Проект: хранение, журнал изменений
+# ---------------------------------------------------------------------
+_v3090_orig_payload = ScreenDesigner._project_payload
+
+
+def _v3090_project_payload(self):
+    payload = _v3090_orig_payload(self)
+    try:
+        status, upd = _v3090_maps(self)
+        payload["component_status"] = dict(status)
+        payload["component_upd"] = dict(upd)
+    except Exception:
+        pass
+    return payload
+
+
+ScreenDesigner._project_payload = _v3090_project_payload
+
+
+_v3090_orig_open = ScreenDesigner._open_project
+
+
+def _v3090_open_project(self):
+    _v3090_orig_open(self)
+    path = str(getattr(self, "current_project_path", "") or "")
+    payload = _v3073_read_project_file(path) if path else None
+    status, upd = _v3090_maps(self)
+    status.clear(); upd.clear()
+    if isinstance(payload, dict):
+        for key, value in (payload.get("component_status") or {}).items():
+            if value:
+                status[str(key)] = str(value)
+        for key, value in (payload.get("component_upd") or {}).items():
+            if value:
+                upd[str(key)] = str(value)
+    self._v3090_sort = None
+    try:
+        _v3090_sort_state(self)
+        self._refresh_components_table()
+    except Exception:
+        pass
+
+
+ScreenDesigner._open_project = _v3090_open_project
+
+
+_v3090_orig_snapshot = _v3073_snapshot
+
+
+def _v3090_snapshot(payload):
+    data = _v3090_orig_snapshot(payload)
+    p = payload if isinstance(payload, dict) else {}
+    for key, value in (p.get("component_status") or {}).items():
+        data[("Статусы комплектующих", str(key))] = {"title": str(key), "data": {"статус": str(value)}}
+    for key, value in (p.get("component_upd") or {}).items():
+        entry = data.get(("Статусы комплектующих", str(key)))
+        if entry:
+            entry["data"]["УПД"] = str(value)
+        else:
+            data[("Статусы комплектующих", str(key))] = {"title": str(key), "data": {"УПД": str(value)}}
+    return data
+
+
+_v3073_snapshot = _v3090_snapshot
+
+for _name, _fn in list({
+    "_v3090_value": _v3090_value,
+    "_v3090_set_value": _v3090_set_value,
+    "_v3090_assign": _v3090_assign,
+    "_v3090_apply_sort": _v3090_apply_sort,
+    "_v3090_show_columns": _v3090_show_columns,
+    # Правое меню V30.84 («Копировать») заменяется объединённым, чтобы по
+    # щелчку не всплывали два меню подряд.
+    "_v3084_components_menu": _v3090_menu,
+}.items()):
+    setattr(ScreenDesigner, _name, _fn)
+
+# Значения по умолчанию: getattr должен возвращать None, а не метод класса.
+ScreenDesigner._v3090_sort = None
+ScreenDesigner._v3090_base_order = None
+ScreenDesigner._v3090_titles = None
+ScreenDesigner._v3090_chips = None
+ScreenDesigner._v3090_paint_pending = False
+ScreenDesigner._v3090_last_view = None
+
+
+
+# =====================================================================
+# V30.92 — «Скачать список по поставщикам»: Excel приведён к тому же
+# правилу, что и PDF (V30.85 + V30.88).
+#   • Лист «Сводно» — сумма одинаковых комплектующих без разбивки по
+#     изделиям, колонки № · Комплектующая · Ед. · Кол-во · Заказ,
+#     внизу листа блок «ИТОГИ» в жёлтой заливке.
+#   • Лист «По артикулам» — прежний подробный список, 8 колонок.
+# PDF при скачивании и печати не меняется: он уже строится этим
+# правилом. Расчёты и состав позиций не меняются.
+# =====================================================================
+
+V3092_FILL_TOTAL = "FFF2CC"
+V3092_FILL_GROUP = "E8EEF5"
+V3092_FILL_ARTICLE = "F3F6FA"
+V3092_HEAD_FILL = "1F4E78"
+
+V3092_SUMMARY_HEADERS = ("№", "Комплектующая", "Ед.", "Кол-во", "Заказ")
+V3092_SUMMARY_WIDTHS = (6, 70, 9, 13, 13)
+V3092_DETAIL_HEADERS = ("№", "Артикул", "Комплектующая", "Ед.", "Кол-во", "Заказ", "Источник", "Поставщик")
+V3092_DETAIL_WIDTHS = (6, 26, 60, 8, 12, 12, 18, 30)
+
+
+def _v3092_sheet_head(self, ws, supplier_name, subtitle, headers, widths):
+    """Шапка листа: название, проект и поставщик, подзаголовок, строка колонок."""
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    thin = Side(style="thin", color="999999")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    project = str(self.project_name_var.get().strip() or self.project_name)
+    ws["A1"] = "КОМПЛЕКТУЮЩИЕ ПО ПОСТАВЩИКУ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = f"Проект: {project}    Поставщик: {supplier_name}"
+    ws["A3"] = subtitle
+    ws["A3"].font = Font(bold=True)
+    for column, title in enumerate(headers, 1):
+        cell = ws.cell(5, column, title)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor=V3092_HEAD_FILL)
+        cell.border = border
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for column, width in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter_v3063(column)].width = width
+    ws.freeze_panes = "A6"
+    return border
+
+
+def _v3092_group_row(ws, row, text, span, border):
+    from openpyxl.styles import Alignment, Font, PatternFill
+    ws.cell(row, 1, text).font = Font(bold=True)
+    for column in range(1, span + 1):
+        cell = ws.cell(row, column)
+        cell.fill = PatternFill("solid", fgColor=V3092_FILL_GROUP)
+        cell.border = border
+    ws.cell(row, 1).alignment = Alignment(vertical="center")
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=span)
+
+
+def _v3092_write_cells(ws, row, values, border, *, centered, bold=False, fill=None):
+    from openpyxl.styles import Alignment, Font, PatternFill
+    for column, value in enumerate(values, 1):
+        cell = ws.cell(row, column, value)
+        cell.border = border
+        cell.alignment = Alignment(vertical="center", wrap_text=True,
+                                   horizontal="center" if column in centered else "left")
+        if bold:
+            cell.font = Font(bold=True)
+        if fill:
+            cell.fill = PatternFill("solid", fgColor=fill)
+
+
+def _v3092_summary_sheet(self, ws, totals, summary, supplier_name):
+    """Лист «Сводно»: позиции без разбивки по изделиям, внизу «ИТОГИ»."""
+    from openpyxl.styles import Font
+    border = _v3092_sheet_head(self, ws, supplier_name, "Сводно по комплектующим",
+                              V3092_SUMMARY_HEADERS, V3092_SUMMARY_WIDTHS)
+    span = len(V3092_SUMMARY_HEADERS)
+    centered = (1, 3, 4, 5)
+    row, number, last_group = 6, 0, None
+    for rec in summary:
+        group = str(rec.get("group", "") or "")
+        if group != last_group:
+            _v3092_group_row(ws, row, group, span, border)
+            row += 1
+            last_group = group
+        number += 1
+        qty = rec.get("qty")
+        _v3092_write_cells(ws, row, [number, str(rec.get("name", "")), str(rec.get("unit", "")),
+                                     round(float(qty), 3) if qty is not None else None, None],
+                           border, centered=centered)
+        row += 1
+    if not totals:
+        return
+    row += 1
+    ws.cell(row, 1, "ИТОГИ").font = Font(bold=True)
+    row += 1
+    last_group = None
+    for rec in totals:
+        group = str(rec.get("group", "") or "")
+        if group != last_group:
+            _v3092_group_row(ws, row, group, span, border)
+            row += 1
+            last_group = group
+        qty = rec.get("qty")
+        _v3092_write_cells(ws, row, [None, str(rec.get("name", "")), str(rec.get("unit", "")),
+                                     round(float(qty), 3) if qty is not None else None, None],
+                           border, centered=centered, bold=True, fill=V3092_FILL_TOTAL)
+        row += 1
+
+
+def _v3092_detail_sheet(self, ws, detail, supplier_name):
+    """Лист «По артикулам»: прежний подробный список."""
+    border = _v3092_sheet_head(self, ws, supplier_name, "Подробно по артикулам",
+                              V3092_DETAIL_HEADERS, V3092_DETAIL_WIDTHS)
+    span = len(V3092_DETAIL_HEADERS)
+    centered = (1, 4, 5, 6)
+    fills = {"article": V3092_FILL_ARTICLE, "total": V3092_FILL_TOTAL}
+    row, number, last_group = 6, 0, None
+    for rec in detail:
+        group = str(rec.get("group", "") or "")
+        if group != last_group:
+            _v3092_group_row(ws, row, group, span, border)
+            row += 1
+            last_group = group
+        kind = rec.get("kind", "item")
+        if kind in ("item", "cut"):
+            number += 1
+        qty = rec.get("qty")
+        name = ("    " + str(rec.get("name", ""))) if kind == "cut" else str(rec.get("name", ""))
+        _v3092_write_cells(ws, row,
+                           [number if kind in ("item", "cut") else None,
+                            rec.get("article", "") or None, name, str(rec.get("unit", "")),
+                            round(float(qty), 3) if qty is not None else None, None,
+                            rec.get("source", "") or None, rec.get("supplier", "")],
+                           border, centered=centered, bold=kind in ("article", "total"),
+                           fill=fills.get(kind))
+        row += 1
+
+
+_v3092_orig_save_xlsx = ScreenDesigner._v3063_save_supplier_xlsx
+
+
+def _v3092_save_supplier_xlsx(self, rows, supplier_name, path):
+    """Excel по поставщику: сводный лист и подробный, как в PDF."""
+    totals, summary, detail = _v3088_split_rows(rows)
+    if not summary and not totals:
+        return _v3092_orig_save_xlsx(self, rows, supplier_name, path)
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Сводно"
+    _v3092_summary_sheet(self, ws, totals, summary, supplier_name)
+    if detail:
+        _v3092_detail_sheet(self, wb.create_sheet("По артикулам"), detail, supplier_name)
+    wb.save(path)
+    return None
+
+
+ScreenDesigner._v3063_save_supplier_xlsx = _v3092_save_supplier_xlsx
+ScreenDesigner._v3092_summary_sheet = _v3092_summary_sheet
+ScreenDesigner._v3092_detail_sheet = _v3092_detail_sheet
+
+
+# =====================================================================
+# V30.92.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -25919,6 +26562,9 @@ def _uitheme_apply_widget(w, theme):
     """Перекрашивает один виджет (без потомков)."""
     try:
         cls = w.winfo_class()
+        # плашки-надписи поверх ячеек таблицы (статус, УПД) сохраняют свои цвета
+        if cls == "Label" and w.master is not None and w.master.winfo_class() == "Treeview":
+            return
     except Exception:
         return
     if cls in _UITHEME_TK_CLASSES:
@@ -26197,6 +26843,19 @@ def _uitheme_build_ui(self):
 
 ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
+
+
+# V30.92.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# раздаётся заново в новом порядке строк.
+_uitheme_orig_v3090_apply_sort = _v3090_apply_sort
+
+
+def _v3090_apply_sort(self):
+    _uitheme_orig_v3090_apply_sort(self)
+    try:
+        self._components_restripe_static()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

@@ -129,6 +129,10 @@ def part2():
     step(lambda: (app.component_scope_var.set("Весь проект"), app._refresh_components_table()), "scope whole")
     step(lambda: components_report("whole"), "report whole")
     shot("05_components_whole", app)
+    if hasattr(mod, "_v3090_set_sort"):
+        step(lambda: mod._v3090_set_sort(app, "name"), "sort by name")
+        step(lambda: components_report("whole_sorted"), "report sorted")
+        shot("05b_components_sorted", app)
     step(lambda: (app.component_scope_var.set("Статика"), app._refresh_components_table()), "scope static")
     step(lambda: components_report("static"), "report static")
     shot("06_components_static", app)
