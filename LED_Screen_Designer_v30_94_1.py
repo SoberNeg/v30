@@ -1,4 +1,4 @@
-# V30.92.1 = V30.92 + перенесённые исправления сборки Windows:
+# V30.94.1 = V30.94 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.92.1"
+APP_TITLE = "Конструктор LED-экранов V30.94.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2487,13 +2487,18 @@ class ScreenDesigner(BaseTk):
             self.deiconify()
         except Exception:
             pass
-        # V30.92.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V30.94: окно всегда открывается развёрнутым на весь экран.
+        try:
+            self._v3094_maximize()
+        except Exception:
+            pass
+        # V30.94.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V30.92.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V30.94.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2531,7 +2536,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V30.92.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V30.94.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -2886,8 +2891,10 @@ class ScreenDesigner(BaseTk):
         dlg.update_idletasks()
         req_w=max(1,dlg.winfo_reqwidth())
         req_h=max(1,dlg.winfo_reqheight())
-        x=max(0,(dlg.winfo_screenwidth()-req_w)//2)
-        y=max(0,(dlg.winfo_screenheight()-req_h)//2)
+        # V30.94: по центру того монитора, на котором сейчас главное окно.
+        _l,_t,_r,_b=_v3094_monitor_rect(self)
+        x=max(_l,_l+((_r-_l)-req_w)//2)
+        y=max(_t,_t+((_b-_t)-req_h)//2)
         dlg.geometry(f"{req_w}x{req_h}+{x}+{y}")
         try:
             dlg.deiconify()
@@ -2967,8 +2974,10 @@ class ScreenDesigner(BaseTk):
         dlg.update_idletasks()
         req_w = max(1, dlg.winfo_reqwidth())
         req_h = max(1, dlg.winfo_reqheight())
-        x = max(0, (dlg.winfo_screenwidth() - req_w) // 2)
-        y = max(0, (dlg.winfo_screenheight() - req_h) // 2)
+        # V30.94: по центру того монитора, на котором сейчас главное окно.
+        _l, _t, _r, _b = _v3094_monitor_rect(self)
+        x = max(_l, _l + ((_r - _l) - req_w) // 2)
+        y = max(_t, _t + ((_b - _t) - req_h) // 2)
         dlg.geometry(f"{req_w}x{req_h}+{x}+{y}")
         try:
             dlg.deiconify()
@@ -3713,7 +3722,8 @@ class ScreenDesigner(BaseTk):
         comp_columns = (
             "name", "unit", "c960960", "c960640",
             "c640960", "c640640", "total", "weight", "supplier",
-            "status", "upd"          # V30.90: статус заказа и УПД
+            "status", "upd",         # V30.90: статус заказа и УПД
+            "comment"                # V30.93: комментарий (не печатается)
         )
         self.components_tree = ttk.Treeview(
             table_box,
@@ -3735,6 +3745,7 @@ class ScreenDesigner(BaseTk):
             "supplier": "Поставщик",
             "status": "Статус",
             "upd": "УПД",
+            "comment": "Комментарий",
         }
         for key, heading in headings.items():
             self.components_tree.heading(key, text=heading)
@@ -3748,6 +3759,7 @@ class ScreenDesigner(BaseTk):
         self.components_tree.column("supplier", width=190, anchor="w", stretch=True)
         self.components_tree.column("status", width=150, anchor="w", stretch=False)
         self.components_tree.column("upd", width=110, anchor="center", stretch=False)
+        self.components_tree.column("comment", width=300, anchor="w", stretch=False)
 
         comp_ybar = ttk.Scrollbar(
             table_box,
@@ -3757,7 +3769,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V30.92.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V30.94.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9800,7 +9812,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V30.92.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V30.94.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9813,7 +9825,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V30.92.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V30.94.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13835,7 +13847,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V30.92.1: строка остаётся «статической» (серая заливка), только если
+                # V30.94.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -26386,8 +26398,649 @@ ScreenDesigner._v3092_summary_sheet = _v3092_summary_sheet
 ScreenDesigner._v3092_detail_sheet = _v3092_detail_sheet
 
 
+
 # =====================================================================
-# V30.92.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V30.93 — вкладка «Комплектующие»: столбец «Комментарий».
+#   • Свободный печатный текст, вводится прямо в клетке
+#     (двойной щелчок или пункт правого меню).
+#   • Не сортируется: щелчок по заголовку «Комментарий» ничего не меняет.
+#   • Не попадает ни в одну печать и выгрузку — ни в журнал изделий,
+#     ни в списки по поставщикам, ни в Excel.
+#   • Хранится в файле проекта по ключу комплектующей, как статусы,
+#     и ни на один расчёт не влияет.
+# Заодно исправлен двойной щелчок по графе «Поставщик»: он срабатывал
+# только в кабинетном режиме РЖД, потому что номер колонки был задан
+# жёстко. Теперь колонка определяется по имени.
+# =====================================================================
+
+V3093_COLUMN = "comment"
+V3093_TITLE = "Комментарий"
+V3093_MAX_LEN = 500
+
+
+# ---------------------------------------------------------------------
+# Хранение
+# ---------------------------------------------------------------------
+def _v3093_map(self):
+    if not isinstance(getattr(self, "project_component_comment", None), dict):
+        self.project_component_comment = {}
+    return self.project_component_comment
+
+
+def _v3093_value(self, name):
+    return _v3093_map(self).get(self._component_supplier_key(name), "")
+
+
+def _v3093_set_value(self, name, text):
+    store = _v3093_map(self)
+    key = self._component_supplier_key(name)
+    text = re.sub(r"\s+", " ", str(text or "")).strip()[:V3093_MAX_LEN]
+    if text:
+        store[key] = text
+    else:
+        store.pop(key, None)
+    return text
+
+
+# ---------------------------------------------------------------------
+# Колонка в таблице
+# ---------------------------------------------------------------------
+_v3093_orig_show_columns = _v3090_show_columns
+
+
+def _v3093_show_columns(self):
+    _v3093_orig_show_columns(self)
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    display = list(tree["displaycolumns"])
+    if not display or display == ["#all"]:
+        display = list(tree["columns"])
+    if V3093_COLUMN not in display:
+        display.append(V3093_COLUMN)
+        tree.configure(displaycolumns=tuple(display))
+
+
+_v3090_show_columns = _v3093_show_columns
+ScreenDesigner._v3090_show_columns = _v3093_show_columns
+
+
+_v3093_orig_fill_values = _v3090_fill_values
+
+
+def _v3093_fill_values(self):
+    _v3093_orig_fill_values(self)
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    for parent in tree.get_children(""):
+        for iid in tree.get_children(parent):
+            values = tree.item(iid, "values")
+            if values:
+                tree.set(iid, V3093_COLUMN, _v3093_value(self, str(values[0] or "")))
+
+
+_v3090_fill_values = _v3093_fill_values
+
+
+# --- сортировки по комментарию нет
+_v3093_orig_set_sort = _v3090_set_sort
+
+
+def _v3093_set_sort(self, column):
+    if column == V3093_COLUMN:
+        return
+    _v3093_orig_set_sort(self, column)
+
+
+_v3090_set_sort = _v3093_set_sort
+ScreenDesigner._v3090_set_sort = _v3093_set_sort
+
+
+# ---------------------------------------------------------------------
+# Ввод текста прямо в клетке
+# ---------------------------------------------------------------------
+def _v3093_display_column(tree, col_id):
+    """«#N» по видимым колонкам → имя колонки."""
+    try:
+        index = int(str(col_id or "#0")[1:]) - 1
+    except Exception:
+        return ""
+    if index < 0:
+        return ""
+    display = list(tree["displaycolumns"])
+    if not display or display == ["#all"]:
+        display = list(tree["columns"])
+    return display[index] if index < len(display) else ""
+
+
+def _v3093_close_editor(self, *, save=True):
+    editor = getattr(self, "_v3093_editor", None)
+    if editor is None:
+        return
+    widget, iid, name = editor
+    self._v3093_editor = None
+    text = ""
+    try:
+        text = widget.get()
+    except Exception:
+        save = False
+    try:
+        widget.destroy()
+    except Exception:
+        pass
+    if not save:
+        return
+    tree = getattr(self, "components_tree", None)
+    stored = _v3093_set_value(self, name, text)
+    try:
+        if tree is not None and tree.exists(iid):
+            tree.set(iid, V3093_COLUMN, stored)
+    except Exception:
+        pass
+    try:
+        self._project_dirty = True
+    except Exception:
+        pass
+
+
+def _v3093_edit(self, iid=None):
+    """Открывает поле ввода поверх клетки «Комментарий»."""
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    _v3093_close_editor(self, save=True)
+    if iid is None:
+        selection = [x for x in tree.selection()
+                     if "component_group" not in (tree.item(x, "tags") or ())]
+        iid = selection[0] if selection else None
+    if not iid or not tree.exists(iid):
+        return
+    if "component_group" in (tree.item(iid, "tags") or ()):
+        return
+    values = tree.item(iid, "values")
+    if not values:
+        return
+    name = str(values[0] or "")
+    try:
+        box = tree.bbox(iid, V3093_COLUMN)
+    except Exception:
+        box = None
+    if not box:
+        try:
+            tree.see(iid)
+            box = tree.bbox(iid, V3093_COLUMN)
+        except Exception:
+            box = None
+    if not box:
+        return
+    x, y, width, height = box
+    entry = tk.Entry(tree, relief="solid", borderwidth=1)
+    entry.insert(0, _v3093_value(self, name))
+    entry.select_range(0, "end")
+    entry.place(x=x, y=y, width=max(60, width), height=max(18, height))
+    entry.focus_set()
+    self._v3093_editor = (entry, iid, name)
+    entry.bind("<Return>", lambda e: (_v3093_close_editor(self, save=True), "break")[1])
+    entry.bind("<KP_Enter>", lambda e: (_v3093_close_editor(self, save=True), "break")[1])
+    entry.bind("<Escape>", lambda e: (_v3093_close_editor(self, save=False), "break")[1])
+    entry.bind("<FocusOut>", lambda e: _v3093_close_editor(self, save=True))
+
+
+def _v3093_double_click(self, event):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return None
+    try:
+        iid = tree.identify_row(event.y)
+        column = _v3093_display_column(tree, tree.identify_column(event.x))
+    except Exception:
+        return None
+    if not iid or column != V3093_COLUMN:
+        return None
+    _v3093_edit(self, iid)
+    return "break"
+
+
+# --- двойной щелчок по «Поставщику» работает в любом режиме колонок
+def _v3093_supplier_double_click(self, event):
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return None
+    try:
+        iid = tree.identify_row(event.y)
+        column = _v3093_display_column(tree, tree.identify_column(event.x))
+    except Exception:
+        return None
+    if not iid or column != "supplier":
+        return None
+    names = self._components_selected_component_names(clicked_iid=iid)
+    if not names:
+        return None
+    self._supplier_picker_for_components(names)
+    return "break"
+
+
+ScreenDesigner._components_supplier_double_click = _v3093_supplier_double_click
+
+
+# --- пункт в правом меню
+_v3093_orig_menu = _v3090_menu
+
+
+def _v3093_menu(self, event):
+    tree = getattr(self, "components_tree", None)
+    if tree is not None:
+        iid = tree.identify_row(event.y)
+        if iid and iid not in tree.selection():
+            tree.selection_set(iid)
+        self._v3093_menu_iid = iid
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Копировать", command=self._v3084_copy_components)
+    menu.add_command(label="Выделить всё", command=self._v3084_select_all_components)
+    menu.add_separator()
+    menu.add_command(label="Комментарий…",
+                     command=lambda: _v3093_edit(self, getattr(self, "_v3093_menu_iid", None)))
+    menu.add_separator()
+    menu.add_command(label="Статус", state="disabled")
+    for value in V3090_STATUS_ORDER:
+        menu.add_command(label=f"    {value}", command=lambda v=value: _v3090_assign(self, "status", v))
+    menu.add_command(label="    Снять отметку", command=lambda: _v3090_assign(self, "status", ""))
+    menu.add_separator()
+    menu.add_command(label="УПД", state="disabled")
+    for value in V3090_UPD_ORDER:
+        menu.add_command(label=f"    {value}", command=lambda v=value: _v3090_assign(self, "upd", v))
+    menu.add_command(label="    Снять отметку", command=lambda: _v3090_assign(self, "upd", ""))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+ScreenDesigner._v3084_components_menu = _v3093_menu
+ScreenDesigner._v3090_menu = _v3093_menu
+
+
+# ---------------------------------------------------------------------
+# Подключение
+# ---------------------------------------------------------------------
+_v3093_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3093_build_ui(self):
+    _v3093_orig_build_ui(self)
+    tree = getattr(self, "components_tree", None)
+    if tree is None:
+        return
+    try:
+        titles = getattr(self, "_v3090_titles", None)
+        if isinstance(titles, dict):
+            titles[V3093_COLUMN] = V3093_TITLE
+        tree.bind("<Double-1>", lambda e: _v3093_double_click(self, e), add="+")
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>", "<Configure>"):
+            tree.bind(sequence, lambda e: _v3093_close_editor(self, save=True), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v3093_build_ui
+
+
+# ---------------------------------------------------------------------
+# Проект: хранение и журнал изменений
+# ---------------------------------------------------------------------
+_v3093_orig_payload = ScreenDesigner._project_payload
+
+
+def _v3093_project_payload(self):
+    payload = _v3093_orig_payload(self)
+    try:
+        payload["component_comment"] = dict(_v3093_map(self))
+    except Exception:
+        pass
+    return payload
+
+
+ScreenDesigner._project_payload = _v3093_project_payload
+
+
+_v3093_orig_open = ScreenDesigner._open_project
+
+
+def _v3093_open_project(self):
+    _v3093_orig_open(self)
+    store = _v3093_map(self)
+    store.clear()
+    path = str(getattr(self, "current_project_path", "") or "")
+    payload = _v3073_read_project_file(path) if path else None
+    if isinstance(payload, dict):
+        for key, value in (payload.get("component_comment") or {}).items():
+            if value:
+                store[str(key)] = str(value)
+    try:
+        self._refresh_components_table()
+    except Exception:
+        pass
+
+
+ScreenDesigner._open_project = _v3093_open_project
+
+
+_v3093_orig_snapshot = _v3073_snapshot
+
+
+def _v3093_snapshot(payload):
+    data = _v3093_orig_snapshot(payload)
+    p = payload if isinstance(payload, dict) else {}
+    for key, value in (p.get("component_comment") or {}).items():
+        data[("Комментарии комплектующих", str(key))] = {"title": str(key),
+                                                         "data": {"комментарий": str(value)}}
+    return data
+
+
+_v3073_snapshot = _v3093_snapshot
+
+ScreenDesigner._v3093_edit = _v3093_edit
+ScreenDesigner._v3093_value = _v3093_value
+ScreenDesigner._v3093_set_value = _v3093_set_value
+ScreenDesigner._v3093_editor = None
+ScreenDesigner._v3093_menu_iid = None
+
+
+
+# =====================================================================
+# V30.94 — окна и вкладки.
+#   • Вкладки всегда по центру: отступ слева пересчитывается по
+#     фактической ширине набора вкладок, на каждом уровне вкладок
+#     отдельно. На macOS, где они и так по центру, ничего не меняется.
+#   • Программа открывается развёрнутой на весь экран того монитора,
+#     на котором её показала система.
+#   • Всплывающие окна открываются на том же мониторе, где сейчас
+#     главное окно: они центруются по нему и прижимаются к рабочей
+#     области этого монитора. Подсказки и окна, которым положение
+#     задано в коде, не трогаются.
+# Расчёты не затрагиваются.
+# =====================================================================
+
+V3094_TAB_SCAN_STEP = 6
+V3094_TAB_PROBE_Y = (6, 10, 14, 18, 22, 26)
+V3094_STYLE_PREFIX = "V3094"
+
+
+# ---------------------------------------------------------------------
+# Рабочая область монитора, на котором находится окно
+# ---------------------------------------------------------------------
+def _v3094_monitor_rect(win):
+    """(left, top, right, bottom) рабочей области монитора окна."""
+    try:
+        if sys.platform.startswith("win"):
+            import ctypes
+            from ctypes import wintypes
+
+            class _RECT(ctypes.Structure):
+                _fields_ = [("left", wintypes.LONG), ("top", wintypes.LONG),
+                            ("right", wintypes.LONG), ("bottom", wintypes.LONG)]
+
+            class _MONITORINFO(ctypes.Structure):
+                _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", _RECT),
+                            ("rcWork", _RECT), ("dwFlags", wintypes.DWORD)]
+
+            user32 = ctypes.windll.user32
+            handle = user32.MonitorFromWindow(wintypes.HWND(win.winfo_id()), 2)  # NEAREST
+            info = _MONITORINFO()
+            info.cbSize = ctypes.sizeof(_MONITORINFO)
+            if handle and user32.GetMonitorInfoW(handle, ctypes.byref(info)):
+                work = info.rcWork
+                if work.right > work.left and work.bottom > work.top:
+                    return (int(work.left), int(work.top), int(work.right), int(work.bottom))
+    except Exception:
+        pass
+    try:
+        return (0, 0, int(win.winfo_screenwidth()), int(win.winfo_screenheight()))
+    except Exception:
+        return (0, 0, 1920, 1080)
+
+
+# ---------------------------------------------------------------------
+# Вкладки по центру
+# ---------------------------------------------------------------------
+def _v3094_tab_at(notebook, x, y):
+    try:
+        notebook.index(f"@{int(x)},{int(y)}")
+    except Exception:
+        return False
+    return True
+
+
+def _v3094_tab_span(notebook, width, y):
+    """Левый и правый край полосы вкладок при данной высоте пробы."""
+    left = None
+    for x in range(0, width, V3094_TAB_SCAN_STEP):
+        if _v3094_tab_at(notebook, x, y):
+            left = x
+            break
+    if left is None:
+        return None
+    for x in range(left, max(-1, left - V3094_TAB_SCAN_STEP), -1):
+        if _v3094_tab_at(notebook, x, y):
+            left = x
+        else:
+            break
+    right = None
+    for x in range(width - 1, left, -V3094_TAB_SCAN_STEP):
+        if _v3094_tab_at(notebook, x, y):
+            right = x
+            break
+    if right is None:
+        return None
+    for x in range(right, min(width, right + V3094_TAB_SCAN_STEP)):
+        if _v3094_tab_at(notebook, x, y):
+            right = x
+        else:
+            break
+    return left, right
+
+
+def _v3094_center_notebook(notebook):
+    """Выравнивает полосу вкладок по центру через отступ стиля."""
+    try:
+        if not notebook.winfo_exists() or not notebook.winfo_ismapped():
+            return
+        width = int(notebook.winfo_width())
+        if width <= 1 or not notebook.tabs():
+            return
+        span = None
+        for y in V3094_TAB_PROBE_Y:
+            span = _v3094_tab_span(notebook, width, y)
+            if span:
+                break
+        if not span:
+            return
+        left, right = span
+        target = max(0, (width - (right - left + 1)) // 2)
+        if abs(target - left) <= 2:
+            return
+        style_name = str(notebook.cget("style") or "")
+        if not style_name.startswith(V3094_STYLE_PREFIX):
+            style_name = f"{V3094_STYLE_PREFIX}.{id(notebook)}.TNotebook"
+            notebook.configure(style=style_name)
+        ttk.Style().configure(style_name, tabmargins=[target, 2, 2, 0])
+    except Exception:
+        pass
+
+
+def _v3094_schedule_center(notebook):
+    try:
+        pending = getattr(notebook, "_v3094_pending", None)
+        if pending:
+            notebook.after_cancel(pending)
+    except Exception:
+        pass
+    try:
+        notebook._v3094_pending = notebook.after(
+            150, lambda: (setattr(notebook, "_v3094_pending", None),
+                          _v3094_center_notebook(notebook))[1])
+    except Exception:
+        pass
+
+
+def _v3094_collect_notebooks(widget, found=None):
+    found = [] if found is None else found
+    try:
+        children = widget.winfo_children()
+    except Exception:
+        return found
+    for child in children:
+        if isinstance(child, ttk.Notebook):
+            found.append(child)
+        _v3094_collect_notebooks(child, found)
+    return found
+
+
+def _v3094_install_tab_centering(self):
+    for notebook in _v3094_collect_notebooks(self):
+        if getattr(notebook, "_v3094_bound", False):
+            continue
+        notebook._v3094_bound = True
+        notebook._v3094_pending = None
+        try:
+            notebook.bind("<Configure>", lambda e, nb=notebook: _v3094_schedule_center(nb), add="+")
+            notebook.bind("<<NotebookTabChanged>>",
+                          lambda e, nb=notebook: _v3094_schedule_center(nb), add="+")
+        except Exception:
+            pass
+        _v3094_schedule_center(notebook)
+
+
+# ---------------------------------------------------------------------
+# Главное окно: на весь экран текущего монитора
+# ---------------------------------------------------------------------
+def _v3094_maximize(self):
+    try:
+        self.update_idletasks()
+    except Exception:
+        pass
+    if sys.platform.startswith("win"):
+        try:
+            self.state("zoomed")
+            return
+        except Exception:
+            pass
+    else:
+        try:
+            self.attributes("-zoomed", True)
+            return
+        except Exception:
+            pass
+    try:
+        left, top, right, bottom = _v3094_monitor_rect(self)
+        self.geometry(f"{right - left}x{bottom - top}+{left}+{top}")
+    except Exception:
+        pass
+
+
+ScreenDesigner._v3094_maximize = _v3094_maximize
+
+
+# ---------------------------------------------------------------------
+# Всплывающие окна — на мониторе главного окна
+# ---------------------------------------------------------------------
+def _v3094_place_over_root(win):
+    try:
+        if not win.winfo_exists() or getattr(win, "_v3094_user_pos", False):
+            return
+        if win.wm_overrideredirect():
+            return
+        root = win._root()
+        if root is win or not root.winfo_exists() or not root.winfo_viewable():
+            return
+        win.update_idletasks()
+        width = int(win.winfo_width()) or int(win.winfo_reqwidth())
+        height = int(win.winfo_height()) or int(win.winfo_reqheight())
+        if width <= 1 or height <= 1:
+            return
+        px, py = int(root.winfo_rootx()), int(root.winfo_rooty())
+        pw, ph = int(root.winfo_width()), int(root.winfo_height())
+        x = px + (pw - width) // 2
+        y = py + max(0, (ph - height) // 3)
+        left, top, right, bottom = _v3094_monitor_rect(root)
+        x = min(max(x, left), max(left, right - width))
+        y = min(max(y, top), max(top, bottom - height))
+        win._v3094_placing = True
+        try:
+            win.wm_geometry(f"+{int(x)}+{int(y)}")
+        finally:
+            win._v3094_placing = False
+    except Exception:
+        pass
+
+
+def _v3094_wrap_geometry(win, name):
+    try:
+        original = getattr(win, name)
+    except Exception:
+        return
+
+    def wrapper(spec=None, _original=original, _win=win):
+        if spec is not None:
+            text = str(spec)
+            if ("+" in text or "-" in text) and not getattr(_win, "_v3094_placing", False):
+                _win._v3094_user_pos = True
+            return _original(spec)
+        return _original()
+
+    try:
+        setattr(win, name, wrapper)
+    except Exception:
+        pass
+
+
+_v3094_orig_toplevel_init = tk.Toplevel.__init__
+
+
+def _v3094_toplevel_init(self, *args, **kwargs):
+    _v3094_orig_toplevel_init(self, *args, **kwargs)
+    try:
+        self._v3094_user_pos = False
+        self._v3094_placing = False
+        _v3094_wrap_geometry(self, "geometry")
+        _v3094_wrap_geometry(self, "wm_geometry")
+        self.after(0, lambda: _v3094_place_over_root(self))
+    except Exception:
+        pass
+
+
+tk.Toplevel.__init__ = _v3094_toplevel_init
+
+
+# ---------------------------------------------------------------------
+# Подключение
+# ---------------------------------------------------------------------
+_v3094_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3094_build_ui(self):
+    _v3094_orig_build_ui(self)
+    try:
+        # Один обход дерева после сборки и ещё один, когда окно уже
+        # развёрнуто; дальше каждая полоса вкладок следит за собой сама.
+        self.after(60, lambda: _v3094_install_tab_centering(self))
+        self.after(1200, lambda: _v3094_install_tab_centering(self))
+        notebook = getattr(self, "notebook", None)
+        if notebook is not None:
+            notebook.bind("<<NotebookTabChanged>>",
+                          lambda e: _v3094_install_tab_centering(self), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v3094_build_ui
+ScreenDesigner._v3094_center_tabs = _v3094_install_tab_centering
+
+
+# =====================================================================
+# V30.94.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -26845,7 +27498,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V30.92.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V30.94.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -26854,6 +27507,20 @@ def _v3090_apply_sort(self):
     _uitheme_orig_v3090_apply_sort(self)
     try:
         self._components_restripe_static()
+    except Exception:
+        pass
+
+
+# V30.94.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# в стиле ttk, а у светлой и тёмной темы стили раздельные.
+_uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
+
+
+def _uitheme_apply_theme(app, theme, save=False):
+    _uitheme_orig_apply_theme_v3094(app, theme, save)
+    try:
+        for nb in _v3094_collect_notebooks(app):
+            nb.after(80, lambda nb=nb: _v3094_center_notebook(nb))
     except Exception:
         pass
 
