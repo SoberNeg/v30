@@ -30,6 +30,14 @@ spec = importlib.util.spec_from_file_location("led_app", src)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
+# программа может заменить messagebox.* своими окнами (V40.03) — запоминаем их
+# для скриншота и снова ставим заглушки, чтобы тест не ждал нажатия кнопок
+REAL_SHOWINFO = mb.showinfo
+for _n in ("showinfo", "showwarning", "showerror"):
+    setattr(mb, _n, lambda *a, **k: report["steps"].append(f"messagebox {a[:2]}") or "ok")
+for _n in ("askyesno", "askokcancel", "askyesnocancel"):
+    setattr(mb, _n, lambda *a, **k: False)
+
 app = mod.ScreenDesigner()
 
 
@@ -138,6 +146,14 @@ def part2():
     shot("06_components_static", app)
     step(lambda: tab("Справочник"), "tab reference")
     shot("07_reference", app)
+    def close_box():
+        shot("09_message_box")
+        for w in app.winfo_children():
+            if w.winfo_class() == "Toplevel" and w.title() == "Проверка темы":
+                w.destroy()
+    if getattr(REAL_SHOWINFO, "__module__", "") != "tkinter.messagebox" or hasattr(mod, "_v4003_show"):
+        app.after(900, close_box)
+        step(lambda: REAL_SHOWINFO("Проверка темы", "Окно сообщения программы в текущей теме.", parent=app), "message box")
     if theme == "dark":
         # обратное переключение: всё должно вернуться к светлому виду
         step(lambda: (app.apply_theme("light"), tab("Комплектующие")), "switch to light")

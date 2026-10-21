@@ -1,4 +1,4 @@
-# V30.94.1 = V30.94 + перенесённые исправления сборки Windows:
+# V40.04.1 = V40.04 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V30.94.1"
+APP_TITLE = "Конструктор LED-экранов V40.04.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2407,6 +2407,20 @@ def _v3025_mcd_backlit_reference(data):
     return data
 
 
+
+# V40.01: исполнение экрана называется «Уличное» / «Внутреннее».
+# Прежние значения «Улица» / «Помещение» из сохранённых проектов приводятся
+# к новым названиям при чтении, поэтому старые проекты открываются как прежде.
+ENV_OUTDOOR = "Уличное"
+ENV_INDOOR = "Внутреннее"
+_ENV_ALIASES = {"улица": ENV_OUTDOOR, "уличное": ENV_OUTDOOR, "уличный": ENV_OUTDOOR,
+                "помещение": ENV_INDOOR, "внутреннее": ENV_INDOOR, "внутренний": ENV_INDOOR}
+
+
+def _env_value(value):
+    return _ENV_ALIASES.get(str(value or "").strip().casefold(), ENV_OUTDOOR)
+
+
 class ScreenDesigner(BaseTk):
     def __init__(self):
         super().__init__()
@@ -2492,13 +2506,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V30.94.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.04.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V30.94.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.04.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2536,7 +2550,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V30.94.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.04.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -2809,9 +2823,9 @@ class ScreenDesigner(BaseTk):
 
 
     def _update_led_type_options(self):
-        env=self.screen_environment_var.get() if hasattr(self,"screen_environment_var") else "Улица"
+        env=_env_value(self.screen_environment_var.get() if hasattr(self,"screen_environment_var") else ENV_OUTDOOR)
         if not hasattr(self,"led_type_combo"): return
-        if env == "Улица":
+        if env == ENV_OUTDOOR:
             self.led_type_combo.configure(values=("OD",))
             if self.led_type_var.get() != "OD": self.led_type_var.set("OD")
         else:
@@ -3406,21 +3420,21 @@ class ScreenDesigner(BaseTk):
         # Начальный режим РЖД: содержимое контейнера скрыто.
 
         # Исполнение ДИТ
-        ttk.Label(article_box, text="Исполнение").pack(anchor="w")
-        self.screen_environment_var = tk.StringVar(value="Улица")
+        ttk.Label(article_box, text="Исполнение экрана").pack(anchor="w")
+        self.screen_environment_var = tk.StringVar(value=ENV_OUTDOOR)
         environment_row = ttk.Frame(article_box)
         environment_row.pack(fill="x", pady=(3, 8))
         ttk.Radiobutton(
             environment_row,
-            text="Улица",
-            value="Улица",
+            text=ENV_OUTDOOR,
+            value=ENV_OUTDOOR,
             variable=self.screen_environment_var,
             command=self._update_led_type_options
         ).pack(side="left", padx=(0, 18))
         ttk.Radiobutton(
             environment_row,
-            text="Помещение",
-            value="Помещение",
+            text=ENV_INDOOR,
+            value=ENV_INDOOR,
             variable=self.screen_environment_var,
             command=self._update_led_type_options
         ).pack(side="left")
@@ -3538,7 +3552,7 @@ class ScreenDesigner(BaseTk):
         self.firmware_var = self.led_series_var
         self.support_var = tk.StringVar()
         for col, (label, var) in enumerate((
-            ("Чип", self.chip_var), ("Карта", self.card_model_var),
+            ("Серия чипа", self.chip_var), ("Карта", self.card_model_var),
             ("Тип крепления", self.support_var)
         )):
             box = ttk.Frame(tech_row)
@@ -3769,7 +3783,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V30.94.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.04.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -3931,6 +3945,7 @@ class ScreenDesigner(BaseTk):
 
         ref_head=ttk.Frame(reference_tab)
         ref_head.grid(row=0,column=0,sticky="ew",pady=(0,8))
+        self.reference_head=ref_head          # V30.95: место для кнопки сверки
         ttk.Label(ref_head,text="Справочник комплектующих",font=("Arial",20,"bold")).pack(side="left")
         self.reference_edit_var=tk.BooleanVar(value=False)
         ttk.Checkbutton(ref_head,text="Внести корректировки",variable=self.reference_edit_var).pack(side="right")
@@ -4506,16 +4521,21 @@ class ScreenDesigner(BaseTk):
         # V20.36: после габарита отдельная колонка количества изделий.
         # V30.55: «calc» добавлен в конец данных (индексы прежних значений не меняются),
         # а на экране показывается первым через displaycolumns.
-        cols=("spec_pos","num","fill_mode","type","name","article","serial","mark","series","size","qty","weight","sides","execution","calc")
+        # V40.00: «execution» остаётся в данных, но на экране его заменяют
+        # «state» (состояние изделия по количествам) и «comment».
+        cols=("spec_pos","num","fill_mode","type","name","article","serial","mark","series","size","qty","weight","sides","execution","calc","state","comment")
         self.project_journal_tree=ttk.Treeview(items_page,columns=cols,show="tree headings",selectmode="browse")
-        self.project_journal_tree.configure(displaycolumns=("calc",)+cols[:-1])
+        self.project_journal_tree.configure(
+            displaycolumns=("calc",)+tuple(c for c in cols if c not in ("calc","execution")))
         self.project_journal_tree.heading("#0",text="")
         self.project_journal_tree.column("#0",width=26,stretch=False)
         headers={"spec_pos":"Поз.","num":"№","fill_mode":"Заполнение","type":"Тип изделия","name":"Наименование","article":"Артикул / код",
                  "serial":"Серийный номер","mark":"Маркировка","series":"Серия",
-                 "size":"Габарит, мм","qty":"Кол-во изделий","weight":"Вес, кг","sides":"Ст.","execution":"Исполнение","calc":"Расчёт"}
+                 "size":"Габарит, мм","qty":"Кол-во изделий","weight":"Вес, кг","sides":"Ст.","execution":"Исполнение","calc":"Расчёт",
+                 "state":"Состояние","comment":"Комментарий"}
         widths={"spec_pos":60,"num":45,"fill_mode":92,"type":145,"name":175,"article":125,"serial":120,"mark":80,"series":60,
-                "size":110,"qty":105,"weight":80,"sides":48,"execution":155,"calc":62}
+                "size":110,"qty":105,"weight":80,"sides":48,"execution":155,"calc":62,
+                "state":230,"comment":230}
         self._project_journal_headers=dict(headers)
         self._project_journal_sort_column=None
         self._project_journal_sort_reverse=False
@@ -5664,14 +5684,15 @@ class ScreenDesigner(BaseTk):
             except Exception: product_qty=1
             self.project_journal_tree.insert("","end",iid=parent,open=(parent in opened),values=(
                 self._journal_spec_position(s),n,self._journal_fill_mode_text(s),"LED-экран",
-                s.get("screen_article",""),s.get("module_article",""),serial,"","",
+                s.get("screen_article",""),s.get("module_article",""),serial,"",s.get("chip",""),
                 f"{s.get('width',0)} × {s.get('height',0)}",product_qty,self._format_screen_weight(s),s.get("sides",1),execution))
             if len(instances)>1:
                 for j,inst in enumerate(instances):
                     self.project_journal_tree.insert(parent,"end",iid=f"ledinst:{i}:{j}",values=(
                         self._journal_spec_position(s),"",self._journal_fill_mode_text(s),"Экземпляр",
                         s.get("screen_article",""),s.get("module_article",""),
-                        inst.get("part_number",""),self._instance_mark(i,j),inst.get("led_series",""),
+                        inst.get("part_number",""),self._instance_mark(i,j),
+                        inst.get("led_series","") or s.get("chip",""),
                         f"{s.get('width',0)} × {s.get('height',0)}",1,self._format_screen_weight(s),s.get("sides",1),execution))
             n+=1
         for i,s in enumerate(getattr(self,"saved_static_signs",[])):
@@ -5970,8 +5991,7 @@ class ScreenDesigner(BaseTk):
             sides = 2 if int(self.screen_sides_var.get() or 1) == 2 else 1
         except Exception:
             sides = 1
-        environment = str(self.screen_environment_var.get() or "Улица").strip()
-        execution = "Внутреннее" if environment == "Помещение" else "Уличное"
+        execution = _env_value(self.screen_environment_var.get())
         side_text = "Двустороннее" if sides == 2 else "Одностороннее"
 
         # Префикс определяется контекстом проекта, а не внутренним режимом вкладки:
@@ -5988,7 +6008,8 @@ class ScreenDesigner(BaseTk):
         h = int(getattr(self, "height_mm", 0) or 0)
         dims = f"{w}x{h}" if w > 0 and h > 0 else ""
 
-        technical = " ".join(x for x in (f"{prefix}{roman}", pitch, dims, led_type) if x).strip()
+        # V40.01: римское обозначение сторон идёт после шага пикселя.
+        technical = " ".join(x for x in (prefix, pitch, roman.strip(), dims, led_type) if x).strip()
         name = f"Динамическое информационное табло. {side_text}. {execution}."
         if technical:
             name = f"{name} {technical}"
@@ -6053,7 +6074,7 @@ class ScreenDesigner(BaseTk):
         if hasattr(self,"dynamic_autofill_var"):
             self.dynamic_autofill_var.set(True)
         for var,val in ((self.screen_article_var,""),(self.module_article_var,""),(self.part_number_var,""),
-                        (self.screen_environment_var,"Улица"),(self.pixel_pitch_var,"P2,5"),(self.led_type_var,"OD"),
+                        (self.screen_environment_var,ENV_OUTDOOR),(self.pixel_pitch_var,"P2,5"),(self.led_type_var,"OD"),
                         (self.led_series_var,""),(self.control_type_var,"Встроенный Мини-ПК"),
                         (self.chip_var,""),(self.card_model_var,"MRV416-N"),(self.support_var,""),
                         (self.screen_quantity_var,"1"),(self.screen_sides_var,"1")):
@@ -6332,7 +6353,7 @@ class ScreenDesigner(BaseTk):
         self.screen_article_var.set(screen.get("screen_article", ""))
         self.module_article_var.set(screen.get("module_article", ""))
         self.part_number_var.set(screen.get("part_number", ""))
-        self.screen_environment_var.set(screen.get("environment", "Улица"))
+        self.screen_environment_var.set(_env_value(screen.get("environment", ENV_OUTDOOR)))
         self._update_led_type_options()
         self.pixel_pitch_var.set(screen.get("pixel_pitch", "P2,5"))
         _lt=str(screen.get("led_type", "OD") or "OD").upper()
@@ -9812,7 +9833,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V30.94.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.04.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9825,7 +9846,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V30.94.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.04.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -10058,7 +10079,7 @@ class ScreenDesigner(BaseTk):
             "autofill": bool(screen.get("autofill", True)),
             "spec_position": str(screen.get("spec_position","") or ""),
             "part_number": screen.get("part_number", ""),
-            "environment": screen.get("environment", "Улица"),
+            "environment": _env_value(screen.get("environment", ENV_OUTDOOR)),
             "pixel_pitch": screen.get("pixel_pitch", "P2,5"),
             "led_type": screen.get("led_type", "OD"),
             "led_series": screen.get("led_series", ""),
@@ -10124,7 +10145,7 @@ class ScreenDesigner(BaseTk):
         result["autofill"] = bool(screen.get("autofill", True))
         result["spec_position"] = str(screen.get("spec_position","") or "")
         result["part_number"] = screen.get("part_number", "")
-        result["environment"] = screen.get("environment", "Улица")
+        result["environment"] = _env_value(screen.get("environment", ENV_OUTDOOR))
         result["pixel_pitch"] = screen.get("pixel_pitch", "P2,5")
         _lt=str(screen.get("led_type","OD") or "OD").strip().upper()
         result["led_type"] = "ID" if _lt in ("I","IN","ID") else "OD"
@@ -13042,6 +13063,11 @@ class ScreenDesigner(BaseTk):
             if is_round:
                 d.ellipse((x1,y1,x2,y2),fill=(210,235,215),outline=(20,93,37),width=9)
                 d.text(((x1+x2)/2,y1-45),f"Ø {w} мм",font=bold,fill=(20,93,37),anchor="ma")
+            elif _v3098_is_special(mode,is_round,sign.get("face_type","С подсветкой"),w,hh):
+                # V30.98: особая геометрия указателя МЦД 800 × 400 мм.
+                _v3098_draw_print(d,x1,y1,x2,y2,sc,mirrored)
+                d.text(((x1+x2)/2,y1-45),f"{w} мм",font=bold,fill=(20,93,37),anchor="ma")
+                vertical_text(x1-34 if not mirrored else x2+34,(y1+y2)/2,f"{hh} мм",bold)
             elif mode==MODE_MCD:
                 rr=min(90*sc,(x2-x1)/2,(y2-y1)/2)
                 d.rounded_rectangle((x1,y1,x2,y2),radius=rr,fill=(210,235,215),outline=(20,93,37),width=9)
@@ -13537,7 +13563,7 @@ class ScreenDesigner(BaseTk):
         y+=h+16
         h=132; header_fill(L,y,R,y+h)
         # Пять оставшихся полей равномерно занимают всю ширину строки.
-        fields=[("Исполнение",screen.get("environment","Улица")),("Шаг пикселя",screen.get("pixel_pitch","P2,5")),
+        fields=[("Исполнение экрана",_env_value(screen.get("environment",ENV_OUTDOOR))),("Шаг пикселя",screen.get("pixel_pitch","P2,5")),
                 ("Габарит",f'{screen["width"]} × {screen["height"]} мм'),("Сторон",str(screen.get("sides",1))),
                 ("Тип управления",(screen.get("control_type") or "Встроенный Мини-ПК") if str(screen.get("control_type","")).strip() not in ("—","-") else "Встроенный Мини-ПК")]
         cw=(R-L)//5
@@ -13661,7 +13687,7 @@ class ScreenDesigner(BaseTk):
         # остаток строки — Примечание.
         tech=[
             ("Модули", module_text),
-            ("Чип", screen.get("chip", "")),
+            ("Серия чипа", screen.get("chip", "")),
             ("Контроллер", screen.get("card_model", "MRV416-N")),
             ("Тип крепления", screen.get("support", "")),
             ("Примечание", screen.get("note", "")),
@@ -13847,7 +13873,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V30.94.1: строка остаётся «статической» (серая заливка), только если
+                # V40.04.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -14955,6 +14981,11 @@ class ScreenDesigner(BaseTk):
                     tags="selection"
                 )
                 c.create_text((x1+x2)/2,oy-4,text=f"Ø {d} мм",anchor="s",fill="#145d25",font=("Arial",9,"bold"))
+            elif _v3098_is_special(mode,False,
+                                   self.static_face_type_var.get() if hasattr(self,"static_face_type_var") else "",
+                                   w,h):
+                # V30.98: особая геометрия указателя МЦД 800 × 400 мм.
+                _v3098_draw_canvas(c,x1,oy,x2,y2,scale,mirrored)
             elif mode==MODE_MCD:
                 draw_mcd_rounded(x1,oy,x2,y2,mirrored)
             else:
@@ -27039,8 +27070,1923 @@ ScreenDesigner._build_ui = _v3094_build_ui
 ScreenDesigner._v3094_center_tabs = _v3094_install_tab_centering
 
 
+
 # =====================================================================
-# V30.94.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V30.95 — сверка справочника с расчётом комплектующих, выгрузка в Excel.
+# Кнопка «Сверка с расчётом (Excel)» на вкладке «Справочник».
+#   • Для каждой позиции справочника рядом ставится та же позиция из
+#     расчёта: единица, норма на одно изделие и итог по проекту.
+#   • Позиции, которых нет в справочнике, но которые считает программа,
+#     добавляются в конец своего раздела.
+#   • Колонка «Различия» и заливка строки показывают, где расхождение,
+#     а колонка «Логика расчёта» приводит правило из справочника.
+#   • Второй лист — только строки с различиями.
+# Расчёт не меняется: нормы берутся из тех же функций, по которым
+# строится вкладка «Комплектующие».
+# =====================================================================
+
+V3095_SIDES = {1: "1 сторона", 2: "2 стороны"}
+V3095_RZD_FACE = {
+    "с подсветкой": "с подсветкой",
+    "без подсветки": "без подсветки",
+    "светоотражающее": "светоотражающий",
+    "светоотражающий": "светоотражающий",
+}
+V3095_CABINET_SECTIONS = {
+    (960, 960): "LED-экраны / кабинет 960×960",
+    (960, 640): "LED-экраны / кабинет 960×640 и 640×960",
+    (640, 960): "LED-экраны / кабинет 960×640 и 640×960",
+    (640, 640): "LED-экраны / кабинет 640×640",
+}
+V3095_UNIT_ALIASES = {"м": "м.п.", "м.п": "м.п.", "мп": "м.п.", "шт": "шт.", "гр": "гр.", "г": "гр."}
+
+V3095_FILL_MISSING = "F8CBAD"     # позиции нет с одной из сторон
+V3095_FILL_DIFF = "FFE699"        # единица или норма расходятся
+V3095_FILL_INFO = "EDEDED"      # вариант позиции, расчёт выбрал другой
+V3095_FILL_GROUP = "E8EEF5"
+V3095_FILL_HEAD = "1F4E78"
+
+V3095_HEADERS = ("Раздел справочника", "Группа", "Позиция справочника", "Ед. (справочник)",
+                 "Норма по справочнику", "Логика расчёта (справочник)", "Позиция в расчёте",
+                 "Ед. (расчёт)", "Норма на изделие (расчёт)", "Итого по проекту", "Различия")
+V3095_WIDTHS = (34, 28, 46, 13, 20, 72, 46, 12, 24, 16, 46)
+
+
+def _v3095_unit(text):
+    value = re.sub(r"\s+", "", str(text or "")).casefold().replace("ё", "е")
+    return V3095_UNIT_ALIASES.get(value, value)
+
+
+def _v3095_number(text):
+    value = str(text or "").strip().replace(" ", "").replace(",", ".")
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _v3095_norm_name(text):
+    return re.sub(r"\s+", " ", str(text or "")).strip().casefold().replace("ё", "е")
+
+
+def _v3095_family(name):
+    """«Блок питания 100 Вт» → «блок питания»: общая часть вариантов одной позиции."""
+    value = _v3095_norm_name(name)
+    match = re.match(r"^([^0-9]+?)[\s,—-]*\d", value)
+    family = (match.group(1) if match else value).strip(" ,—-")
+    return family or value
+
+
+def _v3095_qty_text(self, value):
+    if value is None:
+        return ""
+    try:
+        return self._format_component_qty(round(float(value), 3))
+    except Exception:
+        return str(value)
+
+
+# ---------------------------------------------------------------------
+# Какому разделу справочника соответствует изделие
+# ---------------------------------------------------------------------
+def _v3095_sign_section(sign):
+    sides = 2 if int(sign.get("sides", 1) or 1) >= 2 else 1
+    mode = sign.get("mode", MODE_MCD)
+    if mode == MODE_MCD:
+        shape = "МЦД / круглый" if sign.get("round") else "МЦД"
+        return f"{shape} / {V3095_SIDES[sides]} / с подсветкой", "static_mcd"
+    face = str(sign.get("face_type", "С подсветкой") or "").strip().casefold()
+    return f"РЖД / {V3095_SIDES[sides]} / {V3095_RZD_FACE.get(face, 'с подсветкой')}", "static_rzd"
+
+
+def _v3095_screen_section(screen):
+    sides = 2 if int(screen.get("sides", 1) or 1) >= 2 else 1
+    return f"LED-экраны / МЦД / {V3095_SIDES[sides]}", "dyn_mcd"
+
+
+def _v3095_bom(self, kind, items):
+    """Строки BOM для набора изделий одного вида."""
+    if not items:
+        return []
+    if kind == "static_mcd":
+        return self._static_mcd_component_rows(items)
+    if kind == "static_rzd":
+        return self._static_rzd_component_rows(items)
+    if kind == "dyn_mcd":
+        return self._dynamic_mcd_component_rows_v1972(items)
+    return []
+
+
+V3095_SERVICE = re.compile(r"фактически установлено|установлено led|расчётная мощность|расчетная мощность", re.I)
+
+
+def _v3095_rows_map(self, rows):
+    """BOM → {ключ: (имя, ед., количество)}. Служебные строки пропускаются."""
+    out = {}
+    for name, unit, qty in rows or []:
+        if V3095_SERVICE.search(str(name)):
+            continue
+        key = self._component_supplier_key(name)
+        if key in out:
+            prev = out[key]
+            out[key] = (prev[0], prev[1], float(prev[2]) + float(qty or 0))
+        else:
+            out[key] = (str(name), str(unit), float(qty or 0))
+    return out
+
+
+def _v3095_project_sections(self):
+    """Разделы справочника, задействованные в текущем проекте."""
+    sections = {}
+
+    def add(section, kind, item):
+        entry = sections.setdefault(section, {"kind": kind, "items": []})
+        entry["items"].append(item)
+
+    for sign in list(getattr(self, "saved_static_signs", []) or []):
+        if not _product_calc_enabled(sign):
+            continue
+        section, kind = _v3095_sign_section(sign)
+        add(section, kind, sign)
+    for screen in list(getattr(self, "saved_screens", []) or []):
+        if not _product_calc_enabled(screen):
+            continue
+        if screen.get("mode", MODE_RZD) == MODE_MCD:
+            section, kind = _v3095_screen_section(screen)
+            add(section, kind, screen)
+    return sections
+
+
+def _v3095_cabinet_sections(self):
+    """Кабинетные разделы РЖД: нормы берутся из тех же COMPONENT_RATES."""
+    counts = {}
+    for screen in list(getattr(self, "saved_screens", []) or []):
+        if not _product_calc_enabled(screen) or screen.get("mode", MODE_RZD) != MODE_RZD:
+            continue
+        factor = self._screen_factor(screen)
+        for size, number in (screen.get("counts", {}) or {}).items():
+            counts[tuple(size)] = counts.get(tuple(size), 0) + float(number or 0) * factor
+    out = {}
+    for size, number in counts.items():
+        if not number:
+            continue
+        section = V3095_CABINET_SECTIONS.get(size)
+        rates = COMPONENT_RATES.get(size)
+        if not section or not rates:
+            continue
+        entry = out.setdefault(section, {"per": {}, "total": {}, "sizes": []})
+        entry["sizes"].append(f"{size[0]}×{size[1]}")
+        for name, rate in rates.items():
+            display = "LED-модуль" if name == "Модули" else name
+            key = self._component_supplier_key(display)
+            unit = COMPONENT_UNITS.get(name, "шт.")
+            previous = entry["per"].get(key)
+            value = float(rate or 0)
+            entry["per"][key] = (display, unit, value if previous is None else max(previous[2], value))
+            total = entry["total"].get(key)
+            entry["total"][key] = (display, unit, (total[2] if total else 0.0) + value * number)
+    return out
+
+
+# ---------------------------------------------------------------------
+# Сбор строк сверки
+# ---------------------------------------------------------------------
+def _v3095_reference_entries(self, section):
+    """Позиции раздела справочника: (группа, имя, правило, норма, ед.)."""
+    rows = (getattr(self, "_reference_data", None) or {}).get(section) or []
+    out, group = [], ""
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or not row:
+            continue
+        name = str(row[0] or "").strip()
+        rule = str(row[1] if len(row) > 1 else "").strip()
+        qty = str(row[2] if len(row) > 2 else "").strip()
+        unit = str(row[3] if len(row) > 3 else "").strip()
+        if not name:
+            continue
+        if not rule and not qty and not unit:
+            group = name
+            continue
+        out.append((group, name, rule, qty, unit))
+    return out
+
+
+def _v3095_compare(ref_unit, ref_qty, calc_unit, per_item, spread, *, variant=False):
+    """(уровень, заметки) по одной позиции."""
+    if calc_unit is None:
+        if variant:
+            return "info", ["Вариант не применён: расчёт выбрал другой из этой группы"]
+        return "missing", ["Нет в расчёте"]
+    if ref_unit is None:
+        return "missing", ["Нет в справочнике"]
+    notes = []
+    left, right = _v3095_unit(ref_unit), _v3095_unit(calc_unit)
+    if left and right and left != right:
+        notes.append(f"Единица: справочник «{ref_unit}», расчёт «{calc_unit}»")
+    reference = _v3095_number(ref_qty)
+    if reference is not None and per_item is not None and not spread and abs(reference - per_item) > 0.001:
+        notes.append(f"Норма на изделие: справочник {reference:g}, расчёт {per_item:g}")
+    return ("diff" if notes else ""), notes
+
+
+def _v3095_section_rows(self, section, kind, items):
+    """Строки сверки одного раздела справочника."""
+    totals = _v3095_rows_map(self, _v3095_bom(self, kind, items))
+    per_items = []
+    for item in items:
+        one = dict(item)
+        one["quantity"] = 1
+        per_items.append(_v3095_rows_map(self, _v3095_bom(self, kind, [one])))
+    return _v3095_merge(self, section, _v3095_reference_entries(self, section), totals, per_items)
+
+
+V3095_ALIASES = {
+    "профиль 75мм п-/г-элементы корпуса мцд": "профиль 75мм",
+}
+
+
+def _v3095_per_values(per_items, keys):
+    """Норма на одно изделие: сумма по подходящим позициям внутри каждого изделия."""
+    values = []
+    for one in per_items:
+        picked = [float(one[k][2]) for k in keys if k in one]
+        if picked:
+            values.append(sum(picked))
+    return values
+
+
+def _v3095_match(self, totals, per_items, display):
+    """Ищет позицию в расчёте: точное имя, затем имена с уточнением размера."""
+    key = self._component_supplier_key(display)
+    if key in totals:
+        name, unit, qty = totals[key]
+        return [key], name, unit, qty, _v3095_per_values(per_items, [key])
+    prefix = V3095_ALIASES.get(_v3095_norm_name(display), _v3095_norm_name(display))
+    names, unit, total, keys = [], "", 0.0, []
+    for other, (name, other_unit, qty) in totals.items():
+        low = _v3095_norm_name(name)
+        if not low.startswith(prefix) or len(low) <= len(prefix):
+            continue
+        if low[len(prefix):][:1] not in (" ", ",", "—", "-"):
+            continue
+        keys.append(other)
+        names.append(name)
+        unit = unit or other_unit
+        total += float(qty or 0)
+    if not keys:
+        return None, "", None, None, []
+    label = names[0] if len(names) == 1 else f"{len(names)} размера: " + "; ".join(names)
+    return keys, label, unit, total, _v3095_per_values(per_items, keys)
+
+
+def _v3095_row(self, section, group, name, unit, qty, rule, match, *, variant=False):
+    keys, calc_name, calc_unit, total, values = match
+    spread = bool(values) and (max(values) - min(values) > 0.001)
+    per_item = None if spread else (min(values) if values else None)
+    level, notes = _v3095_compare(unit, qty, calc_unit, per_item, spread, variant=variant)
+    return {
+        "section": section, "group": group, "ref_name": name, "ref_unit": unit,
+        "ref_qty": qty, "rule": rule, "calc_name": calc_name, "calc_unit": calc_unit or "",
+        "per_item": per_item,
+        "per_item_text": (f"от {min(values):g} до {max(values):g} (зависит от изделия)"
+                          if spread else _v3095_qty_text(self, per_item)),
+        "total": total, "level": level, "notes": notes, "keys": keys,
+    }
+
+
+def _v3095_merge(self, section, reference, totals, per_items):
+    families = {_v3095_family(name): True for name, _unit, _qty in totals.values()}
+    rows, seen = [], set()
+    for group, name, rule, qty, unit in reference:
+        display = self._v3083_rename_name(name)
+        match = _v3095_match(self, totals, per_items, display)
+        keys = match[0]
+        if keys:
+            seen.update(keys)
+        rows.append(_v3095_row(self, section, group, display, unit, qty, rule, match,
+                               variant=not keys and families.get(_v3095_family(display), False)))
+    ref_families = {_v3095_family(self._v3083_rename_name(name)): True
+                    for _group, name, _rule, _qty, _unit in reference}
+    for key, (name, unit, qty) in totals.items():
+        if key in seen:
+            continue
+        row = _v3095_row(self, section, self._reference_group_for_component(name),
+                         "", None, "", "",
+                         ([key], name, unit, qty, _v3095_per_values(per_items, [key])))
+        if ref_families.get(_v3095_family(name)):
+            row["level"] = "info"
+            row["notes"] = ["Вариант позиции: в справочнике перечислены другие из этой группы"]
+        rows.append(row)
+    return rows
+
+
+def _v3095_cabinet_rows(self, section, data):
+    """Кабинетные разделы: норма берётся из тех же COMPONENT_RATES."""
+    rows, seen = [], set()
+    families = {_v3095_family(name): True for name, _u, _v in data["per"].values()}
+    for group, name, rule, qty, unit in _v3095_reference_entries(self, section):
+        display = self._v3083_rename_name(name)
+        key = self._component_supplier_key(display)
+        seen.add(key)
+        per = data["per"].get(key)
+        total = data["total"].get(key)
+        match = (([key], per[0], per[1], total[2] if total else None, [per[2]]) if per
+                 else (None, "", None, None, []))
+        rows.append(_v3095_row(self, section, group, display, unit, qty, rule, match,
+                               variant=per is None and families.get(_v3095_family(display), False)))
+    for key, (name, unit, value) in data["per"].items():
+        if key in seen:
+            continue
+        total = data["total"].get(key)
+        rows.append(_v3095_row(self, section, self._reference_group_for_component(name),
+                               "", None, "", "",
+                               ([key], name, unit, total[2] if total else None, [value])))
+    return rows
+
+
+def _v3095_build_rows(self):
+    rows = []
+    for section, entry in _v3095_project_sections(self).items():
+        rows += _v3095_section_rows(self, section, entry["kind"], entry["items"])
+    for section, data in _v3095_cabinet_sections(self).items():
+        rows += _v3095_cabinet_rows(self, section, data)
+    return rows
+
+
+# ---------------------------------------------------------------------
+# Выгрузка в Excel
+# ---------------------------------------------------------------------
+def _v3095_write_sheet(self, ws, rows, subtitle):
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    thin = Side(style="thin", color="999999")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    project = str(self.project_name_var.get().strip() or self.project_name)
+    ws["A1"] = "СВЕРКА СПРАВОЧНИКА С РАСЧЁТОМ КОМПЛЕКТУЮЩИХ"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"] = f"Проект: {project}"
+    ws["A3"] = subtitle
+    ws["A3"].font = Font(bold=True)
+    for column, title in enumerate(V3095_HEADERS, 1):
+        cell = ws.cell(5, column, title)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor=V3095_FILL_HEAD)
+        cell.border = border
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for column, width in enumerate(V3095_WIDTHS, 1):
+        ws.column_dimensions[get_column_letter_v3063(column)].width = width
+    row_no, last_section = 6, None
+    for rec in rows:
+        if rec["section"] != last_section:
+            ws.cell(row_no, 1, rec["section"]).font = Font(bold=True)
+            for column in range(1, len(V3095_HEADERS) + 1):
+                cell = ws.cell(row_no, column)
+                cell.fill = PatternFill("solid", fgColor=V3095_FILL_GROUP)
+                cell.border = border
+            ws.merge_cells(start_row=row_no, start_column=1,
+                           end_row=row_no, end_column=len(V3095_HEADERS))
+            row_no += 1
+            last_section = rec["section"]
+        notes = "; ".join(rec["notes"])
+        values = (rec["section"], rec["group"], rec["ref_name"], rec["ref_unit"], rec["ref_qty"],
+                  rec["rule"], rec["calc_name"], rec["calc_unit"], rec["per_item_text"],
+                  None if rec["total"] is None else round(float(rec["total"]), 3), notes)
+        fill = {"missing": V3095_FILL_MISSING, "diff": V3095_FILL_DIFF,
+                "info": V3095_FILL_INFO}.get(rec["level"])
+        for column, value in enumerate(values, 1):
+            cell = ws.cell(row_no, column, value)
+            cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=True,
+                                       horizontal="center" if column in (4, 8, 9, 10) else "left")
+            if fill:
+                cell.fill = PatternFill("solid", fgColor=fill)
+            if column == 11 and notes:
+                cell.font = Font(bold=True)
+        row_no += 1
+    ws.freeze_panes = "C6"
+    if row_no > 6:
+        ws.auto_filter.ref = f"A5:{get_column_letter_v3063(len(V3095_HEADERS))}{row_no - 1}"
+    return row_no
+
+
+def _v3095_save_xlsx(self, rows, path):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    diffs = [rec for rec in rows if rec["level"] in ("missing", "diff")]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Сверка"
+    _v3095_write_sheet(self, ws, rows, f"Все позиции: {len(rows)}   •   с различиями: {len(diffs)}")
+    second = wb.create_sheet("Только различия")
+    if diffs:
+        _v3095_write_sheet(self, second, diffs, f"Строки с различиями: {len(diffs)}")
+    else:
+        second["A1"] = "Различий между справочником и расчётом не найдено."
+        second["A1"].font = Font(bold=True, size=12)
+    wb.save(path)
+    return len(diffs)
+
+
+def _v3095_export(self):
+    """Кнопка «Сверка с расчётом (Excel)»."""
+    try:
+        rows = _v3095_build_rows(self)
+    except Exception as exc:
+        import traceback
+        self._print_debug_log(traceback.format_exc())
+        messagebox.showerror("Сверка справочника", f"Не удалось собрать сверку:\n{exc}")
+        return
+    if not rows:
+        messagebox.showwarning("Сверка справочника",
+                               "В проекте нет изделий, по которым можно сверить справочник.\n"
+                               "Добавьте экран или указатель и повторите.")
+        return
+    path = filedialog.asksaveasfilename(
+        parent=self, title="Сверка справочника с расчётом", defaultextension=".xlsx",
+        initialfile=f"{self._v3063_project_file_base('Сверка_справочника')}.xlsx",
+        filetypes=[("Excel (*.xlsx)", "*.xlsx")])
+    if not path:
+        return
+    if not str(path).lower().endswith(".xlsx"):
+        path = str(path) + ".xlsx"
+    try:
+        diffs = _v3095_save_xlsx(self, rows, path)
+    except Exception as exc:
+        import traceback
+        self._print_debug_log(traceback.format_exc())
+        messagebox.showerror("Сверка справочника", f"Не удалось сохранить файл:\n{exc}")
+        return
+    messagebox.showinfo("Сверка справочника",
+                        f"Файл сохранён:\n{path}\n\n"
+                        f"Позиций в сверке: {len(rows)}\nСтрок с различиями: {diffs}")
+
+
+ScreenDesigner._v3095_export = _v3095_export
+ScreenDesigner._v3095_build_rows = _v3095_build_rows
+ScreenDesigner._v3095_save_xlsx = _v3095_save_xlsx
+
+
+_v3095_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3095_build_ui(self):
+    _v3095_orig_build_ui(self)
+    try:
+        head = getattr(self, "reference_head", None)
+        if head is not None:
+            ttk.Button(head, text="Сверка с расчётом (Excel)",
+                       command=self._v3095_export).pack(side="right", padx=(0, 14))
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v3095_build_ui
+
+
+
+# =====================================================================
+# V30.96 — «Журнал проекта»: счётчик строк под отметкой «Редактирование».
+#   • Первое число — количество наименований: одинаковые артикулы
+#     считаются одним наименованием, их количества складываются.
+#   • Второе число — суммарное количество изделий.
+#   • Неактивные строки (снят «Расчёт») в счёт не входят. Они попадают
+#     в него, только если строку выделить мышью или снова включить
+#     её в расчёт.
+#   • Пересчёт идёт при обновлении журнала, выделении строки и
+#     переключении «Расчёта».
+# =====================================================================
+
+V3096_COLOR = "#1F6FEB"
+
+
+def _v3096_qty(text):
+    value = re.sub(r"[^\d,.\-]", "", str(text or "")).replace(",", ".")
+    try:
+        return float(value)
+    except Exception:
+        return 0.0
+
+
+def _v3096_key(self, tree, iid):
+    """Ключ наименования: артикул, иначе наименование с габаритом."""
+    def cell(column):
+        try:
+            return str(tree.set(iid, column) or "").strip()
+        except Exception:
+            return ""
+    article = cell("article")
+    if article:
+        return re.sub(r"\s+", " ", article).casefold().replace("ё", "е")
+    base = f"{cell('name')} {cell('size')} {cell('execution')}".strip()
+    return re.sub(r"\s+", " ", base).casefold().replace("ё", "е")
+
+
+def _v3096_counts(self):
+    """(наименований, изделий, выделено строк).
+
+    V30.99: если строки выделены — считаем только выделенные, в том числе
+    неактивные. Без выделения — все активные строки журнала.
+    """
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return 0, 0.0, 0
+    try:
+        selection = [iid for iid in tree.selection() if not tree.parent(iid)]
+    except Exception:
+        selection = []
+    rows = selection if selection else list(tree.get_children(""))
+    names, total = {}, 0.0
+    for iid in rows:
+        if not selection:
+            record = self._project_journal_record_for_iid(iid)
+            if isinstance(record, dict) and not _product_calc_enabled(record):
+                continue
+        try:
+            qty = _v3096_qty(tree.set(iid, "qty"))
+        except Exception:
+            qty = 0.0
+        key = _v3096_key(self, tree, iid)
+        if not key:
+            continue
+        names[key] = names.get(key, 0.0) + qty
+        total += qty
+    return len(names), total, len(selection)
+
+
+def _v3096_update(self):
+    var = getattr(self, "project_journal_counts_var", None)
+    if var is None:
+        return
+    try:
+        names, total, forced = _v3096_counts(self)
+    except Exception:
+        return
+    quantity = int(total) if abs(total - round(total)) < 1e-6 else round(total, 2)
+    text = f"Наименований: {names}   •   Изделий: {quantity}"
+    if forced:
+        text += f"   (по выделенным строкам: {forced})"
+    try:
+        var.set(text)
+    except Exception:
+        pass
+
+
+ScreenDesigner._v3096_update_journal_counts = _v3096_update
+
+
+_v3096_orig_build_tab = ScreenDesigner._build_project_journal_tab
+
+
+def _v3096_build_project_journal_tab(self, parent):
+    _v3096_orig_build_tab(self, parent)
+    try:
+        self.project_journal_counts_var = tk.StringVar(value="Наименований: 0   •   Изделий: 0")
+        line = ttk.Frame(parent)
+        # Сразу под верхней строкой с отметкой «Редактирование».
+        anchor = None
+        for child in parent.winfo_children():
+            if isinstance(child, ttk.Label):
+                anchor = child
+                break
+        if anchor is not None:
+            line.pack(fill="x", pady=(0, 2), before=anchor)
+        else:
+            line.pack(fill="x", pady=(0, 2))
+        ttk.Label(line, textvariable=self.project_journal_counts_var,
+                  foreground=V3096_COLOR, font=("Arial", 11, "bold")).pack(side="right")
+        tree = getattr(self, "project_journal_tree", None)
+        if tree is not None:
+            tree.bind("<<TreeviewSelect>>", lambda e: _v3096_update(self), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_project_journal_tab = _v3096_build_project_journal_tab
+
+
+_v3096_orig_refresh = ScreenDesigner._refresh_project_journal
+
+
+def _v3096_refresh_project_journal(self, *args, **kwargs):
+    result = _v3096_orig_refresh(self, *args, **kwargs)
+    try:
+        _v3096_update(self)
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._refresh_project_journal = _v3096_refresh_project_journal
+
+
+_v3096_orig_calc_click = ScreenDesigner._project_journal_calc_click
+
+
+def _v3096_project_journal_calc_click(self, event):
+    result = _v3096_orig_calc_click(self, event)
+    try:
+        _v3096_update(self)
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._project_journal_calc_click = _v3096_project_journal_calc_click
+
+
+
+# =====================================================================
+# V30.97 — кнопка «По справочникам» на вкладке «Справочник».
+# Окно корректировки наименования сразу во всех разделах:
+#   • поиск позиции по всем разделам справочника;
+#   • список разделов, где эта позиция встречается, с галочками;
+#   • новое наименование применяется разом ко всем отмеченным разделам,
+#     попадает в журнал правок справочника и регистрируется как
+#     переименование V30.83 — поэтому поставщик, вес, группа и привязка
+#     раскроя сохраняются, а в «Комплектующих» сразу новое название.
+# Расчёт норм не затрагивается.
+# =====================================================================
+
+V3097_TITLE = "Корректировка по всем справочникам"
+V3097_MARK_ON = "☑"
+V3097_MARK_OFF = "☐"
+
+
+def _v3097_norm(text):
+    return re.sub(r"\s+", " ", str(text or "")).strip().casefold().replace("ё", "е")
+
+
+def _v3097_index(self):
+    """{нормализованное имя: {"name": написание, "unit": ед., "sections": [разделы]}}"""
+    index = {}
+    for section, rows in (getattr(self, "_reference_data", None) or {}).items():
+        for row in rows or []:
+            if not isinstance(row, (list, tuple)) or not row:
+                continue
+            name = str(row[0] or "").strip()
+            if not name or self._is_reference_group_header(name):
+                continue
+            key = _v3097_norm(name)
+            entry = index.setdefault(key, {"name": name, "unit": "", "sections": []})
+            if not entry["unit"] and len(row) > 3:
+                entry["unit"] = str(row[3] or "").strip()
+            if section not in entry["sections"]:
+                entry["sections"].append(section)
+    return index
+
+
+def _v3097_apply(self, old_name, new_name, sections):
+    """Переименование в отмеченных разделах. Возвращает число изменённых строк."""
+    changed = 0
+    target = _v3097_norm(old_name)
+    try:
+        author = self._v3073_user()
+    except Exception:
+        author = ""
+    stamp = datetime.now().strftime("%d.%m.%Y %H:%M")
+    for section in sections:
+        rows = (self._reference_data or {}).get(section) or []
+        for index, row in enumerate(rows):
+            if not isinstance(row, (list, tuple)) or not row:
+                continue
+            if _v3097_norm(row[0]) != target:
+                continue
+            old = str(row[0])
+            row[0] = new_name
+            changed += 1
+            self._reference_history.append({"date": stamp, "section": section, "row": index,
+                                            "column": 0, "old": old, "new": new_name,
+                                            "by": author, "name": new_name})
+    if not changed:
+        return 0
+    try:
+        self._v3083_register_rename(old_name, new_name)
+    except Exception:
+        pass
+    try:
+        self._reference_save()
+    except Exception as exc:
+        messagebox.showerror(V3097_TITLE, f"Не удалось сохранить справочник:\n{exc}")
+    for method in ("_reference_refresh", "_refresh_components_table"):
+        try:
+            getattr(self, method)()
+        except Exception:
+            pass
+    return changed
+
+
+def _v3097_window(self):
+    """Окно поиска и переименования по всем разделам справочника."""
+    if not getattr(self, "_reference_data", None):
+        messagebox.showwarning(V3097_TITLE, "Справочник не загружен.")
+        return
+    win = tk.Toplevel(self)
+    win.title(V3097_TITLE)
+    win.geometry("1020x660")
+    win.minsize(820, 560)
+    try:
+        win.transient(self)
+        win.grab_set()
+    except Exception:
+        pass
+    body = ttk.Frame(win, padding=12)
+    body.pack(fill="both", expand=True)
+    body.columnconfigure(0, weight=1)
+    body.rowconfigure(2, weight=3)
+    body.rowconfigure(6, weight=2)
+
+    state = {"key": None, "index": _v3097_index(self)}
+
+    search_row = ttk.Frame(body)
+    search_row.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+    ttk.Label(search_row, text="Поиск по всем разделам:").pack(side="left")
+    search_var = tk.StringVar()
+    entry = ttk.Entry(search_row, textvariable=search_var, width=46)
+    entry.pack(side="left", padx=(8, 12))
+    found_var = tk.StringVar(value="")
+    ttk.Label(search_row, textvariable=found_var, foreground="#1F6FEB").pack(side="left")
+
+    ttk.Label(body, text="Позиции справочника", font=("Arial", 10, "bold")).grid(
+        row=1, column=0, sticky="w")
+    list_box = ttk.Frame(body)
+    list_box.grid(row=2, column=0, sticky="nsew")
+    list_box.columnconfigure(0, weight=1)
+    list_box.rowconfigure(0, weight=1)
+    items = ttk.Treeview(list_box, columns=("name", "unit", "count"), show="headings",
+                         selectmode="browse")
+    items.heading("name", text="Наименование")
+    items.heading("unit", text="Ед.")
+    items.heading("count", text="Разделов")
+    items.column("name", width=620, anchor="w")
+    items.column("unit", width=80, anchor="center", stretch=False)
+    items.column("count", width=90, anchor="center", stretch=False)
+    items.grid(row=0, column=0, sticky="nsew")
+    bar = ttk.Scrollbar(list_box, orient="vertical", command=items.yview)
+    items.configure(yscrollcommand=bar.set)
+    bar.grid(row=0, column=1, sticky="ns")
+
+    name_row = ttk.Frame(body)
+    name_row.grid(row=3, column=0, sticky="ew", pady=(10, 6))
+    ttk.Label(name_row, text="Новое наименование:", font=("Arial", 10, "bold")).pack(side="left")
+    new_var = tk.StringVar()
+    name_entry = ttk.Entry(name_row, textvariable=new_var)
+    name_entry.pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+    section_head = ttk.Frame(body)
+    section_head.grid(row=4, column=0, sticky="ew")
+    ttk.Label(section_head, text="Применить в разделах:", font=("Arial", 10, "bold")).pack(side="left")
+    ttk.Button(section_head, text="Снять все",
+               command=lambda: mark_all(False)).pack(side="right")
+    ttk.Button(section_head, text="Отметить все",
+               command=lambda: mark_all(True)).pack(side="right", padx=(0, 8))
+    ttk.Label(body, text="Щелчок по строке раздела снимает или ставит галочку.",
+              foreground="#666666").grid(row=5, column=0, sticky="w", pady=(2, 4))
+
+    section_box = ttk.Frame(body)
+    section_box.grid(row=6, column=0, sticky="nsew")
+    section_box.columnconfigure(0, weight=1)
+    section_box.rowconfigure(0, weight=1)
+    sections = ttk.Treeview(section_box, columns=("mark", "section", "current"),
+                            show="headings", selectmode="browse")
+    sections.heading("mark", text="")
+    sections.heading("section", text="Раздел справочника")
+    sections.heading("current", text="Текущее наименование")
+    sections.column("mark", width=40, anchor="center", stretch=False)
+    sections.column("section", width=420, anchor="w")
+    sections.column("current", width=440, anchor="w")
+    sections.grid(row=0, column=0, sticky="nsew")
+    sbar = ttk.Scrollbar(section_box, orient="vertical", command=sections.yview)
+    sections.configure(yscrollcommand=sbar.set)
+    sbar.grid(row=0, column=1, sticky="ns")
+
+    note = ttk.Label(body, text="", foreground="#B45309", wraplength=960, justify="left")
+    note.grid(row=7, column=0, sticky="ew", pady=(6, 0))
+
+    buttons = ttk.Frame(body)
+    buttons.grid(row=8, column=0, sticky="ew", pady=(10, 0))
+    ttk.Button(buttons, text="Закрыть", command=win.destroy).pack(side="right")
+    apply_button = ttk.Button(buttons, text="Переименовать")
+    apply_button.pack(side="right", padx=(0, 8))
+
+    def fill_items(*_args):
+        query = _v3097_norm(search_var.get())
+        items.delete(*items.get_children())
+        shown = 0
+        for key in sorted(state["index"], key=lambda k: state["index"][k]["name"].casefold()):
+            entry_data = state["index"][key]
+            if query and query not in key:
+                continue
+            items.insert("", "end", iid=key,
+                         values=(entry_data["name"], entry_data["unit"], len(entry_data["sections"])))
+            shown += 1
+        found_var.set(f"найдено: {shown}")
+        if state["key"] and items.exists(state["key"]):
+            items.selection_set(state["key"])
+
+    def update_note():
+        entry_data = state["index"].get(state["key"]) if state["key"] else None
+        if not entry_data:
+            note.configure(text="")
+            return
+        total = len(entry_data["sections"])
+        marked = sum(1 for iid in sections.get_children("")
+                     if sections.set(iid, "mark") == V3097_MARK_ON)
+        if marked < total:
+            note.configure(text=(f"Отмечено разделов: {marked} из {total}. "
+                                 "В неотмеченных разделах останется прежняя запись, "
+                                 "а в «Комплектующих» и в печати позиция будет выводиться "
+                                 "новым названием — справочник и расчёт разойдутся."))
+        else:
+            note.configure(text="")
+
+    def fill_sections():
+        sections.delete(*sections.get_children())
+        entry_data = state["index"].get(state["key"]) if state["key"] else None
+        if not entry_data:
+            update_note()
+            return
+        for section in entry_data["sections"]:
+            current = entry_data["name"]
+            for row in (self._reference_data or {}).get(section) or []:
+                if isinstance(row, (list, tuple)) and row and _v3097_norm(row[0]) == state["key"]:
+                    current = str(row[0])
+                    break
+            sections.insert("", "end", iid=section, values=(V3097_MARK_ON, section, current))
+        update_note()
+
+    def choose(_event=None):
+        selection = items.selection()
+        if not selection:
+            return
+        state["key"] = selection[0]
+        new_var.set(state["index"][state["key"]]["name"])
+        fill_sections()
+
+    def mark_all(value):
+        for iid in sections.get_children(""):
+            sections.set(iid, "mark", V3097_MARK_ON if value else V3097_MARK_OFF)
+        update_note()
+
+    def toggle(event):
+        iid = sections.identify_row(event.y)
+        if not iid:
+            return None
+        current = sections.set(iid, "mark")
+        sections.set(iid, "mark", V3097_MARK_OFF if current == V3097_MARK_ON else V3097_MARK_ON)
+        update_note()
+        return "break"
+
+    def rename():
+        if not state["key"]:
+            messagebox.showwarning(V3097_TITLE, "Выберите позицию в списке.", parent=win)
+            return
+        old_name = state["index"][state["key"]]["name"]
+        new_name = re.sub(r"\s+", " ", str(new_var.get() or "")).strip()
+        if not new_name:
+            messagebox.showwarning(V3097_TITLE, "Введите новое наименование.", parent=win)
+            return
+        if _v3097_norm(new_name) == state["key"]:
+            messagebox.showinfo(V3097_TITLE, "Наименование не изменилось.", parent=win)
+            return
+        chosen = [iid for iid in sections.get_children("")
+                  if sections.set(iid, "mark") == V3097_MARK_ON]
+        if not chosen:
+            messagebox.showwarning(V3097_TITLE, "Отметьте хотя бы один раздел.", parent=win)
+            return
+        clash = [s for s in chosen
+                 if any(isinstance(r, (list, tuple)) and r and _v3097_norm(r[0]) == _v3097_norm(new_name)
+                        for r in (self._reference_data or {}).get(s) or [])]
+        question = (f"Переименовать позицию\n«{old_name}»\nв\n«{new_name}»\n\n"
+                    f"Разделов: {len(chosen)} из {len(state['index'][state['key']]['sections'])}.")
+        if clash:
+            question += ("\n\nВнимание: такое наименование уже есть в разделах:\n"
+                         + "\n".join(f"• {s}" for s in clash[:6])
+                         + "\nВ них появятся две одинаковые строки.")
+        if not messagebox.askyesno(V3097_TITLE, question, parent=win):
+            return
+        changed = _v3097_apply(self, old_name, new_name, chosen)
+        state["index"] = _v3097_index(self)
+        state["key"] = _v3097_norm(new_name)
+        fill_items()
+        new_var.set(new_name)
+        fill_sections()
+        messagebox.showinfo(V3097_TITLE,
+                            f"Изменено строк справочника: {changed}.\n"
+                            "Поставщик, вес и привязка раскроя сохранены.", parent=win)
+
+    apply_button.configure(command=rename)
+    search_var.trace_add("write", fill_items)
+    items.bind("<<TreeviewSelect>>", choose)
+    sections.bind("<Button-1>", toggle, add="+")
+    win.bind("<Escape>", lambda e: win.destroy())
+    fill_items()
+    entry.focus_set()
+    return win
+
+
+ScreenDesigner._v3097_window = _v3097_window
+ScreenDesigner._v3097_apply = _v3097_apply
+ScreenDesigner._v3097_index = _v3097_index
+
+
+_v3097_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v3097_build_ui(self):
+    _v3097_orig_build_ui(self)
+    try:
+        head = getattr(self, "reference_head", None)
+        if head is not None:
+            ttk.Button(head, text="По справочникам",
+                       command=self._v3097_window).pack(side="right", padx=(0, 10))
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v3097_build_ui
+
+
+
+# =====================================================================
+# V30.98 — две правки.
+#   1. «Журнал проекта»: строки выделяются мышью с Shift (диапазон)
+#      и с Command/Ctrl (поштучно). Перетаскивание строк для смены
+#      порядка сохранено: при перетаскивании выделение не растягивается.
+#   2. Статический указатель МЦД с подсветкой ровно 800 × 400 мм
+#      получает собственную геометрию — скошенный прямоугольник
+#      (параллелограмм) со скруглёнными углами, верхняя грань сдвинута
+#      вправо. Форма рисуется и на координатном поле, и при выводе
+#      журнала изделия на печать.
+#      Нормы расхода пока не меняются: предопределённые размеры
+#      алюкобонда, молочного акрила и оргстекла будут заданы отдельно.
+# =====================================================================
+
+# --- геометрия особого изделия -------------------------------------
+V3098_SPECIAL_W = 800.0
+V3098_SPECIAL_H = 400.0
+V3098_SKEW_MM = 50.0        # сдвиг верхней грани вправо
+V3098_RADIUS_MM = 50.0      # радиус скругления углов
+V3098_ARC_STEPS = 14
+
+
+def _v3098_is_special(mode, is_round, face_type, width, height):
+    """Тот самый МЦД-указатель с подсветкой 800 × 400 мм."""
+    if mode != MODE_MCD or is_round:
+        return False
+    if str(face_type or "С подсветкой").strip() != "С подсветкой":
+        return False
+    try:
+        return (abs(float(width) - V3098_SPECIAL_W) < 0.5
+                and abs(float(height) - V3098_SPECIAL_H) < 0.5)
+    except Exception:
+        return False
+
+
+def _v3098_round_polygon(points, radius, steps=V3098_ARC_STEPS):
+    """Многоугольник со скруглёнными углами: вершины заменяются дугами."""
+    out, count = [], len(points)
+    for index in range(count):
+        before = points[(index - 1) % count]
+        here = points[index]
+        after = points[(index + 1) % count]
+        v1 = (before[0] - here[0], before[1] - here[1])
+        v2 = (after[0] - here[0], after[1] - here[1])
+        l1 = math.hypot(*v1) or 1.0
+        l2 = math.hypot(*v2) or 1.0
+        u1 = (v1[0] / l1, v1[1] / l1)
+        u2 = (v2[0] / l2, v2[1] / l2)
+        angle = math.acos(max(-1.0, min(1.0, u1[0] * u2[0] + u1[1] * u2[1])))
+        if angle < 1e-6 or abs(angle - math.pi) < 1e-6:
+            out.append(here)
+            continue
+        cut = min(radius / math.tan(angle / 2.0), l1 / 2.0, l2 / 2.0)
+        r = cut * math.tan(angle / 2.0)
+        start = (here[0] + u1[0] * cut, here[1] + u1[1] * cut)
+        end = (here[0] + u2[0] * cut, here[1] + u2[1] * cut)
+        bisector = (u1[0] + u2[0], u1[1] + u2[1])
+        length = math.hypot(*bisector) or 1.0
+        shift = r / math.sin(angle / 2.0)
+        cx = here[0] + bisector[0] / length * shift
+        cy = here[1] + bisector[1] / length * shift
+        a0 = math.atan2(start[1] - cy, start[0] - cx)
+        a1 = math.atan2(end[1] - cy, end[0] - cx)
+        delta = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+        for step in range(steps + 1):
+            a = a0 + delta * step / steps
+            out.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return out
+
+
+def _v3098_outline(x1, y1, x2, y2, scale, mirrored=False):
+    """Контур особого изделия в координатах холста/печати."""
+    skew = V3098_SKEW_MM * scale
+    width = abs(x2 - x1)
+    skew = max(0.0, min(skew, width / 2.0))
+    if mirrored:
+        corners = [(x1, y1), (x2 - skew, y1), (x2, y2), (x1 + skew, y2)]
+    else:
+        corners = [(x1 + skew, y1), (x2, y1), (x2 - skew, y2), (x1, y2)]
+    radius = min(V3098_RADIUS_MM * scale, abs(y2 - y1) / 2.0, (width - skew) / 2.0)
+    return _v3098_round_polygon(corners, max(1.0, radius))
+
+
+def _v3098_draw_canvas(c, x1, y1, x2, y2, scale, mirrored=False):
+    """Координатное поле: та же заливка и обводка, что у обычного МЦД."""
+    points = _v3098_outline(x1, y1, x2, y2, scale, mirrored)
+    flat = [coord for point in points for coord in point]
+    c.create_polygon(*flat, fill="#a9dfb3", outline="#145d25", width=5)
+    c.create_text(x2 - 6 if not mirrored else x1 + 6, y2 - 6,
+                  text=f"R{V3098_RADIUS_MM:g}", anchor="se" if not mirrored else "sw",
+                  fill="#8a3b3b", font=("Arial", 8, "bold"))
+
+
+def _v3098_draw_print(d, x1, y1, x2, y2, scale, mirrored=False):
+    """Печать журнала изделия: тот же контур в цветах печати."""
+    points = _v3098_outline(x1, y1, x2, y2, scale, mirrored)
+    d.polygon(points, fill=(210, 235, 215))
+    d.line(list(points) + [points[0]], fill=(20, 93, 37), width=9, joint="curve")
+
+
+ScreenDesigner._v3098_is_special = staticmethod(_v3098_is_special)
+ScreenDesigner._v3098_draw_canvas = staticmethod(_v3098_draw_canvas)
+ScreenDesigner._v3098_draw_print = staticmethod(_v3098_draw_print)
+
+
+# --- выделение строк журнала ---------------------------------------
+def _v3098_toggle_click(self, event):
+    """Command/Ctrl + щелчок — добавить или убрать строку из выделения."""
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    iid = tree.identify_row(event.y)
+    if not iid:
+        return None
+    selection = list(tree.selection())
+    if iid in selection:
+        selection.remove(iid)
+    else:
+        selection.append(iid)
+    tree.selection_set(selection)
+    tree.focus(iid)
+    return "break"
+
+
+ScreenDesigner._v3098_toggle_click = _v3098_toggle_click
+
+
+_v3098_orig_drag_motion = ScreenDesigner._project_journal_drag_motion
+
+
+def _v3098_drag_motion(self, event):
+    result = _v3098_orig_drag_motion(self, event)
+    # При перетаскивании строки выделение не должно растягиваться мышью.
+    if getattr(self, "_project_journal_drag_iid", None):
+        return "break"
+    return result
+
+
+ScreenDesigner._project_journal_drag_motion = _v3098_drag_motion
+
+
+_v3098_orig_build_tab = ScreenDesigner._build_project_journal_tab
+
+
+def _v3098_build_project_journal_tab(self, parent):
+    _v3098_orig_build_tab(self, parent)
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    try:
+        tree.configure(selectmode="extended")
+        for sequence in ("<Command-Button-1>", "<Command-ButtonPress-1>"):
+            tree.bind(sequence, lambda e: _v3098_toggle_click(self, e), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_project_journal_tab = _v3098_build_project_journal_tab
+
+
+
+# =====================================================================
+# V40.00 — «Журнал проекта»: состояние изделий и комментарий.
+#   • Столбец «Исполнение» убран с экрана, на его месте два новых:
+#     «Состояние» и «Комментарий».
+#   • Состояние хранится по количествам: из 10 шт. 4 отгружено,
+#     3 на складе, 2 на складе Москва, 1 отмена. Остаток показывается
+#     отдельно.
+#   • Строка подсвечивается градиентом от оранжевого (ничего не
+#     отгружено) к зелёному (отгружено всё); полностью отменённое
+#     изделие — серым.
+#   • Назначение — правым щелчком, меню из двух зон, как во вкладке
+#     «Комплектующие»: быстрый выбор состояния на всё количество и
+#     окно разбивки по количествам.
+#   • Комментарий — свободный печатный текст, вводится в клетке
+#     двойным щелчком, не сортируется и не выводится на печать.
+#   Состояние и комментарий лежат в самом изделии, поэтому уезжают
+#   вместе с проектом и попадают в журнал изменений.
+# Расчёты не затрагиваются.
+# =====================================================================
+
+V40_SHIPPED = "Отгружен"
+V40_CANCEL = "Отмена"
+V40_BASE_STATES = (V40_SHIPPED, "На складе", "Холодный склад", "Склад Москва", V40_CANCEL)
+V40_WEIGHTS = {V40_SHIPPED: 1.0}
+V40_GRADIENT_FROM = (244, 186, 122)      # оранжевый — ничего не отгружено
+V40_GRADIENT_TO = (169, 223, 179)        # зелёный — отгружено всё
+V40_GRADIENT_STEPS = 6
+V40_CANCEL_COLOR = "#C9C9C9"
+V40_ROW_TEXT = "#1A1A1A"
+V40_STATE_FIELD = "product_state"
+V40_COMMENT_FIELD = "product_comment"
+V40_PLACES_KEY = "product_state_places"
+
+
+# ---------------------------------------------------------------------
+# Хранение состояния в самом изделии
+# ---------------------------------------------------------------------
+def _v40_states(record):
+    data = (record or {}).get(V40_STATE_FIELD)
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for name, qty in data.items():
+        try:
+            value = int(float(qty))
+        except Exception:
+            continue
+        if value > 0:
+            out[str(name)] = value
+    return out
+
+
+def _v40_set_states(self, record, mapping):
+    clean = {str(k): int(v) for k, v in (mapping or {}).items() if int(v) > 0}
+    if clean:
+        record[V40_STATE_FIELD] = clean
+    else:
+        record.pop(V40_STATE_FIELD, None)
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        self._project_dirty = True
+
+
+def _v40_places(self):
+    """Список состояний: встроенные плюс склады, добавленные пользователем."""
+    meta = getattr(self, "project_metadata", None)
+    extra = []
+    if isinstance(meta, dict):
+        for name in meta.get(V40_PLACES_KEY) or []:
+            text = str(name or "").strip()
+            if text and text not in V40_BASE_STATES and text not in extra:
+                extra.append(text)
+    return list(V40_BASE_STATES[:-1]) + extra + [V40_CANCEL]
+
+
+def _v40_remember_place(self, name):
+    meta = getattr(self, "project_metadata", None)
+    if not isinstance(meta, dict):
+        return
+    text = str(name or "").strip()
+    if not text or text in V40_BASE_STATES:
+        return
+    places = list(meta.get(V40_PLACES_KEY) or [])
+    if text not in places:
+        places.append(text)
+        meta[V40_PLACES_KEY] = places
+
+
+def _v40_total(self, tree, iid):
+    try:
+        return max(0, int(float(str(tree.set(iid, "qty") or "0").replace(",", "."))))
+    except Exception:
+        return 0
+
+
+# ---------------------------------------------------------------------
+# Текст клетки и подсветка строки
+# ---------------------------------------------------------------------
+def _v40_state_text(mapping, total):
+    if not mapping:
+        return ""
+    assigned = sum(mapping.values())
+    if len(mapping) == 1:
+        only, qty = next(iter(mapping.items()))
+        if total and qty >= total:
+            return only
+        return f"{qty} × {only}" + (f" · остаток {total - assigned}" if total > assigned else "")
+    parts = [f"{qty} × {name}" for name, qty in mapping.items()]
+    if total > assigned:
+        parts.append(f"остаток {total - assigned}")
+    return " · ".join(parts)
+
+
+def _v40_progress(mapping, total):
+    """(доля готовности, всё ли отменено). Отмена в долю не входит."""
+    if not mapping:
+        return None, False
+    cancelled = int(mapping.get(V40_CANCEL, 0))
+    assigned = sum(mapping.values())
+    base = max(total, assigned)
+    live = base - cancelled
+    if live <= 0:
+        return None, True
+    done = sum(qty * V40_WEIGHTS.get(name, 0.5)
+               for name, qty in mapping.items() if name != V40_CANCEL)
+    return max(0.0, min(1.0, done / live)), False
+
+
+def _v40_color(progress):
+    step = max(0, min(V40_GRADIENT_STEPS - 1, int(round(progress * (V40_GRADIENT_STEPS - 1)))))
+    ratio = step / float(V40_GRADIENT_STEPS - 1)
+    channels = tuple(int(round(a + (b - a) * ratio))
+                     for a, b in zip(V40_GRADIENT_FROM, V40_GRADIENT_TO))
+    return step, "#%02X%02X%02X" % channels
+
+
+def _v40_apply_row(self, tree, iid, mapping, total):
+    progress, cancelled = _v40_progress(mapping, total)
+    tags = [t for t in (tree.item(iid, "tags") or ())
+            if not str(t).startswith("v40_state")]
+    if cancelled:
+        tree.tag_configure("v40_state_cancel", background=V40_CANCEL_COLOR, foreground="#555555")
+        tags.insert(0, "v40_state_cancel")
+    elif progress is not None and "calc_off" not in tags:
+        step, color = _v40_color(progress)
+        tag = f"v40_state_{step}"
+        tree.tag_configure(tag, background=color, foreground=V40_ROW_TEXT)
+        tags.insert(0, tag)
+    tree.item(iid, tags=tags)
+
+
+def _v40_fill(self):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    for iid in tree.get_children(""):
+        record = self._project_journal_record_for_iid(iid)
+        if not isinstance(record, dict):
+            continue
+        mapping = _v40_states(record)
+        total = _v40_total(self, tree, iid)
+        tree.set(iid, "state", _v40_state_text(mapping, total))
+        tree.set(iid, "comment", str(record.get(V40_COMMENT_FIELD, "") or ""))
+        _v40_apply_row(self, tree, iid, mapping, total)
+
+
+ScreenDesigner._v40_fill_journal_states = _v40_fill
+
+
+# ---------------------------------------------------------------------
+# Назначение состояния
+# ---------------------------------------------------------------------
+def _v40_rows(self, event=None):
+    """Строки, к которым применяется действие: выделение или строка под курсором."""
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return []
+    rows = [iid for iid in tree.selection() if not tree.parent(iid)]
+    if event is not None:
+        under = tree.identify_row(event.y)
+        if under and not tree.parent(under) and under not in rows:
+            tree.selection_set(under)
+            rows = [under]
+    return rows
+
+
+def _v40_assign_all(self, state):
+    tree = self.project_journal_tree
+    for iid in _v40_rows(self):
+        record = self._project_journal_record_for_iid(iid)
+        if not isinstance(record, dict):
+            continue
+        total = _v40_total(self, tree, iid)
+        _v40_set_states(self, record, {state: total} if total else {})
+    _v40_fill(self)
+    try:
+        self._v3096_update_journal_counts()
+    except Exception:
+        pass
+
+
+def _v40_clear(self):
+    for iid in _v40_rows(self):
+        record = self._project_journal_record_for_iid(iid)
+        if isinstance(record, dict):
+            _v40_set_states(self, record, {})
+    _v40_fill(self)
+
+
+def _v40_split_window(self):
+    """Окно разбивки количества изделия по состояниям."""
+    tree = getattr(self, "project_journal_tree", None)
+    rows = _v40_rows(self)
+    if not rows:
+        messagebox.showwarning("Состояние изделия", "Выберите изделие в журнале.", parent=self)
+        return
+    iid = rows[0]
+    record = self._project_journal_record_for_iid(iid)
+    if not isinstance(record, dict):
+        return
+    total = _v40_total(self, tree, iid)
+    mapping = _v40_states(record)
+    title = f"{tree.set(iid, 'article') or tree.set(iid, 'name')} — {total} шт."
+
+    win = tk.Toplevel(self)
+    win.title("Состояние изделия")
+    win.geometry("520x460")
+    win.minsize(460, 400)
+    try:
+        win.transient(self)
+        win.grab_set()
+    except Exception:
+        pass
+    body = ttk.Frame(win, padding=14)
+    body.pack(fill="both", expand=True)
+    ttk.Label(body, text=title, font=("Arial", 12, "bold")).pack(anchor="w")
+    ttk.Label(body, text="Распределите количество по состояниям.",
+              foreground="#666666").pack(anchor="w", pady=(2, 10))
+
+    rest_var = tk.StringVar()
+    fields = {}
+    grid = ttk.Frame(body)
+    grid.pack(fill="x")
+    grid.columnconfigure(0, weight=1)
+
+    def recount(*_args):
+        used = 0
+        for name, var in fields.items():
+            try:
+                used += max(0, int(float(str(var.get() or "0").replace(",", "."))))
+            except Exception:
+                pass
+        rest = total - used
+        rest_var.set(f"Назначено: {used} из {total}   •   остаток: {rest}"
+                     + ("   — превышение!" if rest < 0 else ""))
+
+    for row, name in enumerate(_v40_places(self)):
+        ttk.Label(grid, text=name).grid(row=row, column=0, sticky="w", pady=3)
+        var = tk.StringVar(value=str(mapping.get(name, 0)))
+        spin = ttk.Spinbox(grid, from_=0, to=max(1, total), width=7, textvariable=var)
+        spin.grid(row=row, column=1, sticky="e", pady=3)
+        var.trace_add("write", recount)
+        fields[name] = var
+
+    ttk.Label(body, textvariable=rest_var, foreground="#1F6FEB",
+              font=("Arial", 10, "bold")).pack(anchor="w", pady=(12, 0))
+
+    add_row = ttk.Frame(body)
+    add_row.pack(fill="x", pady=(10, 0))
+    new_place = tk.StringVar()
+    ttk.Label(add_row, text="Другой склад:").pack(side="left")
+    ttk.Entry(add_row, textvariable=new_place, width=24).pack(side="left", padx=(8, 8))
+
+    def add_place():
+        name = str(new_place.get() or "").strip()
+        if not name:
+            return
+        if name in fields:
+            messagebox.showinfo("Состояние изделия", "Такое состояние уже есть.", parent=win)
+            return
+        _v40_remember_place(self, name)
+        row = len(fields)
+        ttk.Label(grid, text=name).grid(row=row, column=0, sticky="w", pady=3)
+        var = tk.StringVar(value="0")
+        ttk.Spinbox(grid, from_=0, to=max(1, total), width=7,
+                    textvariable=var).grid(row=row, column=1, sticky="e", pady=3)
+        var.trace_add("write", recount)
+        fields[name] = var
+        new_place.set("")
+
+    ttk.Button(add_row, text="Добавить", command=add_place).pack(side="left")
+
+    buttons = ttk.Frame(body)
+    buttons.pack(fill="x", pady=(16, 0))
+    ttk.Button(buttons, text="Отмена", command=win.destroy).pack(side="right")
+
+    def save():
+        result, used = {}, 0
+        for name, var in fields.items():
+            try:
+                value = max(0, int(float(str(var.get() or "0").replace(",", "."))))
+            except Exception:
+                value = 0
+            if value:
+                result[name] = value
+                used += value
+        if total and used > total:
+            messagebox.showwarning("Состояние изделия",
+                                   f"Назначено {used} шт., а в изделии {total} шт.",
+                                   parent=win)
+            return
+        _v40_set_states(self, record, result)
+        _v40_fill(self)
+        win.destroy()
+
+    ttk.Button(buttons, text="Применить", command=save).pack(side="right", padx=(0, 8))
+    recount()
+    win.bind("<Escape>", lambda e: win.destroy())
+    return win
+
+
+ScreenDesigner._v40_split_window = _v40_split_window
+
+
+# ---------------------------------------------------------------------
+# Комментарий
+# ---------------------------------------------------------------------
+def _v40_close_editor(self, *, save=True):
+    editor = getattr(self, "_v40_editor", None)
+    if editor is None:
+        return
+    widget, iid, record = editor
+    self._v40_editor = None
+    text = ""
+    try:
+        text = widget.get()
+    except Exception:
+        save = False
+    try:
+        widget.destroy()
+    except Exception:
+        pass
+    if not save or not isinstance(record, dict):
+        return
+    text = re.sub(r"\s+", " ", str(text or "")).strip()[:500]
+    if text:
+        record[V40_COMMENT_FIELD] = text
+    else:
+        record.pop(V40_COMMENT_FIELD, None)
+    tree = getattr(self, "project_journal_tree", None)
+    try:
+        if tree is not None and tree.exists(iid):
+            tree.set(iid, "comment", text)
+    except Exception:
+        pass
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        self._project_dirty = True
+
+
+def _v40_edit_comment(self, iid=None):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    _v40_close_editor(self, save=True)
+    if iid is None:
+        rows = _v40_rows(self)
+        iid = rows[0] if rows else None
+    if not iid or not tree.exists(iid) or tree.parent(iid):
+        return
+    record = self._project_journal_record_for_iid(iid)
+    if not isinstance(record, dict):
+        return
+    try:
+        tree.see(iid)
+        box = tree.bbox(iid, "comment")
+    except Exception:
+        box = None
+    if not box:
+        return
+    x, y, width, height = box
+    entry = tk.Entry(tree, relief="solid", borderwidth=1)
+    entry.insert(0, str(record.get(V40_COMMENT_FIELD, "") or ""))
+    entry.select_range(0, "end")
+    entry.place(x=x, y=y, width=max(80, width), height=max(18, height))
+    entry.focus_set()
+    self._v40_editor = (entry, iid, record)
+    entry.bind("<Return>", lambda e: (_v40_close_editor(self, save=True), "break")[1])
+    entry.bind("<KP_Enter>", lambda e: (_v40_close_editor(self, save=True), "break")[1])
+    entry.bind("<Escape>", lambda e: (_v40_close_editor(self, save=False), "break")[1])
+    entry.bind("<FocusOut>", lambda e: _v40_close_editor(self, save=True))
+
+
+ScreenDesigner._v40_edit_comment = _v40_edit_comment
+
+
+# ---------------------------------------------------------------------
+# Правое меню журнала
+# ---------------------------------------------------------------------
+def _v40_menu(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    rows = _v40_rows(self, event)
+    if not rows:
+        return None
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Состояние изделия", state="disabled")
+    for state in _v40_places(self):
+        menu.add_command(label=f"    {state} — всё количество",
+                         command=lambda s=state: _v40_assign_all(self, s))
+    menu.add_command(label="    Снять состояние", command=lambda: _v40_clear(self))
+    menu.add_separator()
+    menu.add_command(label="Разбить по количеству…", command=lambda: _v40_split_window(self))
+    menu.add_separator()
+    menu.add_command(label="Комментарий…",
+                     command=lambda i=rows[0]: _v40_edit_comment(self, i))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+ScreenDesigner._v40_journal_menu = _v40_menu
+
+
+# ---------------------------------------------------------------------
+# Подключение
+# ---------------------------------------------------------------------
+_v40_orig_refresh = ScreenDesigner._refresh_project_journal
+
+
+def _v40_refresh_project_journal(self, *args, **kwargs):
+    result = _v40_orig_refresh(self, *args, **kwargs)
+    try:
+        _v40_fill(self)
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._refresh_project_journal = _v40_refresh_project_journal
+
+
+_v40_orig_double_click = ScreenDesigner._project_journal_double_click
+
+
+def _v40_project_journal_double_click(self, event=None):
+    try:
+        if event is not None:
+            tree = self.project_journal_tree
+            column = _v3093_display_column(tree, tree.identify_column(event.x))
+            if column == "comment":
+                iid = tree.identify_row(event.y)
+                if iid and not tree.parent(iid):
+                    _v40_edit_comment(self, iid)
+                    return "break"
+    except Exception:
+        pass
+    return _v40_orig_double_click(self, event)
+
+
+ScreenDesigner._project_journal_double_click = _v40_project_journal_double_click
+
+
+_v40_orig_build_tab = ScreenDesigner._build_project_journal_tab
+
+
+def _v40_build_project_journal_tab(self, parent):
+    _v40_orig_build_tab(self, parent)
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    try:
+        for sequence in ("<Button-3>", "<Button-2>"):
+            tree.bind(sequence, lambda e: _v40_menu(self, e), add="+")
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>", "<Configure>"):
+            tree.bind(sequence, lambda e: _v40_close_editor(self, save=True), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_project_journal_tab = _v40_build_project_journal_tab
+
+ScreenDesigner._v40_editor = None
+
+
+
+# =====================================================================
+# V40.02 — устранение аварийного завершения на macOS.
+#
+# Отчёт о сбое: поток com.apple.main-thread, Tcl-таймер (AfterProc →
+# PythonCmd) вызвал Tk_MessageBoxObjCmd → -[NSAlert runModal], внутри
+# которого objc_autoreleasePoolPop наткнулся на испорченный пул
+# (AutoreleasePoolPage::busted_die) → SIGABRT.
+#
+# Причина: пока на экране системное модальное окно (сообщение, выбор
+# файла), цикл событий Tcl продолжает обслуживаться, и наши
+# периодические обработчики успевают создавать и двигать виджеты,
+# а также прокручивать обработку простоя внутри модального цикла
+# отрисовки. На macOS это рвёт autorelease-пул.
+#
+# Что сделано:
+#   • на время любого модального окна (messagebox, filedialog)
+#     взводится флаг, и все периодические обработчики прототипа
+#     (плашки «Статус»/«УПД», центрирование вкладок, установка
+#     положения всплывающих окон) на это время ничего не делают;
+#   • из установки положения убран update_idletasks(): размер окна
+#     берётся из запрошенных размеров, вложенная перерисовка больше
+#     не запускается.
+# Логика расчётов не затрагивается.
+# =====================================================================
+
+_V4002_MODAL = [0]
+
+
+def _v4002_busy():
+    return _V4002_MODAL[0] > 0
+
+
+def _v4002_guard(function):
+    def wrapper(*args, **kwargs):
+        _V4002_MODAL[0] += 1
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _V4002_MODAL[0] = max(0, _V4002_MODAL[0] - 1)
+    wrapper.__name__ = getattr(function, "__name__", "dialog")
+    return wrapper
+
+
+for _module, _names in (
+    (messagebox, ("showinfo", "showwarning", "showerror", "askyesno", "askokcancel",
+                  "askquestion", "askretrycancel", "askyesnocancel")),
+    (filedialog, ("askopenfilename", "askopenfilenames", "asksaveasfilename",
+                  "askdirectory", "askopenfile", "asksaveasfile")),
+):
+    for _name in _names:
+        _function = getattr(_module, _name, None)
+        if callable(_function):
+            setattr(_module, _name, _v4002_guard(_function))
+
+
+# --- плашки «Статус» / «УПД» ---------------------------------------
+_v4002_orig_paint = _v3090_paint
+
+
+def _v4002_paint(self):
+    if _v4002_busy():
+        return
+    return _v4002_orig_paint(self)
+
+
+_v3090_paint = _v4002_paint
+ScreenDesigner._v3090_paint = _v4002_paint
+
+
+_v4002_orig_watch = _v3090_watch
+
+
+def _v4002_watch(self):
+    """Пока открыто модальное окно, плашки не трогаем — только ждём."""
+    if _v4002_busy():
+        try:
+            self.after(250, lambda: _v4002_watch(self))
+        except Exception:
+            pass
+        return
+    return _v4002_orig_watch(self)
+
+
+_v3090_watch = _v4002_watch
+
+
+_v4002_orig_schedule_paint = _v3090_schedule_paint
+
+
+def _v4002_schedule_paint(self, _event=None):
+    if _v4002_busy():
+        return
+    return _v4002_orig_schedule_paint(self, _event)
+
+
+_v3090_schedule_paint = _v4002_schedule_paint
+
+
+# --- центрирование вкладок ------------------------------------------
+_v4002_orig_center = _v3094_center_notebook
+
+
+def _v4002_center_notebook(notebook):
+    if _v4002_busy():
+        return
+    return _v4002_orig_center(notebook)
+
+
+_v3094_center_notebook = _v4002_center_notebook
+
+
+_v4002_orig_install_tabs = _v3094_install_tab_centering
+
+
+def _v4002_install_tab_centering(self):
+    if _v4002_busy():
+        return
+    return _v4002_orig_install_tabs(self)
+
+
+_v3094_install_tab_centering = _v4002_install_tab_centering
+ScreenDesigner._v3094_center_tabs = _v4002_install_tab_centering
+
+
+# --- положение всплывающих окон -------------------------------------
+def _v4002_place_over_root(win):
+    """То же, что V30.94, но без вложенной перерисовки и не в модальном окне."""
+    try:
+        if _v4002_busy():
+            return
+        if not win.winfo_exists() or getattr(win, "_v3094_user_pos", False):
+            return
+        if win.wm_overrideredirect():
+            return
+        root = win._root()
+        if root is win or not root.winfo_exists() or not root.winfo_viewable():
+            return
+        width = int(win.winfo_width())
+        height = int(win.winfo_height())
+        if width <= 1 or height <= 1:
+            width = int(win.winfo_reqwidth())
+            height = int(win.winfo_reqheight())
+        if width <= 1 or height <= 1:
+            return
+        px, py = int(root.winfo_rootx()), int(root.winfo_rooty())
+        pw, ph = int(root.winfo_width()), int(root.winfo_height())
+        x = px + (pw - width) // 2
+        y = py + max(0, (ph - height) // 3)
+        left, top, right, bottom = _v3094_monitor_rect(root)
+        x = min(max(x, left), max(left, right - width))
+        y = min(max(y, top), max(top, bottom - height))
+        win._v3094_placing = True
+        try:
+            win.wm_geometry(f"+{int(x)}+{int(y)}")
+        finally:
+            win._v3094_placing = False
+    except Exception:
+        pass
+
+
+_v3094_place_over_root = _v4002_place_over_root
+
+
+
+# =====================================================================
+# V40.03 — окна сообщений рисуются средствами Tk, а не системным
+# модальным окном macOS.
+#
+# Повторный отчёт о сбое показал то же место: таймер Tcl (AfterProc →
+# PythonCmd) открывает окно сообщения, Tk_MessageBoxObjCmd вызывает
+# -[NSAlert runModal], и внутри него objc_autoreleasePoolPop падает на
+# испорченном пуле. То есть ломается не наш код, а само системное
+# окно, когда его открывают из таймера. А из таймера оно открывается
+# штатно: выбор «Открыть сохранённый проект» на старте выполняется
+# через self.after(80, ...), и дальше любое сообщение об ошибке или
+# вопрос идут уже внутри таймерного обработчика.
+#
+# Поэтому messagebox.* заменены на собственное модальное окно из
+# обычных виджетов Tk: та же модальность, те же возвращаемые значения,
+# но системный NSAlert не создаётся вовсе. Выбор файлов (filedialog)
+# остался системным — он в сбое не участвует.
+# Логика расчётов не затрагивается.
+# =====================================================================
+
+V4003_WRAP = 520
+V4003_ICONS = {"info": ("ⓘ", "#1F6FEB"), "warning": ("⚠", "#C06A00"),
+               "error": ("✖", "#B3261E"), "question": ("?", "#1F6FEB")}
+
+
+def _v4003_root(parent):
+    if parent is not None:
+        try:
+            if parent.winfo_exists():
+                return parent
+        except Exception:
+            pass
+    root = getattr(tk, "_default_root", None)
+    try:
+        if root is not None and root.winfo_exists():
+            return root
+    except Exception:
+        pass
+    return None
+
+
+def _v4003_show(kind, title, message, buttons, parent=None, default=None, detail=""):
+    """Модальное окно сообщения на обычных виджетах Tk.
+
+    buttons — список (подпись, возвращаемое значение). Возвращает значение
+    нажатой кнопки; закрытие крестиком или Esc даёт значение последней.
+    """
+    master = _v4003_root(parent)
+    if master is None:
+        return buttons[-1][1] if buttons else None
+    result = {"value": buttons[-1][1] if buttons else None}
+    win = tk.Toplevel(master)
+    win.title(str(title or ""))
+    win.resizable(False, False)
+    try:
+        win.transient(master)
+    except Exception:
+        pass
+    body = ttk.Frame(win, padding=(18, 16, 18, 12))
+    body.pack(fill="both", expand=True)
+    row = ttk.Frame(body)
+    row.pack(fill="both", expand=True)
+    glyph, color = V4003_ICONS.get(kind, V4003_ICONS["info"])
+    tk.Label(row, text=glyph, font=("Arial", 26, "bold"), fg=color,
+             bd=0, highlightthickness=0).pack(side="left", padx=(0, 14), anchor="n")
+    text_box = ttk.Frame(row)
+    text_box.pack(side="left", fill="both", expand=True)
+    ttk.Label(text_box, text=str(message or ""), wraplength=V4003_WRAP,
+              justify="left").pack(anchor="w")
+    if detail:
+        ttk.Label(text_box, text=str(detail), wraplength=V4003_WRAP,
+                  justify="left", foreground="#666666").pack(anchor="w", pady=(6, 0))
+
+    bar = ttk.Frame(body)
+    bar.pack(fill="x", pady=(16, 0))
+
+    def close(value):
+        result["value"] = value
+        try:
+            win.grab_release()
+        except Exception:
+            pass
+        try:
+            win.destroy()
+        except Exception:
+            pass
+
+    main_value = default if default is not None else (buttons[0][1] if buttons else None)
+    cancel_value = buttons[-1][1] if buttons else None
+    primary = None
+    # Главная кнопка оказывается крайней справа, как принято в системе.
+    for label, value in reversed(buttons):
+        button = ttk.Button(bar, text=label, command=lambda v=value: close(v))
+        button.pack(side="right", padx=(8, 0))
+        if value == main_value and primary is None:
+            primary = button
+    first = primary
+    win.protocol("WM_DELETE_WINDOW", lambda: close(cancel_value))
+    win.bind("<Escape>", lambda e: close(cancel_value))
+    win.bind("<Return>", lambda e: close(main_value))
+    win.bind("<KP_Enter>", lambda e: close(main_value))
+    try:
+        win.update_idletasks()
+    except Exception:
+        pass
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    try:
+        if first is not None:
+            first.focus_set()
+        win.lift()
+    except Exception:
+        pass
+    try:
+        win.wait_window()
+    except Exception:
+        pass
+    return result["value"]
+
+
+def _v4003_text(title, message, options):
+    """messagebox принимает и позиционные, и именованные аргументы."""
+    title = options.pop("title", title)
+    message = options.pop("message", message)
+    detail = options.pop("detail", "")
+    parent = options.pop("parent", None)
+    return str(title or ""), str(message or ""), str(detail or ""), parent
+
+
+def _v4003_factory(kind, buttons, mapping=None, default=None):
+    def dialog(title=None, message=None, **options):
+        title, message, detail, parent = _v4003_text(title, message, options)
+        value = _v4003_show(kind, title, message, buttons,
+                            parent=parent, default=default, detail=detail)
+        return mapping(value) if mapping else value
+    dialog.__name__ = f"_v4003_{kind}"
+    return dialog
+
+
+_V4003_OK = [("ОК", "ok")]
+_V4003_YES_NO = [("Да", True), ("Нет", False)]
+_V4003_OK_CANCEL = [("ОК", True), ("Отмена", False)]
+_V4003_RETRY_CANCEL = [("Повторить", True), ("Отмена", False)]
+_V4003_YES_NO_CANCEL = [("Да", True), ("Нет", False), ("Отмена", None)]
+
+_V4003_REPLACEMENTS = {
+    "showinfo": _v4003_factory("info", _V4003_OK),
+    "showwarning": _v4003_factory("warning", _V4003_OK),
+    "showerror": _v4003_factory("error", _V4003_OK),
+    "askyesno": _v4003_factory("question", _V4003_YES_NO, default=True),
+    "askokcancel": _v4003_factory("question", _V4003_OK_CANCEL, default=True),
+    "askretrycancel": _v4003_factory("question", _V4003_RETRY_CANCEL, default=True),
+    "askyesnocancel": _v4003_factory("question", _V4003_YES_NO_CANCEL, default=True),
+    "askquestion": _v4003_factory("question", _V4003_YES_NO,
+                                  mapping=lambda v: "yes" if v else "no", default=True),
+}
+
+for _name, _function in _V4003_REPLACEMENTS.items():
+    setattr(messagebox, _name, _v4002_guard(_function))
+
+
+# =====================================================================
+# V40.04.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -27498,7 +29444,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V30.94.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.04.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -27511,7 +29457,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V30.94.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.04.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
