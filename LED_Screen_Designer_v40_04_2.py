@@ -1,3 +1,5 @@
+# V40.04.2 = V40.04.1 + паспортные данные изделий в файле проекта (вес, блоки питания,
+#            суммарная мощность БП) — для утилиты заполнения паспортов.
 # V40.04.1 = V40.04 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
@@ -58,7 +60,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V40.04.1"
+APP_TITLE = "Конструктор LED-экранов V40.04.2"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -29469,6 +29471,134 @@ def _uitheme_apply_theme(app, theme, save=False):
             nb.after(80, lambda nb=nb: _v3094_center_notebook(nb))
     except Exception:
         pass
+
+
+
+# ---------------------------------------------------------------------
+# V40.04.2 — ПАСПОРТНЫЕ ДАННЫЕ ИЗДЕЛИЙ В ФАЙЛЕ ПРОЕКТА
+# При сохранении проекта к каждому изделию (static_signs[i], screens[i]) добавляется
+# блок "passport" — значения, которые программа уже считает сама:
+#   weight_kg        — вес ОДНОГО изделия, той же функцией, что столбец «Вес, кг» журнала;
+#   weight_total_kg  — вес с учётом «Кол-во изделий» (как в журнале);
+#   psu              — блоки питания одного изделия [{name, qty, w}];
+#   psu_total_w      — суммарная мощность блоков питания одного изделия, Вт;
+#   led_power_w      — расчётная мощность LED (+20 %), если есть.
+# Утилита заполнения паспортов берёт эти числа, поэтому журнал и паспорт совпадают.
+# Блок только пишется: при открытии проекта не используется и в журнал изменений
+# не попадает (снимок сравнения его игнорирует). Ошибка расчёта не мешает сохранению.
+# ---------------------------------------------------------------------
+_v4004_PASSPORT_KEY = "passport"
+
+
+def _v4004_psu_from_rows(rows):
+    psu, total = [], 0.0
+    for name, unit, qty in rows or []:
+        n = str(name).split("•", 1)[-1].strip()
+        if not (n.lower().startswith("блок питания") or n == "БП"):
+            continue
+        m = re.search(r"(\d+)\s*Вт", n)
+        try:
+            q = float(qty)
+        except (TypeError, ValueError):
+            continue
+        if not m or q <= 0:
+            continue
+        w = int(m.group(1))
+        psu.append({"name": n, "qty": q, "w": w})
+        total += w * q
+    return psu, total
+
+
+def _v4004_led_power(rows):
+    for name, unit, qty in rows or []:
+        if str(name).startswith("Расчётная мощность"):
+            try:
+                return round(float(qty), 2)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _v4004_round(v, nd=2):
+    return None if v is None else round(float(v), nd)
+
+
+def _v4004_static_passport(self, sign):
+    one = {k: v for k, v in dict(sign).items() if k != _v4004_PASSPORT_KEY}
+    total_w = self._static_sign_weight_kg(one)
+    one["quantity"] = "1"
+    unit_w = self._static_sign_weight_kg(one)
+    rows = []
+    if one.get("mode") == MODE_MCD:
+        rows = self._static_mcd_component_rows([one])
+    elif one.get("mode") == MODE_RZD:
+        rows = self._static_rzd_component_rows([one])
+    psu, psu_total = _v4004_psu_from_rows(rows)
+    return {"weight_kg": _v4004_round(unit_w), "weight_total_kg": _v4004_round(total_w),
+            "psu": psu, "psu_total_w": _v4004_round(psu_total, 1),
+            "led_power_w": _v4004_led_power(rows), "calc": APP_TITLE}
+
+
+def _v4004_screen_passport(self, screen):
+    one = dict(screen)
+    one.pop(_v4004_PASSPORT_KEY, None)
+    one["quantity"] = 1
+    unit_w = self._screen_weight_kg(one)
+    rows = []
+    if one.get("mode") == MODE_MCD:
+        rows = self._dynamic_mcd_component_rows_v1972([one])
+    psu, psu_total = _v4004_psu_from_rows(rows)
+    return {"weight_kg": _v4004_round(unit_w), "psu": psu,
+            "psu_total_w": _v4004_round(psu_total, 1) if psu else None, "calc": APP_TITLE}
+
+
+_v4004_orig_payload = ScreenDesigner._project_payload
+
+
+def _v4004_project_payload(self):
+    payload = _v4004_orig_payload(self)
+    try:
+        signs = list(getattr(self, "saved_static_signs", []) or [])
+        out = []
+        for i, rec in enumerate(payload.get("static_signs", []) or []):
+            rec = {k: v for k, v in dict(rec).items() if k != _v4004_PASSPORT_KEY}
+            try:
+                rec[_v4004_PASSPORT_KEY] = _v4004_static_passport(self, signs[i] if i < len(signs) else rec)
+            except Exception as exc:
+                rec[_v4004_PASSPORT_KEY] = {"error": repr(exc)[:200], "calc": APP_TITLE}
+            out.append(rec)
+        payload["static_signs"] = out
+        screens = list(getattr(self, "saved_screens", []) or [])
+        out = []
+        for i, rec in enumerate(payload.get("screens", []) or []):
+            rec = {k: v for k, v in dict(rec).items() if k != _v4004_PASSPORT_KEY}
+            try:
+                rec[_v4004_PASSPORT_KEY] = _v4004_screen_passport(self, screens[i] if i < len(screens) else rec)
+            except Exception as exc:
+                rec[_v4004_PASSPORT_KEY] = {"error": repr(exc)[:200], "calc": APP_TITLE}
+            out.append(rec)
+        payload["screens"] = out
+    except Exception as exc:
+        try:
+            self._print_debug_log(f"v4004 passport: {exc!r}")
+        except Exception:
+            pass
+    return payload
+
+
+ScreenDesigner._project_payload = _v4004_project_payload
+
+# Журнал изменений: паспортный блок — производные данные, их не сравниваем.
+_v4004_orig_snapshot = _v3073_snapshot
+
+
+def _v3073_snapshot(payload):
+    p = dict(payload) if isinstance(payload, dict) else {}
+    for key in ("static_signs", "screens"):
+        p[key] = [{k: v for k, v in dict(r).items() if k != _v4004_PASSPORT_KEY}
+                  if isinstance(r, dict) else r for r in (p.get(key) or [])]
+    return _v4004_orig_snapshot(p)
+
 
 
 if __name__ == "__main__":

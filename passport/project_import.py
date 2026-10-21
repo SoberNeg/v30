@@ -30,11 +30,12 @@ SYN = {
     "сторон": ["сторон", "стороны", "колвосторон", "sides", "сторонность", "двусторонний",
                "двустороннее", "doublesided", "twosided"],
     "префикс": ["префикс", "prefix", "позиция", "поз", "код", "code", "метка", "label", "id"],
-    "артикул": ["артикул", "article", "sku", "партномер", "partnumber"],
+    "артикул": ["артикул", "article", "sku", "screenarticle"],
     "наименование": ["наименование", "название", "name", "title", "изделие", "product"],
     "номер_макета": ["номермакета", "макет", "макетномер", "maket", "layout", "layoutno",
                      "nмакета", "макета"],
-    "серийный_номер": ["серийныйномер", "серийный", "serial", "serialnumber", "sn", "сн"],
+    "серийный_номер": ["серийныйномер", "серийный", "serial", "serialnumber", "sn", "сн",
+                       "партномер", "partnumber"],
     "шаг": ["шаг", "шагпикселя", "pitch", "p", "pixelpitch"],
     "исполнение": ["исполнение", "среда", "установка", "environment", "outdoor", "indoor"],
     "освещение": ["освещение", "подсветка", "lighting", "backlight", "световой"],
@@ -192,6 +193,96 @@ def _read_table(path: Path):
     return list(csv.DictReader(text.splitlines(), dialect=dialect))
 
 
+# ---------------------------------------------------------------- формат Конструктора
+def _num(v):
+    m = re.search(r"\d+(?:[.,]\d+)?", str(v if v is not None else ""))
+    return float(m.group(0).replace(",", ".")) if m else None
+
+
+def _strip_article(name, article):
+    """В Конструкторе наименование = «… Односторонний ASD-L 1508x357» — артикул в конце
+    дублируется; в паспорте наименование и артикул — отдельные поля."""
+    name, article = str(name or "").strip(), str(article or "").strip()
+    if article and name.endswith(article):
+        name = name[: -len(article)].rstrip(" .,;")
+    return name
+
+
+def _passport_block(raw, it):
+    ps = raw.get("passport") if isinstance(raw.get("passport"), dict) else {}
+    if ps.get("weight_kg") not in (None, ""):
+        it["масса"] = ps["weight_kg"]
+    if ps.get("psu_total_w") not in (None, "", 0):
+        it["мощность_Вт"] = ps["psu_total_w"]
+    if ps.get("psu"):
+        it["блоки_питания"] = ps["psu"]
+    if ps.get("calc"):
+        it["_расчёт"] = ps["calc"]
+    if ps.get("error"):
+        it["_ошибка_расчёта"] = ps["error"]
+
+
+def load_ledproj(data, path):
+    """Точное чтение файла проекта Конструктора LED-экранов (format = LED_SCREEN_PROJECT)."""
+    items = []
+    for i, s in enumerate(data.get("screens") or []):
+        if not isinstance(s, dict):
+            continue
+        mode = str(s.get("mode", ""))
+        it = {"префикс": str(s.get("spec_position") or i + 1),
+              "тип": "Динамика МЦД" if mode == "МЦД" else f"Динамика {mode or 'РЖД'} (нет шаблона)",
+              "ширина": int(_num(s.get("width")) or 0), "высота": int(_num(s.get("height")) or 0),
+              "сторон": int(_num(s.get("sides")) or 1),
+              "тираж": int(_num(s.get("quantity")) or 1),
+              "шаг": (str(_num(s.get("pixel_pitch")) or "").rstrip("0").rstrip(".") or ""),
+              "исполнение": str(s.get("environment") or "Уличное"),
+              "артикул": str(s.get("screen_article") or "").strip(),
+              "_источник": "screens"}
+        serials = [str(x.get("part_number") or "").strip() for x in (s.get("instances") or [])
+                   if isinstance(x, dict) and str(x.get("part_number") or "").strip()]
+        if not serials and str(s.get("part_number") or "").strip():
+            serials = [str(s.get("part_number")).strip()]
+        if serials:
+            it["серийный_номер"] = ", ".join(serials) if len(serials) > 1 else serials[0]
+        _passport_block(s, it)
+        items.append(it)
+    for i, s in enumerate(data.get("static_signs") or []):
+        if not isinstance(s, dict):
+            continue
+        mode = str(s.get("mode", ""))
+        rnd = bool(s.get("round"))
+        w = _num(s.get("width")) or 0
+        h = _num(s.get("height")) or 0
+        d = _num(s.get("diameter")) or (w if rnd else None)
+        if mode == "МЦД" and s.get("face_type", "С подсветкой") == "С подсветкой":
+            typ = "Статика МЦД круглый" if rnd else "Статика МЦД"
+        else:
+            typ = f"Статика {mode or '?'} {s.get('face_type', '')} (нет шаблона)".replace("  ", " ")
+        it = {"префикс": str((s.get("journal_order") if s.get("journal_order") is not None else i) + 1),
+              "тип": typ,
+              "ширина": int(d if rnd else w), "высота": int(d if rnd else h),
+              "сторон": int(_num(s.get("sides")) or 1),
+              "тираж": int(_num(s.get("quantity")) or 1),
+              "артикул": str(s.get("article") or "").strip(),
+              "освещение": "Световой" if s.get("face_type", "С подсветкой") == "С подсветкой" else "",
+              "_источник": "static_signs"}
+        if rnd:
+            it["форма"] = "круг"
+        if str(s.get("layout_no") or "").strip():
+            it["номер_макета"] = str(s["layout_no"]).strip()
+        nm = _strip_article(s.get("name"), s.get("article"))
+        if nm and nm != str(s.get("name") or "").strip():
+            pass    # наименование было «авто» (с артикулом) — строим по правилам паспорта
+        elif nm:
+            it["наименование"] = nm
+        _passport_block(s, it)
+        items.append(it)
+    items.sort(key=lambda x: (x["_источник"] != "screens",))
+    return {"проект": str(data.get("project_name") or Path(path).stem), "изделия": items,
+            "файл": str(path), "формат": f"Конструктор LED-экранов, версия файла {data.get('version')}",
+            "программа": data.get("app") or ""}
+
+
 def load_project(path) -> dict:
     path = Path(path)
     project = {}
@@ -202,6 +293,8 @@ def load_project(path) -> dict:
             data = json.loads(path.read_text("utf-8-sig"))
         except Exception:
             data = None
+    if isinstance(data, dict) and data.get("format") == "LED_SCREEN_PROJECT":
+        return load_ledproj(data, path)
     if data is not None:
         _walk(data, [], found, project)
     else:

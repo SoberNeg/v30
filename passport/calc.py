@@ -221,11 +221,14 @@ def variables(item: dict, rules: dict) -> dict:
                   "масса": num(mass, 0),
                   "освещение": item.get("освещение") or r["освещение_по_умолчанию"]})
     # значения, заданные в проекте, главнее расчёта
-    if item.get("масса"):
-        v["масса"] = num(_float(item["масса"]), 1)
-    if item.get("мощность_Вт"):
-        v["P_Вт"] = num(_float(item["мощность_Вт"]), 0)
-        v["P_max_кВт"] = num(_float(item["мощность_Вт"]) / 1000)
+    if item.get("масса") not in (None, ""):
+        v["масса"] = num(_float(item["масса"]), 2)          # как столбец «Вес, кг» журнала
+    if item.get("мощность_Вт") not in (None, ""):           # суммарная мощность блоков питания
+        pw = _float(item["мощность_Вт"])
+        v["P_Вт"] = num(pw, 0)
+        v["P_max_кВт"] = num(pw / 1000)
+        if "доля_средней_мощности" in r:
+            v["P_ср_кВт"] = num(pw / 1000 * r["доля_средней_мощности"])
     return v
 
 
@@ -253,9 +256,9 @@ def compute(item: dict, rules: dict, template_table: list):
     if item.get("серийный_номер"):
         values["СЕРИЙНЫЙ_НОМЕР"] = str(item["серийный_номер"])
 
-    from_project = {"масса"} if item.get("масса") else set()
-    if item.get("мощность_Вт"):
-        from_project |= {"P_Вт", "P_max_кВт"}
+    from_project = {"масса"} if item.get("масса") not in (None, "") else set()
+    if item.get("мощность_Вт") not in (None, ""):
+        from_project |= {"P_Вт", "P_max_кВт", "P_ср_кВт"}
     rows = []
     for name_, value in template_table:
         key = name_.strip().lower()

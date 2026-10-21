@@ -23,7 +23,7 @@ import project_import
 from widgets import GradientList
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V1.5"
+APP_VERSION = "V1.6"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -670,8 +670,16 @@ class App(tk.Tk):
         else:
             info = (f'Расчёт {it.get("префикс")}: площадь {v["площадь_м2"]} м², нагрузка {v["нагрузка_Вт"]} Вт → '
                     f'блоков питания {v["блоков_питания"]}, мощность {v["P_Вт"]} Вт, масса {v["масса"]} кг')
+        if it.get("масса") not in (None, "") and it.get("_расчёт"):
+            psu = ", ".join(f'{calc.num(p_["qty"], 0)}×{p_["w"]} Вт' for p_ in it.get("блоки_питания") or [])
+            info = (f'{it.get("префикс")}: по расчёту {it["_расчёт"]} — масса {calc.num(it["масса"], 2)} кг'
+                    + (f', блоки питания {psu}' if psu else '')
+                    + (f', суммарно {calc.num(it["мощность_Вт"], 0)} Вт' if it.get("мощность_Вт") else ''))
         if rec.get("скачан"):
             info += f'   ·   скачан {times(rec["скачан"])}, последний раз {rec.get("последний", "")}'
+        if self.project.get("формат") and it.get("масса") in (None, ""):
+            info = ("⚠ Вес и мощность ориентировочные: в файле проекта нет расчёта Конструктора — "
+                    "пересохраните проект в Конструкторе V40.04.2 или новее.   ·   " + info)
         self.calc_label.configure(text=info)
         self._update_name_preview()
         self.status.set(f'Изделие {it.get("префикс")} загружено. Проверьте данные и нажмите «Скачать паспорт».')
@@ -1003,6 +1011,12 @@ class App(tk.Tk):
                         return
                 images[key] = paths
                 continue
+            if not raw and key == "НОМЕР_МАКЕТА":
+                if not messagebox.askyesno(APP_NAME, "Номер макета не указан — в паспорте будет «Б/Н».\n"
+                                                     "Продолжить?"):
+                    return
+                values[key] = "Б/Н"
+                continue
             if not raw:
                 missing.append(FIELD_DEFS.get(key, (key,))[0].replace("\n", " "))
                 continue
@@ -1093,6 +1107,10 @@ class App(tk.Tk):
         for k, ok in rep["изображения"].items():
             if not ok:
                 notes.append(f"Рисунок с меткой {{{{{k}}}}} не найден.")
+        if self.current_item and self.project and self.project.get("формат") \
+                and self.current_item.get("масса") in (None, ""):
+            notes.append("Вес и мощность в паспорте ориентировочные: в файле проекта нет расчёта "
+                         "Конструктора. Пересохраните проект в Конструкторе V40.04.2 или новее.")
         if self.use_stamps.get():
             places = engine.stamp_places(docx.Document(self._template_path()))
             done = {k for k, *_ in rep["печати"]}

@@ -1,10 +1,15 @@
-# LED Screen Designer V40.04.1
+# LED Screen Designer V40.04.2
 
-Файл: `LED_Screen_Designer_v40_04_1.py`
+Файл: `LED_Screen_Designer_v40_04_2.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v40_04_1_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v40_04_2_Windows.zip` в разделе Artifacts.
+
+V40.04.2 = V40.04.1 + паспортные данные в файле проекта: при сохранении к каждому изделию
+добавляется блок `passport` — вес одного изделия (той же функцией, что «Вес, кг» в журнале),
+блоки питания и их суммарная мощность. Их читает утилита заполнения паспортов (`passport/`),
+поэтому вес и мощность в паспорте совпадают с журналом. В журнал изменений блок не попадает.
 
 V40.04.1 = V40.04 (автор) + те же исправления и стыковки (V30.90, V30.94).
 
