@@ -1,0 +1,107 @@
+name: Build Windows passport utility
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["passport/**", ".github/workflows/build-passport.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+      NAME: Passport_Filler_V1_5
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install "pyinstaller>=6.10,<7"
+          pip install -r passport/requirements.txt
+
+      - name: Engine test (demo project, all templates)
+        run: |
+          $out = python passport/ci/generate_demo.py "$env:RUNNER_TEMP\demo_out" "$env:RUNNER_TEMP" 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          Write-Output $out
+          $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
+          Write-Output "::notice title=Engine test::$m"
+          if ($code -ne 0) { throw "engine test failed" }
+
+      - name: Build
+        working-directory: passport
+        run: |
+          pyinstaller --noconfirm --clean --onedir --windowed `
+            --name "$env:NAME" `
+            --collect-data docx `
+            --collect-submodules pypdf `
+            --hidden-import PIL.ImageTk `
+            --hidden-import PIL._tkinter_finder `
+            --hidden-import win32com.client `
+            --hidden-import pythoncom `
+            --hidden-import pywintypes `
+            --hidden-import numpy `
+            app.py
+
+      - name: Assemble folder (templates, demo, empty fonts/stamps folders)
+        working-directory: passport
+        run: |
+          $d = "dist\$env:NAME"
+          Copy-Item -Recurse -Force "Шаблоны", "Демо", "Шрифты", "Печати и подписи", "ПРОЧТИ.txt" $d
+          Get-ChildItem -Recurse $d -Include *.ttf,*.otf,*.ttc,Печать*.png,Подпись*.png | Remove-Item -Force
+          Get-ChildItem $d | ForEach-Object { Write-Output $_.Name }
+
+      - name: Pack
+        working-directory: passport
+        run: Compress-Archive -Path "dist\$env:NAME\*" -DestinationPath "$env:GITHUB_WORKSPACE\$env:NAME`_Windows.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Passport_Filler_V1_5_Windows
+          path: Passport_Filler_V1_5_Windows.zip
+
+      - name: Smoke test (exe opens with demo project) + screenshot
+        working-directory: passport
+        run: |
+          $d = Resolve-Path "dist\$env:NAME"
+          $demo = Join-Path $d "Демо\Демо_проект_Одинцово.json"
+          @{ "проект" = "$demo"; "папка" = "$env:RUNNER_TEMP\out" } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $d "настройки.json")
+          $p = Start-Process (Join-Path $d "$env:NAME.exe") -PassThru
+          Start-Sleep 30
+          if ($p.HasExited) { throw "exe exited early, code=$($p.ExitCode)" }
+          $titles = @(& "$env:GITHUB_WORKSPACE\list_windows.ps1" -ProcessId $p.Id)
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+          [Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\shots" | Out-Null
+          $bmp.Save("$env:RUNNER_TEMP\shots\passport_start.png")
+          Stop-Process -Id $p.Id -Force
+          $t = $titles -join ' | '
+          Write-Output "Visible windows: $t"
+          Write-Output "::notice title=Passport windows::$t"
+          if (-not ($titles -like "Утилита заполнения паспортов*V1.5*")) { throw "main window not visible" }
+
+      - name: Publish screenshot to branch ci-screenshots
+        if: always()
+        run: |
+          git config user.name "ci-bot"; git config user.email "ci-bot@users.noreply.github.com"
+          $dst = "ci-shots/passport-${{ github.run_id }}"
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\shots\*" $dst -ErrorAction SilentlyContinue
+          git fetch origin ci-screenshots 2>$null
+          git checkout -B ci-screenshots origin/ci-screenshots
+          git add -f $dst
+          git commit -m "Passport screenshot run ${{ github.run_id }}"
+          git push origin ci-screenshots

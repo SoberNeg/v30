@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore: ["passport/**", ".github/workflows/build-passport.yml", "ci/**", ".github/workflows/ui-screenshots.yml", ".github/workflows/diagnose-windows.yml"]
 
 jobs:
   build:
