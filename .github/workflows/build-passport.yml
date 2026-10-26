@@ -14,7 +14,7 @@ jobs:
     runs-on: windows-latest
     env:
       PYTHONIOENCODING: utf-8
-      NAME: Passport_Filler_V1_6
+      NAME: Passport_Filler_V1_7
     defaults:
       run:
         shell: pwsh
@@ -68,8 +68,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Passport_Filler_V1_6_Windows
-          path: Passport_Filler_V1_6_Windows.zip
+          name: Passport_Filler_V1_7_Windows
+          path: Passport_Filler_V1_7_Windows.zip
 
       - name: Smoke test (exe opens with demo project) + screenshot
         working-directory: passport
@@ -91,7 +91,7 @@ jobs:
           $t = $titles -join ' | '
           Write-Output "Visible windows: $t"
           Write-Output "::notice title=Passport windows::$t"
-          if (-not ($titles -like "Утилита заполнения паспортов*V1.6*")) { throw "main window not visible" }
+          if (-not ($titles -like "Утилита заполнения паспортов*V1.7*")) { throw "main window not visible" }
 
       - name: Publish screenshot to branch ci-screenshots
         if: always()

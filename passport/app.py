@@ -23,7 +23,7 @@ import project_import
 from widgets import GradientList
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V1.6"
+APP_VERSION = "V1.7"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -32,6 +32,44 @@ if getattr(sys, "frozen", False):
 else:
     APP_DIR = Path(__file__).resolve().parent
     BUNDLE_DIR = APP_DIR
+
+
+
+def _unmojibake(name):
+    """«╨¿╨░╨▒╨╗╨╛╨╜╤ï» → «Шаблоны»: так Проводник Windows (и 7-Zip) распаковывают
+    русские имена из архивов без флага UTF-8."""
+    if all(ord(c) < 128 for c in name):
+        return None
+    for enc in ("cp866", "cp437", "cp1251"):
+        try:
+            cand = name.encode(enc).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+        if cand != name and re.search("[А-Яа-яЁё]", cand):
+            return cand
+    return None
+
+
+def repair_names(root: Path):
+    """Возвращает русские имена файлам и папкам программы, если их испортила распаковка."""
+    fixed = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        for name in filenames + dirnames:
+            good = _unmojibake(name)
+            if good:
+                src, dst = os.path.join(dirpath, name), os.path.join(dirpath, good)
+                if not os.path.exists(dst):
+                    try:
+                        os.rename(src, dst)
+                        fixed.append(good)
+                    except OSError:
+                        pass
+    return fixed
+
+
+REPAIRED = []
+if not (APP_DIR / "Шаблоны").is_dir():
+    REPAIRED = repair_names(APP_DIR)
 
 TEMPLATES_DIR = APP_DIR / "Шаблоны"
 FONTS_DIR = APP_DIR / "Шрифты"
@@ -318,9 +356,11 @@ class App(tk.Tk):
         self.settings = self._load_settings()
         self.types = load_types()
         if not self.types:
-            messagebox.showerror(APP_NAME, f"В папке нет шаблонов .docx:\n{TEMPLATES_DIR}")
+            messagebox.showerror(APP_NAME, f"Не найдены шаблоны паспортов (.docx) в папке:\n{TEMPLATES_DIR}\n\n"
+                                           "Распакуйте архив целиком и запускайте программу из распакованной "
+                                           "папки (не из окна архива).")
             self.destroy()
-            return
+            raise SystemExit(1)
         self.state_by_type = self.settings.get("состояние", {})
         self.type_var = tk.StringVar(value=self.settings.get("тип", self.types[0]["тип"]))
         if self.type_var.get() not in [t["тип"] for t in self.types]:
@@ -342,6 +382,8 @@ class App(tk.Tk):
         self._build()
         self._switch_type()
         self.after(400, self._check_fonts)
+        if REPAIRED:
+            self.status.set(f"Исправлены имена файлов после распаковки архива: {len(REPAIRED)}.")
         last = self.settings.get("проект")
         if last and Path(last).exists():
             self._open_project(last, quiet=True)
@@ -1209,5 +1251,30 @@ class App(tk.Tk):
                    command=lambda: open_path(JOURNAL_FILE) if JOURNAL_FILE.exists() else None).pack(side="right")
 
 
+def _startup_error(exc):
+    """Ошибка при запуске: текст — в «ошибка_запуска.txt» рядом с программой и на экран."""
+    import traceback
+    text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    log = APP_DIR / "ошибка_запуска.txt"
+    try:
+        log.write_text(f"{APP_NAME} {APP_VERSION}\n{datetime.now():%d.%m.%Y %H:%M}\n"
+                       f"Python {sys.version}\n{sys.platform}\nПапка: {APP_DIR}\n\n{text}", "utf-8")
+    except Exception:
+        pass
+    print(text, file=sys.stderr)
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror(APP_NAME, f"Программа не запустилась:\n\n{exc}\n\n"
+                                       f"Подробности сохранены в файле:\n{log}")
+        root.destroy()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
-    App().mainloop()
+    try:
+        App().mainloop()
+    except Exception as e:      # noqa: BLE001
+        _startup_error(e)
+        sys.exit(1)

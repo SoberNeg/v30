@@ -1,0 +1,32 @@
+name: Test passport prototype on Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [passport-data-v40.04.2]
+    paths: ["passport/**", ".github/workflows/test-prototype-windows.yml"]
+
+jobs:
+  launch:
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Pillow for screenshots
+        run: python -m pip install -q pillow
+      - name: Normal unzip (correct names)
+        run: python passport/ci/windows_launch_test.py normal "$env:RUNNER_TEMP/shots"
+      - name: Explorer-style unzip (broken Cyrillic names)
+        run: python passport/ci/windows_launch_test.py garbled "$env:RUNNER_TEMP/shots"
+      - name: Engine test
+        if: always()
+        run: python passport/ci/generate_demo.py "$env:RUNNER_TEMP/demo_out" "$env:RUNNER_TEMP"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-launch-screens
+          path: ${{ runner.temp }}/shots
