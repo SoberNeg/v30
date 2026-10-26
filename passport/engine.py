@@ -193,7 +193,46 @@ def image_placeholders(document) -> list:
     return keys
 
 
+def title_box(document, key="НАИМЕНОВАНИЕ_ТИТУЛ"):
+    """(ширина поля мм, кегль pt) абзаца с меткой титула — поле задаётся отступами
+    абзаца в шаблоне (только тёмно-синяя зона обложки)."""
+    tag = "{{" + key + "}}"
+    for p in document.paragraphs:
+        if tag in p.text:
+            sec = document.sections[0]
+            pf = p.paragraph_format
+            w = (sec.page_width - sec.left_margin - sec.right_margin
+                 - (pf.left_indent or 0) - (pf.right_indent or 0)) / 36000
+            pt = None
+            for r in p._p.iter(W_R):
+                sz = r.find(qn("w:rPr") + "/" + qn("w:sz"))
+                if sz is not None:
+                    pt = int(sz.get(qn("w:val"))) / 2
+                    break
+            return round(w, 1), pt
+    return None, None
+
+
+def _set_pt(par, pt):
+    half = str(int(round(pt * 2)))
+    rprs = [r.get_or_add_rPr() for r in par.iter(W_R)]
+    ppr = par.find(qn("w:pPr"))
+    if ppr is not None and ppr.find(qn("w:rPr")) is not None:
+        rprs.append(ppr.find(qn("w:rPr")))
+    for rpr in rprs:
+        for tag in ("w:sz", "w:szCs"):
+            el = rpr.find(qn(tag))
+            if el is None:
+                el = rpr.makeelement(qn(tag), {})
+                rpr.append(el)
+            el.set(qn("w:val"), half)
+
+
 def fill_placeholders(document, values: dict) -> dict:
+    """Значение может быть строкой или {"text": …, "pt": кегль} — тогда у абзацев
+    метки меняется кегль (титул, ужатый под поле)."""
+    sizes = {k: v["pt"] for k, v in values.items() if isinstance(v, dict) and v.get("pt")}
+    values = {k: (v["text"] if isinstance(v, dict) else v) for k, v in values.items()}
     """Подставляет значения. Возвращает {ключ: число замен}."""
     counts = {k: 0 for k in values}
     for _, root in _xml_parts(document):
@@ -208,12 +247,17 @@ def fill_placeholders(document, values: dict) -> dict:
                 lines = str(values[m0.group(1)]).split("\n")
                 proto = copy.deepcopy(p)
                 replace_in_paragraph(p, m0.group(0), lines[0])
+                made = [p]
                 last = p
                 for line in lines[1:]:
                     np_ = copy.deepcopy(proto)
                     replace_in_paragraph(np_, m0.group(0), line)
                     last.addnext(np_)
                     last = np_
+                    made.append(np_)
+                if m0.group(1) in sizes:
+                    for par in made:
+                        _set_pt(par, sizes[m0.group(1)])
                 counts[m0.group(1)] += 1
                 continue
             for m in list(PLACEHOLDER_RE.finditer(txt)):
@@ -484,13 +528,20 @@ def _ink_image(path, angle, tmpdir):
     im = Image.open(path).convert("RGBA")
     a = im.getchannel("A")
     if a.getextrema()[0] == 255:                 # фон непрозрачный (белый) — делаем прозрачным
-        import numpy as np
-        arr = np.asarray(im).astype(float)
-        ink = 1 - arr[..., :3].min(axis=2) / 255.0
-        alpha = np.clip(ink * 1.6, 0, 1)
-        rgb = np.where(alpha[..., None] > 0,
-                       255 - (255 - arr[..., :3]) / np.maximum(alpha[..., None], 1e-3), 255)
-        im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype("uint8"), "RGBA")
+        try:
+            import numpy as np
+            arr = np.asarray(im).astype(float)
+            ink = 1 - arr[..., :3].min(axis=2) / 255.0
+            alpha = np.clip(ink * 1.6, 0, 1)
+            rgb = np.where(alpha[..., None] > 0,
+                           255 - (255 - arr[..., :3]) / np.maximum(alpha[..., None], 1e-3), 255)
+            im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype("uint8"),
+                                 "RGBA")
+        except ImportError:                      # без numpy: прозрачность по «чернилам»
+            from PIL import ImageChops
+            r, g, b = im.convert("RGB").split()
+            ink = ImageChops.invert(ImageChops.darker(r, ImageChops.darker(g, b)))
+            im.putalpha(ink.point(lambda v: min(255, int(v * 1.6))))
         a = im.getchannel("A")
     bbox = a.point(lambda v: 255 if v > 40 else 0).getbbox()
     if bbox:

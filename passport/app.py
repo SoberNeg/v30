@@ -20,10 +20,10 @@ import calc
 import engine
 import fonts
 import project_import
-from widgets import GradientList
+from widgets import PALETTES, GradientList, ScrollFrame
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V1.7"
+APP_VERSION = "V1.8"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -318,10 +318,22 @@ class DownloadStore:
 
 
 class ImagePair:
-    """Два поля картинки (сторона 1 и 2) с интерфейсом StringVar: значение — пути через \\n."""
+    """Поля картинок макета по числу сторон изделия (1 или 2) с интерфейсом StringVar:
+    значение — пути через \\n."""
 
     def __init__(self):
         self.v1, self.v2 = tk.StringVar(), tk.StringVar()
+        self.rows = {1: [], 2: []}
+        self.sides = 2
+
+    def show(self, sides):
+        """Сколько сторон — столько полей; поле второй стороны скрывается и очищается."""
+        sides = 2 if int(sides or 1) >= 2 else 1
+        self.sides = sides
+        for w in self.rows[2]:
+            (w.grid if sides == 2 else w.grid_remove)()
+        if sides == 1:
+            self.v2.set("")
 
     def get(self):
         return "\n".join(x for x in (self.v1.get().strip(), self.v2.get().strip()) if x)
@@ -347,21 +359,15 @@ class App(tk.Tk):
                 self.state("zoomed")
             except tk.TclError:
                 pass
-        style = ttk.Style(self)
-        for th in ("vista", "aqua", "clam"):
-            if th in style.theme_names():
-                style.theme_use(th)
-                break
-        style.configure("Big.TButton", font=("Segoe UI", 11, "bold"), padding=(18, 8))
-        style.configure("Hint.TLabel", foreground="#666")
-        style.configure("Proj.TLabel", font=("Segoe UI", 11, "bold"))
-        style.configure("Treeview", rowheight=24)
+        self.style = ttk.Style(self)
 
         ensure_templates()
         self.rules = calc.load_rules(RULES_FILE)
         self.bundled_fonts = fonts.bundled(FONTS_DIR)
         calc.FONT_FILE = self.bundled_fonts.get("RussianRail G Pro")
         self.settings = self._load_settings()
+        self.theme = tk.StringVar(value=self.settings.get("тема", "light"))
+        self._apply_theme_style()
         self.types = load_types()
         if not self.types:
             messagebox.showerror(APP_NAME, f"Не найдены шаблоны паспортов (.docx) в папке:\n{TEMPLATES_DIR}\n\n"
@@ -389,6 +395,7 @@ class App(tk.Tk):
 
         self._build()
         self._switch_type()
+        self._apply_theme()
         self.after(400, self._check_fonts)
         if REPAIRED:
             self.status.set(f"Исправлены имена файлов после распаковки архива: {len(REPAIRED)}.")
@@ -396,6 +403,75 @@ class App(tk.Tk):
         if last and Path(last).exists():
             self._open_project(last, quiet=True)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    # ---------------------------------------------------------- темы
+    def _apply_theme_style(self):
+        """Светлая: на Windows — стандартный вид; на Mac/Linux — светлая палитра.
+        Тёмная — своя палитра на теме clam (одинаково на всех системах)."""
+        name = self.theme.get() if self.theme.get() in PALETTES else "light"
+        p = PALETTES[name]
+        st = self.style
+        native = name == "light" and sys.platform.startswith("win") and "vista" in st.theme_names()
+        st.theme_use("vista" if native else "clam")
+        if not native:
+            st.configure(".", background=p["bg"], foreground=p["fg"], fieldbackground=p["field"],
+                         bordercolor=p["border"], lightcolor=p["bg"], darkcolor=p["bg"],
+                         troughcolor=p["panel"], selectbackground=p["accent"],
+                         selectforeground="#ffffff", insertcolor=p["fg"], arrowcolor=p["fg"])
+            st.map(".", background=[("disabled", p["bg"])], foreground=[("disabled", p["hint"])])
+            st.configure("TButton", background=p["button"], foreground=p["fg"], padding=(8, 3))
+            st.map("TButton", background=[("pressed", p["button_active"]), ("active", p["button_active"])])
+            st.configure("TLabelframe", background=p["bg"], bordercolor=p["border"])
+            st.configure("TLabelframe.Label", background=p["bg"], foreground=p["fg"])
+            for w in ("TCheckbutton", "TRadiobutton"):
+                st.configure(w, background=p["bg"], foreground=p["fg"], indicatorbackground=p["field"],
+                             indicatorforeground=p["fg"])
+                st.map(w, background=[("active", p["bg"])],
+                       indicatorbackground=[("selected", p["accent"]), ("active", p["field"])])
+            st.configure("TEntry", fieldbackground=p["field"], foreground=p["fg"])
+            st.configure("TSpinbox", fieldbackground=p["field"], foreground=p["fg"], arrowcolor=p["fg"])
+            st.configure("Treeview", background=p["field"], fieldbackground=p["field"], foreground=p["fg"])
+            st.map("Treeview", background=[("selected", p["accent"])], foreground=[("selected", "#ffffff")])
+            st.configure("Treeview.Heading", background=p["head_bg"], foreground=p["head_fg"])
+            st.map("Treeview.Heading", background=[("active", p["button_active"])])
+            st.configure("TScrollbar", background=p["button"], troughcolor=p["bg"], arrowcolor=p["fg"])
+            st.configure("TPanedwindow", background=p["bg"])
+            st.configure("TFrame", background=p["bg"])
+            st.configure("TLabel", background=p["bg"], foreground=p["fg"])
+        st.configure("Big.TButton", font=("Segoe UI", 11, "bold"), padding=(18, 8))
+        st.configure("Hint.TLabel", foreground=p["hint"])
+        st.configure("Name.TLabel", foreground=p["fg"], font=("Segoe UI", 10, "underline"))
+        st.configure("Proj.TLabel", font=("Segoe UI", 11, "bold"))
+        st.configure("Treeview", rowheight=24)
+        return p
+
+    def _apply_theme(self):
+        p = self._apply_theme_style()
+        self.configure(bg=p["bg"])
+        self.option_add("*Toplevel.background", p["bg"])
+        if hasattr(self, "items_list"):
+            self.items_list.set_palette(p)
+        if hasattr(self, "fields_scroll"):
+            self.fields_scroll.set_palette(p)
+        if hasattr(self, "tree"):
+            for src, col in p["src"].items():
+                self.tree.tag_configure(src, foreground=col)
+        self._theme_text_widgets()
+        self._save_settings_soft()
+
+    def _theme_text_widgets(self):
+        p = PALETTES.get(self.theme.get(), PALETTES["light"])
+        for kind, w in getattr(self, "field_widgets", {}).values():
+            if kind == "text":
+                w.configure(bg=p["field"], fg=p["fg"], insertbackground=p["fg"],
+                            highlightbackground=p["border"], selectbackground=p["accent"])
+
+    def _save_settings_soft(self):
+        if getattr(self, "current_type", None):
+            try:
+                self._save_settings()
+            except Exception:
+                pass
 
     # ---------------------------------------------------------- шрифты
     def _check_fonts(self):
@@ -430,6 +506,7 @@ class App(tk.Tk):
         data = {"тип": self.type_var.get(), "папка": self.out_dir.get(),
                 "pdf": self.make_pdf.get(), "открыть": self.open_after.get(),
                 "типография": self.print_ready.get(),
+                "тема": self.theme.get(),
                 "шаблоны": self.settings.get("шаблоны", {}),
                 "проект": self.project["файл"] if self.project else "",
                 "состояние": self.state_by_type}
@@ -451,6 +528,13 @@ class App(tk.Tk):
             b = ttk.Radiobutton(top, text=t["тип"], value=t["тип"], variable=self.type_var,
                                 command=self._on_type_radio)
             b.pack(side="left", padx=(0, 18))
+        th = ttk.Frame(top)
+        th.pack(side="right", padx=(12, 0))
+        ttk.Label(th, text="Тема:").pack(side="left")
+        ttk.Radiobutton(th, text="Светлая", value="light", variable=self.theme,
+                        command=self._apply_theme).pack(side="left", padx=(4, 0))
+        ttk.Radiobutton(th, text="Тёмная", value="dark", variable=self.theme,
+                        command=self._apply_theme).pack(side="left", padx=(4, 0))
         ttk.Button(top, text="Открыть шаблон в Word", command=self._open_template).pack(side="right")
         ttk.Button(top, text="Другой шаблон…", command=self._choose_template).pack(side="right", padx=6)
         self.tpl_label = ttk.Label(top, style="Hint.TLabel")
@@ -493,8 +577,11 @@ class App(tk.Tk):
         mid.rowconfigure(0, weight=1)
         paned.add(mid, weight=3)
 
-        self.fields_frame = ttk.LabelFrame(mid, text="Данные паспорта", padding=10)
-        self.fields_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        ff = ttk.LabelFrame(mid, text="Данные паспорта", padding=(10, 6, 2, 6))
+        ff.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        self.fields_scroll = ScrollFrame(ff)
+        self.fields_scroll.pack(fill="both", expand=True)
+        self.fields_frame = self.fields_scroll.body
 
         tbl = ttk.LabelFrame(mid, text="Технические данные и характеристики", padding=10)
         tbl.grid(row=0, column=1, sticky="nsew")
@@ -531,21 +618,33 @@ class App(tk.Tk):
         ttk.Entry(bottom, textvariable=self.out_dir).grid(row=0, column=1, sticky="ew", padx=6)
         ttk.Button(bottom, text="Обзор…", command=self._choose_out).grid(row=0, column=2)
         bottom.columnconfigure(1, weight=1)
-        self.name_preview = ttk.Label(bottom, style="Hint.TLabel")
-        self.name_preview.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        self.name_override = ""
+        nf = ttk.Frame(bottom)
+        nf.grid(row=1, column=0, columnspan=3, sticky="ew")
+        nf.columnconfigure(1, weight=1)
+        self.name_caption = ttk.Label(nf, text="Имя файла:")
+        self.name_caption.grid(row=0, column=0, sticky="w", pady=(6, 0))
+        self.name_preview = ttk.Label(nf, style="Name.TLabel", cursor="xterm")
+        self.name_preview.grid(row=0, column=1, sticky="w", padx=6, pady=(6, 0))
+        self.name_preview.bind("<Double-Button-1>", self._edit_name)
+        ttk.Label(nf, text="двойной щелчок — изменить", style="Hint.TLabel").grid(
+            row=0, column=2, sticky="e", pady=(6, 0))
         opts = ttk.Frame(bottom)
         opts.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-        ttk.Checkbutton(opts, text="Для типографии: PDF, оглавление, кратно 4 стр.",
+        ttk.Checkbutton(opts, text="Для типографии (PDF, кратно 4 стр.)",
                         variable=self.print_ready).pack(side="left")
         ttk.Checkbutton(opts, text="PDF", variable=self.make_pdf).pack(side="left", padx=(12, 0))
         ttk.Checkbutton(opts, text="Печать и подпись", variable=self.use_stamps).pack(side="left", padx=(12, 0))
-        ttk.Checkbutton(opts, text="Открыть папку после создания",
-                        variable=self.open_after).pack(side="left", padx=16)
+        ttk.Checkbutton(opts, text="Открыть папку",
+                        variable=self.open_after).pack(side="left", padx=12)
         ttk.Button(opts, text="Скачать паспорт", style="Big.TButton",
                    command=self._generate).pack(side="right")
         ttk.Button(opts, text="Журнал", command=self._show_journal).pack(side="right", padx=8)
         ttk.Button(opts, text="Сохранить данные…", command=self._save_data).pack(side="right")
         ttk.Button(opts, text="Открыть данные…", command=self._load_data).pack(side="right", padx=8)
+        for ch in opts.pack_slaves():           # кнопки справа не должны исчезать на узком окне
+            if isinstance(ch, ttk.Button):
+                ch.pack_configure(ipadx=0)
 
         for v in (self.project_name, self.qty):
             v.trace_add("write", lambda *a: self._update_name_preview())
@@ -579,6 +678,7 @@ class App(tk.Tk):
         self.tpl_img_keys = engine.image_placeholders(d)
         self.tpl_table = engine.read_tech_table(d)
         self.tpl_label.configure(text="Шаблон: " + Path(tpl).name)
+        self.title_box = engine.title_box(d)
         self._build_fields()
         if restore:
             state = self.state_by_type.get(self.current_type["тип"])
@@ -675,6 +775,7 @@ class App(tk.Tk):
         self.items_list.set_rows(rows, keep_selection=keep)
 
     def _deselect_item(self):
+        self.name_override = ""
         self.current_item = None
         self.items_list.selected = None
         self.items_list.redraw()
@@ -682,6 +783,7 @@ class App(tk.Tk):
         self._update_name_preview()
 
     def _on_item(self, index):
+        self.name_override = ""
         if index is None or not self.project:
             return
         it = dict(self.project["изделия"][index])
@@ -697,7 +799,7 @@ class App(tk.Tk):
             self.type_var.set(it["тип"])
         self._switch_type(restore=True, save=False)   # гарантия и дата — последние введённые
         self.current_item = it
-        values, rows, v = calc.compute(it, self.rules, self.tpl_table)
+        values, rows, v = calc.compute(it, self.rules, self.tpl_table, self.title_box)
         rec = self.store.get(it)
         if rec.get("серийный_номер"):
             values["СЕРИЙНЫЙ_НОМЕР"] = serial_numbers(rec["серийный_номер"])[0]
@@ -749,6 +851,7 @@ class App(tk.Tk):
                [k for k in self.tpl_keys if k not in FIELD_DEFS]
         f = self.fields_frame
         f.columnconfigure(1, weight=1)
+        f.columnconfigure(2, minsize=8)          # отступ от полосы прокрутки
         r = 0
         # общие поля: проект и тираж (для имени файла и журнала)
         ttk.Label(f, text="Проект:").grid(row=r, column=0, sticky="e", padx=(0, 8), pady=4)
@@ -780,6 +883,8 @@ class App(tk.Tk):
                 ttk.Spinbox(cell, from_=1, to=240, textvariable=v, width=6).grid(row=0, column=0, sticky="w")
                 lab = ttk.Label(cell, style="Hint.TLabel")
                 lab.grid(row=0, column=1, sticky="w", padx=8)
+                cell.columnconfigure(0, weight=0)
+                cell.columnconfigure(1, weight=1)
                 v.trace_add("write", lambda *a, v=v, lab=lab: self._preview_months(v, lab))
                 self._preview_months(v, lab)
                 self.field_widgets[key] = ("var", v)
@@ -791,6 +896,8 @@ class App(tk.Tk):
                     row=0, column=1, padx=6)
                 lab = ttk.Label(cell, style="Hint.TLabel")
                 lab.grid(row=0, column=2, sticky="w")
+                cell.columnconfigure(0, weight=0)      # при нехватке места сжимается подсказка,
+                cell.columnconfigure(2, weight=1)      # а не поле даты
                 v.trace_add("write", lambda *a, v=v, lab=lab: self._preview_date(v, lab))
                 self._preview_date(v, lab)
                 self.field_widgets[key] = ("var", v)
@@ -808,20 +915,24 @@ class App(tk.Tk):
             elif kind == "image":
                 pair = ImagePair()
                 for i, (cap, var) in enumerate((("Сторона 1", pair.v1), ("Сторона 2", pair.v2))):
-                    ttk.Label(cell, text=cap, style="Hint.TLabel").grid(row=i, column=0, sticky="w")
-                    ttk.Entry(cell, textvariable=var).grid(row=i, column=1, sticky="ew", pady=1)
-                    ttk.Button(cell, text="…", width=3,
-                               command=lambda var=var: self._choose_image(var)).grid(
-                        row=i, column=2, padx=(4, 0))
-                    ttk.Button(cell, text="×", width=3, command=lambda var=var: var.set("")).grid(
-                        row=i, column=3, padx=(2, 0))
+                    ws = [ttk.Label(cell, text=cap, style="Hint.TLabel"),
+                          ttk.Entry(cell, textvariable=var),
+                          ttk.Button(cell, text="…", width=3,
+                                     command=lambda var=var: self._choose_image(var)),
+                          ttk.Button(cell, text="×", width=3, command=lambda var=var: var.set(""))]
+                    ws[0].grid(row=i, column=0, sticky="w")
+                    ws[1].grid(row=i, column=1, sticky="ew", pady=1)
+                    ws[2].grid(row=i, column=2, padx=(4, 0))
+                    ws[3].grid(row=i, column=3, padx=(2, 0))
+                    pair.rows[i + 1] = ws
                 cell.columnconfigure(0, weight=0)
                 cell.columnconfigure(1, weight=1)
                 tip = ttk.Label(cell, text="?", style="Hint.TLabel", cursor="question_arrow")
                 tip.grid(row=0, column=4, padx=(4, 0))
                 tip.bind("<Button-1>", lambda e: messagebox.showinfo(
                     APP_NAME, "Макет вписывается в поле пропорционально и встаёт по центру.\n"
-                              "Сторона 2 — для двусторонних: встанет под первой через одну строку.\n"
+                              "Полей столько, сколько сторон у изделия. Сторона 2 встанет под первой "
+                              "через одну строку.\n"
                               "Файлы ищутся сами рядом с проектом и в папке «Макеты» по номеру макета.\n"
                               "Пусто — в паспорте будет «Нет актуальной информации. Ожидается»."))
                 self.field_widgets[key] = ("image", pair)
@@ -832,6 +943,9 @@ class App(tk.Tk):
             if key in ("АРТИКУЛ", "НОМЕР_МАКЕТА", "СЕРИЙНЫЙ_НОМЕР"):
                 self.field_widgets[key][1].trace_add("write", lambda *a: self._update_name_preview())
             r += 1
+        self._theme_text_widgets()
+        self._refresh_image_sides()
+        self.fields_scroll.fit_width()
 
     def _qty(self):
         try:
@@ -882,7 +996,8 @@ class App(tk.Tk):
     def _title_from_name(self):
         self._set("НАИМЕНОВАНИЕ_ТИТУЛ", calc.title_lines(self._get_or("НАИМЕНОВАНИЕ"),
                                                           self._get_or("АРТИКУЛ"),
-                                                          self.current_type["тип"], self.rules))
+                                                          self.current_type["тип"], self.rules,
+                                                          *self.title_box))
 
     def _issued_serials(self):
         issued = []
@@ -933,6 +1048,26 @@ class App(tk.Tk):
             p, v = row[0], row[1]
             src = row[2] if len(row) > 2 else "шаблон"
             self.tree.insert("", "end", values=(p, v, src), tags=(src,))
+        self._refresh_image_sides()
+
+    def _sides(self):
+        if self.current_item and self.current_item.get("сторон"):
+            try:
+                return int(self.current_item["сторон"])
+            except (TypeError, ValueError):
+                pass
+        for i in self.tree.get_children():
+            p, v = self.tree.item(i, "values")[:2]
+            if str(p).strip().lower().startswith("кол-во сторон"):
+                m = re.search(r"\d", str(v))
+                if m:
+                    return int(m.group(0))
+        return 1
+
+    def _refresh_image_sides(self):
+        for kind, w in self.field_widgets.values():
+            if kind == "image":
+                w.show(self._sides())
 
     def _table_from_template(self):
         if messagebox.askyesno(APP_NAME, "Заменить таблицу значениями из шаблона?"):
@@ -977,6 +1112,7 @@ class App(tk.Tk):
                 vals[ci] = e.get()
                 vals[2] = "вручную"
                 self.tree.item(iid, values=vals, tags=("вручную",))
+                self._refresh_image_sides()
             e.destroy()
 
         e.bind("<Return>", commit)
@@ -1038,13 +1174,52 @@ class App(tk.Tk):
         else:
             ident = self._get_or("НОМЕР_МАКЕТА").strip()
         parts = [art, ident, f"{q}шт", self.project_name.get().strip()]
-        return safe_name("_".join(p for p in parts if p))
+        return safe_name(" ".join(p for p in parts if p))
+
+    def _out_base(self):
+        return safe_name(self.name_override) if getattr(self, "name_override", "") else self._file_base()
 
     def _update_name_preview(self):
         try:
-            self.name_preview.configure(text="Имя файла: " + self._file_base() + ".docx")
+            manual = bool(getattr(self, "name_override", ""))
+            self.name_caption.configure(text="Имя файла (изменено вручную):" if manual else "Имя файла:")
+            self.name_preview.configure(text=self._out_base() + ".docx")
         except Exception:
             pass
+
+    def _reset_name(self):
+        self.name_override = ""
+        self._update_name_preview()
+
+    def _edit_name(self, _=None):
+        """Двойной щелчок по имени файла — правка. Пустое поле — снова автоматическое имя."""
+        if getattr(self, "_name_entry", None):
+            return
+        e = ttk.Entry(self.name_preview.master)
+        e.insert(0, self._out_base())
+        e.select_range(0, "end")
+        info = self.name_preview.grid_info()
+        e.grid(row=info["row"], column=info["column"], columnspan=info.get("columnspan", 1),
+               sticky="ew", pady=(6, 0))
+        self.name_preview.grid_remove()
+        e.focus_set()
+        self._name_entry = e
+
+        def done(save):
+            if save:
+                txt = e.get().strip()
+                if txt.lower().endswith(".docx"):
+                    txt = txt[:-5]
+                self.name_override = "" if (not txt or txt == self._file_base()) else txt
+            e.destroy()
+            self._name_entry = None
+            self.name_preview.grid()
+            self._update_name_preview()
+
+        e.bind("<Return>", lambda _e: done(True))
+        e.bind("<KP_Enter>", lambda _e: done(True))
+        e.bind("<FocusOut>", lambda _e: done(True))
+        e.bind("<Escape>", lambda _e: done(False))
 
     # ---------------------------------------------------------- скачать паспорт
     def _generate(self):
@@ -1083,7 +1258,13 @@ class App(tk.Tk):
                     messagebox.showerror(APP_NAME, f"Дата продажи: {e}")
                     return
             elif key == "НАИМЕНОВАНИЕ_ТИТУЛ":
-                values[key] = "\n".join(l.strip() for l in raw.splitlines() if l.strip())
+                text = "\n".join(l.strip() for l in raw.splitlines() if l.strip())
+                values[key] = text
+                width, pt = getattr(self, "title_box", (None, None))
+                if width and pt:        # титул только на тёмно-синем поле: кегль под ширину поля
+                    fit = calc.title_fit(text, width, pt)
+                    if fit < pt:
+                        values[key] = {"text": text, "pt": fit}
             elif key == "СЕРИЙНЫЙ_НОМЕР":
                 values[key] = serial_range(raw, q)
             else:
@@ -1120,7 +1301,7 @@ class App(tk.Tk):
 
         out_dir = Path(self.out_dir.get().strip() or APP_DIR)
         out_dir.mkdir(parents=True, exist_ok=True)
-        base = self._file_base()
+        base = self._out_base()
         out = out_dir / f"{base}.docx"
         if out.exists():
             ans = messagebox.askyesnocancel(
@@ -1182,13 +1363,17 @@ class App(tk.Tk):
                     notes.append(f"Страниц {pr['страниц']} — не кратно 4, проверьте PDF.")
             except Exception as e:
                 notes.append(f"Подготовка к печати не выполнена: {e}")
-        elif self.make_pdf.get():
-            self.status.set("Сохраняю PDF…")
+        else:
+            # без «Для типографии»: номера страниц в «Содержании» всё равно пересчитываем
+            self.status.set("Пересчитываю оглавление…")
             self.update_idletasks()
             try:
-                pdf_note = "\nPDF: " + docx_to_pdf(out).name
+                n = book.refresh_toc(out, keep_pdf=self.make_pdf.get())
+                if self.make_pdf.get():
+                    pdf_note = "\nPDF: " + out.with_suffix(".pdf").name
             except Exception as e:
-                notes.append(str(e))
+                if self.make_pdf.get():
+                    notes.append(str(e))
 
         journal_add({
             "Создан": datetime.now().strftime("%d.%m.%Y %H:%M"),

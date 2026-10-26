@@ -31,7 +31,7 @@ DEFAULT_RULES = {
         "титул_ширина_мм": 120,
         "титул_без_размера": False,
         "стороны": ["Одностороннее", "Двустороннее"],
-        "наименование": "Динамическое информационное табло. {стороны}. {исполнение}. {W}x{H} мм",
+        "наименование": "Динамическое информационное табло. {стороны}. {исполнение}.",
         "артикул": "ASD-TAB P{шаг} {W}x{H} ID{II}",
         "таблица": {
             "габаритные размеры": "{W}х{H}х{D} мм",
@@ -52,10 +52,11 @@ DEFAULT_RULES = {
         "титул_ширина_мм": 147,
         "титул_без_размера": True,
         "стороны": ["Односторонний", "Двусторонний"],
-        "наименование": "Статический навигационный указатель. {освещение}. {стороны}. {W}х{H}",
+        "наименование": "Статический навигационный указатель. {освещение}. {стороны}.",
         "артикул": "ASD-L{II} {W}х{H}",
         "таблица": {
             "размер": "{W}х{H}",
+            "тип установки": "{установка}",
             "кол-во сторон": "{сторон}",
             "потребляемая мощность": "{P_Вт}",
             "масса": "{масса}",
@@ -75,10 +76,11 @@ DEFAULT_RULES["Статика МЦД круглый"] = {
     "титул_ширина_мм": 147,
     "титул_без_размера": True,
     "стороны": ["Односторонний", "Двусторонний"],
-    "наименование": "Статический навигационный указатель. {освещение}. {стороны}. D={D}",
+    "наименование": "Статический навигационный указатель. {освещение}. {стороны}.",
     "артикул": "ASD-L{II} D={D}",
     "таблица": {
         "размер": "{D}х{D}",
+        "тип установки": "{установка}",
         "кол-во сторон": "{сторон}",
         "потребляемая мощность": "{P_Вт}",
         "масса": "{масса}",
@@ -86,20 +88,58 @@ DEFAULT_RULES["Статика МЦД круглый"] = {
 }
 
 
+RULES_VERSION = 2
+
+
+def _migrate(user: dict) -> dict:
+    """Правила из прежних версий: наименование с размером → без размера (если не меняли
+    по-своему), новые строки таблицы (например, «тип установки») добавляются."""
+    for t, r in user.items():
+        if not isinstance(r, dict) or t not in DEFAULT_RULES:
+            continue
+        d = DEFAULT_RULES[t]
+        if isinstance(r.get("наименование"), str) and re.search(r"\{(W|H|D)\}", r["наименование"]):
+            r["наименование"] = d["наименование"]
+        if isinstance(r.get("таблица"), dict):
+            r["таблица"] = {**d.get("таблица", {}), **r["таблица"]}
+    return user
+
+
 def load_rules(path: Path) -> dict:
+    """Правила по умолчанию + правки пользователя из файла. Файл старой версии
+    сохраняется копией (…v1.json) и переписывается в новой."""
     rules = json.loads(json.dumps(DEFAULT_RULES))
+    user = {}
     if path.exists():
         try:
             user = json.loads(path.read_text("utf-8"))
-            for t, r in user.items():
-                rules.setdefault(t, {}).update(r)
         except Exception:
-            pass
+            user = {}
+        if user.get("_версия", 1) < RULES_VERSION:
+            try:
+                path.with_name(path.stem + f".v{user.get('_версия', 1)}.json").write_text(
+                    path.read_text("utf-8"), "utf-8")
+            except Exception:
+                pass
+            user = _migrate(user)
+            user["_версия"] = RULES_VERSION
+            try:
+                path.write_text(json.dumps(user, ensure_ascii=False, indent=2), "utf-8")
+            except Exception:
+                pass
     else:
         try:
-            path.write_text(json.dumps(DEFAULT_RULES, ensure_ascii=False, indent=2), "utf-8")
+            path.write_text(json.dumps({"_версия": RULES_VERSION, **DEFAULT_RULES},
+                                       ensure_ascii=False, indent=2), "utf-8")
         except Exception:
             pass
+    for t, r in user.items():
+        if isinstance(r, dict):
+            base = rules.setdefault(t, {})
+            tbl = {**base.get("таблица", {}), **r.get("таблица", {})}
+            base.update(r)
+            if tbl:
+                base["таблица"] = tbl
     return rules
 
 
@@ -160,19 +200,51 @@ def wrap_mm(text, pt, max_mm):
 SIZE_TAIL = re.compile(r"\s*(?:\d{2,5}\s*[xх×]\s*\d{2,5}|(?:D\s*=\s*|Ø\s*)\d{2,5})(\s*мм)?\s*$")
 
 
-def title_lines(name: str, article: str, typ: str = "", rules: dict = None) -> str:
-    """Строки титула как в образце: наименование, перенесённое по ширине поля титула
-    (реальным шрифтом), последней строкой — артикул. Для статики размер в наименовании
-    на титул не выносится (он есть в артикуле)."""
-    r = (rules or DEFAULT_RULES).get(typ, {})
-    pt = r.get("титул_кегль_pt", 18)
-    width = r.get("титул_ширина_мм", 120)
-    if r.get("титул_без_размера"):
+def _name_without_size(name, r):
+    if r.get("титул_без_размера", True):
         name = SIZE_TAIL.sub("", name).rstrip()
+    return name
+
+
+def title_lines(name: str, article: str, typ: str = "", rules: dict = None,
+                width=None, pt=None, max_name_lines=3) -> str:
+    """Строки титула: наименование, перенесённое по ширине поля титула (только тёмно-синяя
+    зона обложки; ширина и кегль — из шаблона), последней строкой — артикул. Если с кеглем
+    шаблона наименование не укладывается в max_name_lines строк, кегль уменьшается
+    (до 80 %), чтобы не рвать фразы вроде «Статический навигационный»."""
+    r = (rules or DEFAULT_RULES).get(typ, {})
+    pt = pt or r.get("титул_кегль_pt", 18)
+    width = width or r.get("титул_ширина_мм", 120)
+    name = _name_without_size(name, r)
+    def good(ls):     # не больше max строк и нет «висячих» слов вроде «Статический»
+        return len(ls) <= max_name_lines and not any(
+            len(l.split()) == 1 and not l.endswith(".") for l in ls[:-1])
     lines = wrap_mm(name, pt, width)
+    if not good(lines):
+        p, fallback = pt, None
+        while p > pt * 0.8:
+            p -= 0.5
+            cand = wrap_mm(name, p, width)
+            if good(cand):
+                lines = cand
+                break
+            if fallback is None and len(cand) <= max_name_lines:
+                fallback = cand
+        else:
+            lines = fallback or lines
     if article:
         lines.append(article)
     return "\n".join(lines)
+
+
+def title_fit(text: str, width, pt) -> float:
+    """Наибольший кегль ≤ pt, при котором каждая строка титула помещается в поле."""
+    p = float(pt)
+    for line in [l for l in str(text).splitlines() if l.strip()]:
+        w = _measure_mm(line, pt)
+        if w > width:
+            p = min(p, pt * width / w)
+    return max(1.0, int(p * 2) / 2)
 
 
 def variables(item: dict, rules: dict) -> dict:
@@ -185,7 +257,8 @@ def variables(item: dict, rules: dict) -> dict:
     if r.get("форма") == "круг":
         H = W
         area = math.pi * W * W / 4 / 1e6
-    v = {"W": W, "H": H, "D": W, "сторон": sides, "площадь_м2": num(area, 3),
+    v = {"W": W, "H": H, "D": W, "сторон": sides,
+         "установка": (r.get("установка") or ["Настенный", "Подвесной"])[sides - 1], "площадь_м2": num(area, 3),
          "стороны": r.get("стороны", ["", ""])[sides - 1],
          "II": " II" if sides == 2 else "", "тираж": _int(item.get("тираж"), 1)}
 
@@ -239,17 +312,19 @@ def _fmt(pattern, v):
     return pattern.format_map(D(v))
 
 
-def compute(item: dict, rules: dict, template_table: list):
+def compute(item: dict, rules: dict, template_table: list, title_box=None):
     """→ (значения меток, строки таблицы [[параметр, значение, источник]], переменные)."""
     t = item.get("тип", "")
     r = rules.get(t, {})
     v = variables(item, rules)
     name = item.get("наименование") or _fmt(r.get("наименование", ""), v)
+    if r.get("наименование_без_размера", True):
+        name = SIZE_TAIL.sub("", name).rstrip()
     article = item.get("артикул") or _fmt(r.get("артикул", ""), v)
     values = {
         "НАИМЕНОВАНИЕ": name,
         "АРТИКУЛ": article,
-        "НАИМЕНОВАНИЕ_ТИТУЛ": title_lines(name, article, t, rules),
+        "НАИМЕНОВАНИЕ_ТИТУЛ": title_lines(name, article, t, rules, *(title_box or (None, None))),
     }
     if item.get("номер_макета"):
         values["НОМЕР_МАКЕТА"] = str(item["номер_макета"])
