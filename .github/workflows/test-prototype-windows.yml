@@ -6,11 +6,17 @@ on:
     branches: [passport-data-v40.04.2]
     paths: ["passport/**", ".github/workflows/test-prototype-windows.yml"]
 
+permissions:
+  contents: write
+
 jobs:
   launch:
     runs-on: windows-latest
     env:
       PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -18,15 +24,33 @@ jobs:
           python-version: "3.11"
       - name: Pillow for screenshots
         run: python -m pip install -q pillow
-      - name: Normal unzip (correct names)
-        run: python passport/ci/windows_launch_test.py normal "$env:RUNNER_TEMP/shots"
-      - name: Explorer-style unzip (broken Cyrillic names)
-        run: python passport/ci/windows_launch_test.py garbled "$env:RUNNER_TEMP/shots"
+      - name: Launch tests (normal + Explorer-style broken names)
+        run: |
+          $fail = 0
+          foreach ($mode in "normal", "garbled") {
+            $out = python passport/ci/windows_launch_test.py $mode "$env:RUNNER_TEMP/shots" 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0) { $fail = 1 }
+            Write-Output $out
+            $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
+            Write-Output "::notice title=Launch $mode::$m"
+          }
+          if ($fail) { throw "launch test failed" }
       - name: Engine test
         if: always()
-        run: python passport/ci/generate_demo.py "$env:RUNNER_TEMP/demo_out" "$env:RUNNER_TEMP"
-      - uses: actions/upload-artifact@v4
+        run: |
+          python -m pip install -q -r passport/requirements.txt
+          $out = python passport/ci/generate_demo.py "$env:RUNNER_TEMP/demo_out" "$env:RUNNER_TEMP" 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          Write-Output $out
+          $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
+          Write-Output "::notice title=Engine test::$m"
+          if ($code -ne 0) { throw "engine test failed" }
+      - name: Publish screenshots to branch ci-passport-screens
         if: always()
-        with:
-          name: windows-launch-screens
-          path: ${{ runner.temp }}/shots
+        run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          $d = "$env:RUNNER_TEMP/pub"; New-Item -ItemType Directory -Force $d | Out-Null
+          Copy-Item "$env:RUNNER_TEMP/shots/*" $d -ErrorAction SilentlyContinue
+          git checkout --orphan ci-passport-screens
+          git rm -rq --cached . ; Get-ChildItem -Force | Where-Object { $_.Name -ne ".git" } | Remove-Item -Recurse -Force
+          Copy-Item "$d/*" . ; git add -A ; git commit -qm "screens $env:GITHUB_SHA" ; git push -f origin ci-passport-screens
