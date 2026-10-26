@@ -337,8 +337,16 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"{APP_NAME} — {APP_VERSION}")
-        self.geometry("1280x860")
-        self.minsize(1050, 700)
+        # окно по размеру экрана (ноутбуки 1366×768 и меньше — разворачиваем)
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w, h = min(1280, sw - 40), min(860, sh - 80)
+        self.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 3)}")
+        self.minsize(min(1050, sw - 40), min(640, sh - 80))
+        if sh < 900 and sys.platform.startswith("win"):
+            try:
+                self.state("zoomed")
+            except tk.TclError:
+                pass
         style = ttk.Style(self)
         for th in ("vista", "aqua", "clam"):
             if th in style.theme_names():
