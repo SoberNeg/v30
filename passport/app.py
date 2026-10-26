@@ -621,14 +621,18 @@ class App(tk.Tk):
         self.name_override = ""
         nf = ttk.Frame(bottom)
         nf.grid(row=1, column=0, columnspan=3, sticky="ew")
-        nf.columnconfigure(1, weight=1)
         self.name_caption = ttk.Label(nf, text="Имя файла:")
         self.name_caption.grid(row=0, column=0, sticky="w", pady=(6, 0))
         self.name_preview = ttk.Label(nf, style="Name.TLabel", cursor="xterm")
         self.name_preview.grid(row=0, column=1, sticky="w", padx=6, pady=(6, 0))
         self.name_preview.bind("<Double-Button-1>", self._edit_name)
-        ttk.Label(nf, text="двойной щелчок — изменить", style="Hint.TLabel").grid(
-            row=0, column=2, sticky="e", pady=(6, 0))
+        self.name_hint = ttk.Label(nf, text="(двойной щелчок — изменить)", style="Hint.TLabel")
+        self.name_hint.grid(row=0, column=2, sticky="w", pady=(6, 0))
+        nf.columnconfigure(3, weight=1)
+        ttk.Button(nf, text="Сохранить данные…", command=self._save_data).grid(
+            row=0, column=5, sticky="e", pady=(6, 0))
+        ttk.Button(nf, text="Открыть данные…", command=self._load_data).grid(
+            row=0, column=4, sticky="e", padx=8, pady=(6, 0))
         opts = ttk.Frame(bottom)
         opts.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         ttk.Checkbutton(opts, text="Для типографии (PDF, кратно 4 стр.)",
@@ -640,11 +644,6 @@ class App(tk.Tk):
         ttk.Button(opts, text="Скачать паспорт", style="Big.TButton",
                    command=self._generate).pack(side="right")
         ttk.Button(opts, text="Журнал", command=self._show_journal).pack(side="right", padx=8)
-        ttk.Button(opts, text="Сохранить данные…", command=self._save_data).pack(side="right")
-        ttk.Button(opts, text="Открыть данные…", command=self._load_data).pack(side="right", padx=8)
-        for ch in opts.pack_slaves():           # кнопки справа не должны исчезать на узком окне
-            if isinstance(ch, ttk.Button):
-                ch.pack_configure(ipadx=0)
 
         for v in (self.project_name, self.qty):
             v.trace_add("write", lambda *a: self._update_name_preview())
@@ -1199,9 +1198,10 @@ class App(tk.Tk):
         e.insert(0, self._out_base())
         e.select_range(0, "end")
         info = self.name_preview.grid_info()
-        e.grid(row=info["row"], column=info["column"], columnspan=info.get("columnspan", 1),
-               sticky="ew", pady=(6, 0))
+        e.grid(row=info["row"], column=info["column"], columnspan=3,   # имя + подсказка + пусто
+               sticky="ew", padx=6, pady=(6, 0))
         self.name_preview.grid_remove()
+        self.name_hint.grid_remove()
         e.focus_set()
         self._name_entry = e
 
@@ -1214,6 +1214,7 @@ class App(tk.Tk):
             e.destroy()
             self._name_entry = None
             self.name_preview.grid()
+            self.name_hint.grid()
             self._update_name_preview()
 
         e.bind("<Return>", lambda _e: done(True))
