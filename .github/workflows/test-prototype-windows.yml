@@ -45,7 +45,7 @@ jobs:
           $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
           Write-Output "::notice title=Engine test::$m"
           if ($code -ne 0) { throw "engine test failed" }
-      - name: Feature tests V2.0 (sort, file name, no date, handwritten date, PDF crop, clipboard)
+      - name: Feature tests (sort, makets, file names, no date, handwritten date, PDF crop, clipboard)
         if: always()
         run: |
           python -m pip install -q -r passport/requirements.txt
