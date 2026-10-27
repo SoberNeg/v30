@@ -31,7 +31,9 @@ def find_renderers():
     if sys.platform.startswith("win"):
         try:
             import win32com.client  # noqa: F401
-            out.append("word")
+            import winreg
+            winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Word.Application\CLSID"))
+            out.append("word")                     # Word действительно установлен
         except Exception:
             pass
     if sys.platform == "darwin" and Path("/Applications/Microsoft Word.app").exists():
