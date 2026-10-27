@@ -379,8 +379,9 @@ class MaketRows:
         self.total = 1
         self.err = PALETTES["light"]["err"]
         cell.columnconfigure(1, weight=1)
-        self.hint = ttk.Label(cell, style="Hint.TLabel")
+        self.hint = ttk.Label(cell, style="Hint.TLabel", wraplength=300, justify="left")
         self.hint.grid(row=99, column=0, columnspan=6, sticky="w", pady=(2, 0))
+        cell.bind("<Configure>", lambda e: self.hint.configure(wraplength=max(200, e.width - 10)))
         self._add(notify=False)
 
     # --------------------------------------------------------- строки
@@ -389,11 +390,11 @@ class MaketRows:
         num, qty = tk.StringVar(), tk.IntVar(value=1)
         row = {"num": num, "qty": qty, "w": []}
         cap = ttk.Label(self.cell, style="Hint.TLabel")
-        ent = ttk.Entry(self.cell, textvariable=num, width=16)
-        qcap = ttk.Label(self.cell, text="Тираж, шт:", style="Hint.TLabel")
-        spn = ttk.Spinbox(self.cell, from_=1, to=9999, width=5, textvariable=qty)
-        plus = ttk.Button(self.cell, text="+", width=3, command=lambda r=row: self.add_after(r))
-        minus = ttk.Button(self.cell, text="−", width=3, command=lambda r=row: self.remove(r))
+        ent = ttk.Entry(self.cell, textvariable=num, width=12)
+        qcap = ttk.Label(self.cell, text="Тираж:", style="Hint.TLabel")
+        spn = ttk.Spinbox(self.cell, from_=1, to=9999, width=4, textvariable=qty)
+        plus = ttk.Button(self.cell, text="+", width=2, command=lambda r=row: self.add_after(r))
+        minus = ttk.Button(self.cell, text="−", width=2, command=lambda r=row: self.remove(r))
         row["w"] = [cap, ent, qcap, spn, plus, minus]
         row["entry"] = ent
         self.rows.insert(i, row)
@@ -435,12 +436,12 @@ class MaketRows:
         one = len(self.rows) == 1
         for i, r in enumerate(self.rows):
             cap, ent, qcap, spn, plus, minus = r["w"]
-            cap.configure(text="Номер макета:" if one else f"Макет {i + 1}")
-            cap.grid(row=i, column=0, sticky="e", padx=(0, 6), pady=1)
+            cap.configure(text="" if one else f"{i + 1}.")      # подпись поля — «Номера макетов»
+            cap.grid(row=i, column=0, sticky="e", padx=(0, 4), pady=1)
             ent.grid(row=i, column=1, sticky="ew", pady=1)
-            qcap.grid(row=i, column=2, padx=(10, 4))
+            qcap.grid(row=i, column=2, padx=(8, 3))
             spn.grid(row=i, column=3)
-            plus.grid(row=i, column=4, padx=(6, 0))
+            plus.grid(row=i, column=4, padx=(5, 0))
             minus.grid(row=i, column=5, padx=(2, 0))
             if one:
                 minus.grid_remove()
@@ -474,7 +475,7 @@ class MaketRows:
                 r["qty"].set(1)
         n = self.distributed()
         if len(self.rows) == 1:
-            self.hint.configure(text="«+» — добавить макет: тираж разделится, на каждый макет "
+            self.hint.configure(text="«+» — ещё один макет: тираж разделится, на каждый "
                                      "будет свой паспорт", foreground="")
         elif n == self.total:
             self.hint.configure(text=f"{plural(len(self.rows), 'макет', 'макета', 'макетов')}, "
@@ -869,8 +870,10 @@ class App(tk.Tk):
 
         # ---- поля + таблица
         mid = ttk.Frame(paned)
-        mid.columnconfigure(0, weight=6)
-        mid.columnconfigure(1, weight=5)
+        # minsize — поля паспорта не сжимаются до нечитаемого на узком окне,
+        # место уступает таблица техданных (её колонки растягиваются сами)
+        mid.columnconfigure(0, weight=6, minsize=500)
+        mid.columnconfigure(1, weight=5, minsize=330)
         mid.rowconfigure(0, weight=1)
         paned.add(mid, weight=3)
 
@@ -888,9 +891,11 @@ class App(tk.Tk):
         self.tree.heading("p", text="Параметр")
         self.tree.heading("v", text="Значение")
         self.tree.heading("s", text="Источник")
-        self.tree.column("p", width=250, anchor="w")
-        self.tree.column("v", width=170, anchor="w")
-        self.tree.column("s", width=80, anchor="center")
+        # узкие исходные ширины: на широком окне колонки растянутся сами,
+        # а на узком таблица не отнимает место у полей паспорта
+        self.tree.column("p", width=150, minwidth=90, anchor="w")
+        self.tree.column("v", width=110, minwidth=70, anchor="w")
+        self.tree.column("s", width=70, minwidth=55, anchor="center")
         for src, col in SRC_COLORS.items():
             self.tree.tag_configure(src, foreground=col)
         self.tree.grid(row=0, column=0, sticky="nsew")
