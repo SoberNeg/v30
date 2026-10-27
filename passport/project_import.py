@@ -238,6 +238,8 @@ def load_ledproj(data, path):
               "исполнение": str(s.get("environment") or "Уличное"),
               "артикул": str(s.get("screen_article") or "").strip(),
               "_источник": "screens"}
+        if _num(s.get("module_total")):                 # LED-модулей на сторону — как в Конструкторе
+            it["модулей_на_сторону"] = int(_num(s.get("module_total")))
         serials = [str(x.get("part_number") or "").strip() for x in (s.get("instances") or [])
                    if isinstance(x, dict) and str(x.get("part_number") or "").strip()]
         if not serials and str(s.get("part_number") or "").strip():

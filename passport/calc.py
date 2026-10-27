@@ -22,7 +22,10 @@ DEFAULT_RULES = {
         "мин_поле_мм": 50,
         "глубина_корпуса_мм": 175,
         "шаг_по_умолчанию": 2.5,
-        "мощность_модуля_макс_Вт": 30,
+        # мощность — как в Конструкторе: 1 блок питания на 4 LED-модуля (все стороны),
+        # «максимальная» = сумма мощностей блоков питания, «средняя» = доля от неё
+        "модулей_на_блок_питания": 4,
+        "блок_питания_Вт": 200,
         "доля_средней_мощности": 0.5,
         "масса_кг_на_м2": 56.88,
         "коэф_массы_двусторонний": 1.8,
@@ -43,7 +46,15 @@ DEFAULT_RULES = {
         },
     },
     "Статика МЦД": {
-        "мощность_Вт_на_м2_стороны": 187.5,
+        # мощность — как в Конструкторе: LED по 1,5 Вт × 1,2 (запас), блоки питания
+        # 40/60/100/150 Вт — наименьшее число блоков, затем наименьшая суммарная мощность;
+        # в паспорт идёт сумма мощностей блоков питания
+        "LED_на_м2_одностороннего": 60,
+        "шаг_торцевых_LED_мм": 90,
+        "короткая_сторона_без_торцевых_LED_мм": 400,
+        "шаг_LED_по_окружности_мм": 65,
+        "мощность_LED_Вт": 1.5,
+        "запас_мощности": 1.2,
         "блоки_питания_Вт": [40, 60, 100, 150],
         "масса_кг_на_м2": 25,
         "коэф_массы_двусторонний": 1.6,
@@ -67,7 +78,15 @@ DEFAULT_RULES = {
 
 DEFAULT_RULES["Статика МЦД круглый"] = {
     "форма": "круг",
-    "мощность_Вт_на_м2_стороны": 88.4,       # подобрано по образцу ASD-L D=1200: 100 Вт
+    # мощность — как в Конструкторе: LED по 1,5 Вт × 1,2 (запас), блоки питания
+    # 40/60/100/150 Вт — наименьшее число блоков, затем наименьшая суммарная мощность;
+    # в паспорт идёт сумма мощностей блоков питания
+    "LED_на_м2_одностороннего": 60,
+    "шаг_торцевых_LED_мм": 90,
+    "короткая_сторона_без_торцевых_LED_мм": 400,
+    "шаг_LED_по_окружности_мм": 65,
+    "мощность_LED_Вт": 1.5,
+    "запас_мощности": 1.2,
     "блоки_питания_Вт": [40, 60, 100, 150],
     "масса_кг_на_м2": 22.1,                  # по образцу ASD-L D=1200: 25 кг
     "коэф_массы_двусторонний": 1.6,
@@ -88,7 +107,8 @@ DEFAULT_RULES["Статика МЦД круглый"] = {
 }
 
 
-RULES_VERSION = 2
+RULES_VERSION = 3
+OBSOLETE_KEYS = ("мощность_Вт_на_м2_стороны", "мощность_модуля_макс_Вт")   # до V1.9
 
 
 def _migrate(user: dict) -> dict:
@@ -102,6 +122,8 @@ def _migrate(user: dict) -> dict:
             r["наименование"] = d["наименование"]
         if isinstance(r.get("таблица"), dict):
             r["таблица"] = {**d.get("таблица", {}), **r["таблица"]}
+        for k in OBSOLETE_KEYS:                  # прежняя оценка мощности по площади
+            r.pop(k, None)
     return user
 
 
@@ -269,7 +291,10 @@ def variables(item: dict, rules: dict) -> dict:
         cols = max(0, int((W - 2 * margin) // mw))
         rows = max(0, int((H - 2 * margin) // mh))
         modules = cols * rows
-        p_max = modules * r["мощность_модуля_макс_Вт"] * sides / 1000
+        if _int(item.get("модулей_на_сторону")) > 0:         # как посчитал Конструктор
+            modules = _int(item["модулей_на_сторону"])
+        n_psu = math.ceil(modules * sides / r["модулей_на_блок_питания"] - 1e-9)
+        p_max = n_psu * r["блок_питания_Вт"] / 1000
         mass = area * r["масса_кг_на_м2"] * (r["коэф_массы_двусторонний"] if sides == 2 else 1)
         v.update({
             "D": r["глубина_корпуса_мм"], "шаг": num(pitch),
@@ -277,20 +302,18 @@ def variables(item: dict, rules: dict) -> dict:
             "поле_гор_мм": num((W - cols * mw) / 2, 1), "поле_верт_мм": num((H - rows * mh) / 2, 1),
             "px_w": int(round(cols * mw / pitch)), "px_h": int(round(rows * mh / pitch)),
             "P_max_кВт": num(p_max), "P_ср_кВт": num(p_max * r["доля_средней_мощности"]),
+            "блоков_питания": n_psu, "блоки_питания": f'{n_psu}×{r["блок_питания_Вт"]} Вт' if n_psu else "",
             "масса": num(mass, 0),
             "исполнение": item.get("исполнение") or r["исполнение_по_умолчанию"],
         })
     elif t.startswith("Статика МЦД"):
-        load = area * r["мощность_Вт_на_м2_стороны"] * sides
-        psus = sorted(r["блоки_питания_Вт"])
-        if load <= psus[-1]:
-            power = next(p for p in psus if p >= load - 1e-6)
-            n_psu = 1
-        else:
-            n_psu = math.ceil(load / psus[-1] - 1e-9)
-            power = n_psu * psus[-1]
+        leds = static_leds(W, H, sides, r.get("форма") == "круг", r)
+        load = leds * r["мощность_LED_Вт"] * r["запас_мощности"]
+        psu = psu_combo(load, r["блоки_питания_Вт"])
+        power, n_psu = sum(psu), len(psu)
         mass = area * r["масса_кг_на_м2"] * (r["коэф_массы_двусторонний"] if sides == 2 else 1)
-        v.update({"P_Вт": num(power, 0), "нагрузка_Вт": num(load, 0), "блоков_питания": n_psu,
+        v.update({"P_Вт": num(power, 0), "нагрузка_Вт": num(load, 1), "блоков_питания": n_psu,
+                  "LED_шт": leds, "блоки_питания": psu_text(psu),
                   "масса": num(mass, 0),
                   "освещение": item.get("освещение") or r["освещение_по_умолчанию"]})
     # значения, заданные в проекте, главнее расчёта
@@ -299,10 +322,55 @@ def variables(item: dict, rules: dict) -> dict:
     if item.get("мощность_Вт") not in (None, ""):           # суммарная мощность блоков питания
         pw = _float(item["мощность_Вт"])
         v["P_Вт"] = num(pw, 0)
+        if item.get("блоки_питания"):
+            v["блоки_питания"] = " + ".join(f'{num(_float(b.get("qty")), 0)}×{num(_float(b.get("w")), 0)} Вт'
+                                            for b in item["блоки_питания"] if isinstance(b, dict))
         v["P_max_кВт"] = num(pw / 1000)
         if "доля_средней_мощности" in r:
             v["P_ср_кВт"] = num(pw / 1000 * r["доля_средней_мощности"])
     return v
+
+
+def static_leds(W, H, sides, rnd, r):
+    """Количество LED статики МЦД — те же правила, что в Конструкторе (V30.68/V30.69/V20.94)."""
+    if sides == 1:
+        face = (math.pi * W * W / 4 if rnd else W * H) / 1e6
+        return max(1, math.ceil(face * r["LED_на_м2_одностороннего"] - 1e-9))
+    if rnd:                                       # двусторонний круг — LED по окружности
+        return math.ceil(math.pi * W / r["шаг_LED_по_окружности_мм"])
+    long_, short = max(W, H), min(W, H)
+    if long_ <= 0:
+        return 0
+    step = r["шаг_торцевых_LED_мм"]
+    n = math.ceil(long_ / step - 1e-9) * 2
+    if short > r["короткая_сторона_без_торцевых_LED_мм"]:
+        n += math.ceil(short / step - 1e-9) * 2
+    return n
+
+
+def psu_combo(required, allowed):
+    """Подбор блоков питания как в Конструкторе: сначала наименьшее число блоков,
+    затем наименьшая суммарная мощность (при равенстве — блоки крупнее)."""
+    import itertools
+    allowed = tuple(sorted({int(a) for a in allowed}))
+    if required <= 1e-9 or not allowed:
+        return []
+    n0 = max(1, math.ceil(required / allowed[-1]))
+    for n in range(n0, n0 + len(allowed) + 1):
+        cand = [(sum(c), c) for c in itertools.combinations_with_replacement(allowed, n)
+                if sum(c) + 1e-9 >= required]
+        if cand:
+            best = min(cand, key=lambda x: (x[0], tuple(-p for p in sorted(x[1], reverse=True))))[1]
+            return sorted(best, reverse=True)
+    return []
+
+
+def psu_text(psu):
+    """[100, 60, 60] → «1×100 Вт + 2×60 Вт»."""
+    out = []
+    for w in sorted(set(psu), reverse=True):
+        out.append(f"{psu.count(w)}×{w} Вт")
+    return " + ".join(out)
 
 
 def _fmt(pattern, v):
