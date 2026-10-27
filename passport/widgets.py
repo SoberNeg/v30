@@ -3,6 +3,7 @@
 полупрозрачным зелёным градиентом (слева насыщеннее, к правому краю исчезает).
 Поддерживает светлую/тёмную тему и прокрутку колёсиком и тачпадом
 (Windows, macOS, Linux)."""
+import re
 import sys
 import tkinter as tk
 from tkinter import font as tkfont
@@ -40,15 +41,28 @@ def _blend(base, color, a):
     return tuple(int(b + (c - b) * a) for b, c in zip(base, color))
 
 
+def natural_key(v):
+    """«Д2» < «Д10», «М-0457» < «М-1001»: числа внутри строки сравниваются как числа."""
+    parts = re.split(r"(\d+)", str(v if v is not None else "").strip().lower().replace("ё", "е"))
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p) for p in parts if p != ""]
+
+
 class GradientList(ttk.Frame):
-    def __init__(self, master, columns, on_select=None, stretch=None):
+    def __init__(self, master, columns, on_select=None, stretch=None, sort_keys=None, on_sort=None):
         """columns: [(ключ, заголовок, ширина, anchor)], stretch — ключ колонки,
-        которая забирает свободную ширину."""
+        которая забирает свободную ширину. Номер строки (index) везде — номер в исходном
+        списке rows (= номер изделия в проекте); порядок показа — self.order.
+        sort_keys: {ключ колонки: функция(row) → ключ сравнения}; остальные колонки —
+        естественная сортировка. on_sort(key, direction) — сохранить выбор."""
         super().__init__(master)
         self.columns = columns
         self.stretch = stretch
         self.on_select = on_select
+        self.sort_keys = sort_keys or {}
+        self.on_sort = on_sort
+        self.sort_col, self.sort_dir = None, 0        # 1 — по возрастанию, −1 — по убыванию
         self.rows = []
+        self.order = []
         self.selected = None
         self._img_cache = {}
         self._acc = 0.0
@@ -72,6 +86,8 @@ class GradientList(ttk.Frame):
 
         self.body.bind("<Configure>", lambda e: self.redraw())
         self.body.bind("<Button-1>", self._click)
+        self.head.bind("<Button-1>", self._head_click)
+        self.head.configure(cursor="hand2")
         self.body.bind("<Up>", lambda e: self._step(-1))
         self.body.bind("<Down>", lambda e: self._step(1))
         # Прокрутка: пока указатель над списком, колёсико/тачпад прокручивают именно его
@@ -137,13 +153,16 @@ class GradientList(ttk.Frame):
         self.rows = rows
         if not keep_selection or self.selected is None or self.selected >= len(rows):
             self.selected = None
+        self._resort()
         self.redraw()
 
     def update_row(self, index, row):
         self.rows[index] = row
+        self._resort()
         self.redraw()
 
     def select(self, index, notify=True):
+        """index — номер в исходном списке (номер изделия)."""
         if not self.rows:
             return
         index = max(0, min(len(self.rows) - 1, index))
@@ -152,6 +171,39 @@ class GradientList(ttk.Frame):
         self._see(index)
         if notify and self.on_select:
             self.on_select(index)
+
+    # ------------------------------------------------------------- сортировка
+    def set_sort(self, col, direction, notify=False):
+        keys = [c[0] for c in self.columns]
+        if col not in keys or direction not in (1, -1):
+            col, direction = None, 0
+        self.sort_col, self.sort_dir = col, direction
+        self._resort()
+        self.redraw()
+        if self.selected is not None:
+            self._see(self.selected)
+        if notify and self.on_sort:
+            self.on_sort(col, direction)
+
+    def _resort(self):
+        idx = list(range(len(self.rows)))
+        if self.sort_col and self.sort_dir:
+            f = self.sort_keys.get(self.sort_col) or (lambda r, k=self.sort_col: natural_key(r.get(k, "")))
+            idx.sort(key=lambda i: (f(self.rows[i]), i), reverse=self.sort_dir < 0)
+        self.order = idx
+
+    def _head_click(self, e):
+        x, w = 0, max(self.body.winfo_width(), 200)
+        for (k, *_), cw in zip(self.columns, self._widths(w)):
+            if x <= e.x < x + cw:
+                if self.sort_col != k:
+                    self.set_sort(k, 1, notify=True)
+                elif self.sort_dir == 1:
+                    self.set_sort(k, -1, notify=True)
+                else:
+                    self.set_sort(None, 0, notify=True)       # третий щелчок — порядок проекта
+                return
+            x += cw
 
     # ------------------------------------------------------------- рисование
     def _widths(self, total):
@@ -182,8 +234,16 @@ class GradientList(ttk.Frame):
         self.head.delete("all")
         x = 0
         for (k, title, _, anchor), cw in zip(self.columns, widths):
-            self.head.create_text(x + 6, HEAD_H // 2, text=title, anchor="w", font=self.bold,
-                                  fill=p["head_fg"])
+            active = k == self.sort_col and self.sort_dir
+            text = self._clip(title, cw - (26 if active else 10), self.bold)
+            self.head.create_text(x + 6, HEAD_H // 2, text=text, anchor="w", font=self.bold,
+                                  fill=p["accent"] if active else p["head_fg"])
+            if active:                     # стрелка сортировки рисуется, а не символом шрифта
+                ax = x + 6 + self.bold.measure(text) + 9
+                cy = HEAD_H // 2
+                pts = ((ax - 5, cy + 3, ax + 5, cy + 3, ax, cy - 4) if self.sort_dir > 0
+                       else (ax - 5, cy - 3, ax + 5, cy - 3, ax, cy + 4))
+                self.head.create_polygon(*pts, fill=p["accent"], outline="")
             x += cw
             self.head.create_line(x, 4, x, HEAD_H - 4, fill=p["head_sep"])
         b = self.body
@@ -193,13 +253,14 @@ class GradientList(ttk.Frame):
                           width=w - 40, justify="center")
             b.configure(scrollregion=(0, 0, w, 80))
             return
-        for i, row in enumerate(self.rows):
-            y = i * ROW_H
+        for pos, i in enumerate(self.order):
+            row = self.rows[i]
+            y = pos * ROW_H
             sel = i == self.selected
             if row.get("_done"):
                 b.create_image(0, y, image=self._row_image(w, sel), anchor="nw")
             else:
-                bg = p["sel"] if sel else (p["row"] if i % 2 == 0 else p["row_alt"])
+                bg = p["sel"] if sel else (p["row"] if pos % 2 == 0 else p["row_alt"])
                 b.create_rectangle(0, y, w, y + ROW_H, fill=bg, width=0)
             if sel:
                 b.create_rectangle(1, y + 1, w - 2, y + ROW_H - 1, outline=p["sel_outline"])
@@ -225,20 +286,26 @@ class GradientList(ttk.Frame):
     # ------------------------------------------------------------- события
     def _click(self, e):
         self.body.focus_set()
-        i = int(self.body.canvasy(e.y) // ROW_H)
-        if 0 <= i < len(self.rows):
-            self.select(i)
+        pos = int(self.body.canvasy(e.y) // ROW_H)
+        if 0 <= pos < len(self.order):
+            self.select(self.order[pos])
 
     def _step(self, d):
-        if self.rows:
-            self.select((self.selected if self.selected is not None else -1) + d)
+        """↑/↓ — по видимому (отсортированному) порядку."""
+        if not self.rows:
+            return
+        if self.selected is None or self.selected not in self.order:
+            pos = 0 if d > 0 else len(self.order) - 1
+        else:
+            pos = max(0, min(len(self.order) - 1, self.order.index(self.selected) + d))
+        self.select(self.order[pos])
 
     def _see(self, i):
         total = len(self.rows) * ROW_H
-        if not total:
+        if not total or i not in self.order:
             return
         top, bottom = (f * total for f in self.body.yview())
-        y = i * ROW_H
+        y = self.order.index(i) * ROW_H
         if y < top:
             self.body.yview_moveto(y / total)
         elif y + ROW_H > bottom:
@@ -339,3 +406,160 @@ class ScrollFrame(ttk.Frame):
         if dy >= 0x8000:
             dy -= 0x10000
         return self._scroll(-dy)
+
+
+# ===================================================================== буфер обмена
+# Ctrl+C / V / X / A (на Mac ⌘) при любой раскладке. Tk при русской раскладке присылает
+# не «c», а «Cyrillic_es», и стандартные привязки <<Copy>> и т.п. не срабатывают.
+# Клавишу узнаём по символу русской раскладки, по физическому коду клавиши (keycode)
+# или по управляющему символу; обработчик стоит в теге «all» — после стандартных привязок
+# поля, поэтому при английской раскладке ничего не повторяет.
+INPUT_CLASSES = ("Entry", "TEntry", "Spinbox", "TSpinbox", "TCombobox", "Text")
+SINGLE_LINE = ("Entry", "TEntry", "Spinbox", "TSpinbox", "TCombobox")
+ACTIONS = {"c": "<<Copy>>", "v": "<<Paste>>", "x": "<<Cut>>", "a": "<<SelectAll>>",
+           "z": "<<Undo>>", "y": "<<Redo>>"}
+CYRILLIC = {"cyrillic_es": "c", "cyrillic_em": "v", "cyrillic_che": "x", "cyrillic_ef": "a",
+            "cyrillic_ya": "z", "cyrillic_en": "y",
+            "с": "c", "м": "v", "ч": "x", "ф": "a", "я": "z", "н": "y"}
+KEYCODES = {
+    "win": {67: "c", 86: "v", 88: "x", 65: "a", 90: "z", 89: "y"},        # Windows VK
+    "x11": {54: "c", 55: "v", 53: "x", 38: "a", 52: "z", 29: "y"},        # Linux X11 (evdev)
+    "mac": {8: "c", 9: "v", 7: "x", 0: "a", 6: "z", 16: "y"},             # Apple kVK_ANSI_*
+}
+CONTROL_CHARS = {"\x03": "c", "\x16": "v", "\x18": "x", "\x01": "a", "\x1a": "z", "\x19": "y"}
+
+
+def _platform():
+    if sys.platform.startswith("win"):
+        return "win"
+    if sys.platform == "darwin":
+        return "mac"
+    return "x11"
+
+
+def key_letter(keysym, keycode, char="", platform=None):
+    """Какая латинская клавиша нажата вместе с Ctrl/⌘ — независимо от раскладки."""
+    platform = platform or _platform()
+    ks = (keysym or "").lower()
+    if len(ks) == 1 and "a" <= ks <= "z":
+        return ks
+    if ks in CYRILLIC:
+        return CYRILLIC[ks]
+    if char in CONTROL_CHARS:
+        return CONTROL_CHARS[char]
+    kc = int(keycode or 0)
+    if platform == "mac":
+        if kc > 0xFFFF:                       # Tk 8.6.11+: виртуальный код в битах 16–23,
+            low = chr(kc & 0xFFFF).lower()    # символ — в младших 16
+            return CYRILLIC.get(low) or KEYCODES["mac"].get((kc >> 16) & 0x7F)
+        return KEYCODES["mac"].get(kc)
+    return KEYCODES[platform].get(kc)
+
+
+def _editable(w):
+    try:
+        if w.winfo_class().startswith("T") and w.winfo_class() != "Text":
+            return not (w.instate(["readonly"]) or w.instate(["disabled"]))
+        return str(w.cget("state")) not in ("readonly", "disabled")
+    except Exception:
+        return True
+
+
+def select_all(w):
+    try:
+        if w.winfo_class() == "Text":
+            w.tag_add("sel", "1.0", "end-1c")
+            w.mark_set("insert", "end-1c")
+        else:
+            w.selection_range(0, "end")
+            w.icursor("end")
+    except Exception:
+        pass
+    return "break"
+
+
+def _paste_single_line(e):
+    """Вставка в однострочное поле: переводы строк и табуляции → пробелы."""
+    w = e.widget
+    if not _editable(w):
+        return "break"
+    try:
+        txt = w.clipboard_get()
+    except tk.TclError:
+        return "break"
+    txt = re.sub(r"[ \t]*[\r\n]+[ \t]*", " ", txt).replace("\t", " ").strip()
+    try:
+        w.delete("sel.first", "sel.last")
+    except tk.TclError:
+        pass
+    w.insert("insert", txt)
+    try:
+        w.xview_moveto(1.0) if w.index("insert") >= w.index("end") else None
+    except Exception:
+        pass
+    return "break"
+
+
+def _on_shortcut(e):
+    w = e.widget
+    if not isinstance(w, tk.Misc) or w.winfo_class() not in INPUT_CLASSES:
+        return None
+    ks = e.keysym or ""
+    latin = len(ks) == 1 and ks.lower() in ACTIONS
+    letter = key_letter(ks, e.keycode, getattr(e, "char", ""))
+    if letter not in ACTIONS:
+        return None
+    if letter == "a":                      # «выделить всё» — всегда сами (в X11 Ctrl+A = начало строки)
+        return select_all(w)
+    if latin:                              # латиница: стандартная привязка уже сработала
+        return None
+    ev = ACTIONS[letter]
+    if ev in ("<<Undo>>", "<<Redo>>") and w.winfo_class() != "Text":
+        return None
+    if ev in ("<<Paste>>", "<<Cut>>") and not _editable(w):
+        return "break"
+    try:
+        w.event_generate(ev)
+    except tk.TclError:
+        pass
+    return "break"
+
+
+def _context_menu(e):
+    w = e.widget
+    if not isinstance(w, tk.Misc) or w.winfo_class() not in INPUT_CLASSES:
+        return None
+    try:
+        w.focus_set()
+    except Exception:
+        pass
+    mod = "⌘" if _platform() == "mac" else "Ctrl+"
+    m = tk.Menu(w, tearoff=0)
+    edit = _editable(w)
+    if edit:
+        m.add_command(label="Вырезать", accelerator=mod + "X", command=lambda: w.event_generate("<<Cut>>"))
+    m.add_command(label="Копировать", accelerator=mod + "C", command=lambda: w.event_generate("<<Copy>>"))
+    if edit:
+        m.add_command(label="Вставить", accelerator=mod + "V", command=lambda: w.event_generate("<<Paste>>"))
+    m.add_separator()
+    m.add_command(label="Выделить всё", accelerator=mod + "A", command=lambda: select_all(w))
+    try:
+        m.tk_popup(e.x_root, e.y_root)
+    finally:
+        m.grab_release()
+    return "break"
+
+
+def install_clipboard(root):
+    """Подключить один раз для всего приложения (все поля, в том числе в диалогах)."""
+    mods = ["Command"] if _platform() == "mac" else ["Control"]   # на Mac Ctrl+A — начало строки
+    for mod in mods:
+        try:
+            root.bind_all(f"<{mod}-KeyPress>", _on_shortcut, add="+")
+        except tk.TclError:
+            pass
+    for cls in SINGLE_LINE:
+        root.bind_class(cls, "<<Paste>>", _paste_single_line)
+    buttons = ["<Button-3>"] if _platform() != "mac" else ["<Button-2>", "<Button-3>", "<Control-Button-1>"]
+    for b in buttons:
+        root.bind_all(b, _context_menu, add="+")

@@ -13,12 +13,17 @@ if not defined PY goto nopython
 rem --- 2. tkinter (окно программы)
 %PY% -c "import tkinter" >nul 2>&1 || goto notk
 
-rem --- 3. пакеты (ставятся один раз)
+rem --- 3. пакеты (ставятся один раз; pypdfium2 — макеты в PDF, без него работают PNG/JPG)
 %PY% -c "import docx, PIL, pypdf" >nul 2>&1
 if errorlevel 1 (
-  echo Первый запуск: устанавливаю пакеты python-docx, pillow, pypdf, pywin32...
-  %PY% -m pip install --user --disable-pip-version-check -q python-docx pillow pypdf pywin32
+  echo Первый запуск: устанавливаю пакеты python-docx, pillow, pypdf, pypdfium2, pywin32...
+  %PY% -m pip install --user --disable-pip-version-check -q python-docx pillow pypdf pypdfium2 pywin32
   %PY% -c "import docx, PIL, pypdf" >nul 2>&1 || goto nopkg
+)
+%PY% -c "import pypdfium2" >nul 2>&1
+if errorlevel 1 (
+  echo Устанавливаю pypdfium2 для макетов в PDF...
+  %PY% -m pip install --user --disable-pip-version-check -q pypdfium2
 )
 
 rem --- 4. запуск
@@ -49,6 +54,6 @@ exit /b 1
 :nopkg
 echo.
 echo Не удалось установить пакеты (нет интернета или доступа).
-echo Выполните вручную:  %PY% -m pip install --user python-docx pillow pypdf pywin32
+echo Выполните вручную:  %PY% -m pip install --user python-docx pillow pypdf pypdfium2 pywin32
 pause
 exit /b 1
