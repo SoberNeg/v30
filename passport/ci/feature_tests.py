@@ -136,7 +136,8 @@ except Exception as e:
 # 3. PDF-макет: автопоиск, окно обрезки, запоминание
 try:
     pair = A.field_widgets["ИЗОБРАЖЕНИЕ_МАКЕТА"][1]
-    check("PDF: автопоиск по номеру макета", pdf_maket.is_pdf(pair.v1.get()), pair.d1.get())
+    check("PDF: автопоиск по номеру макета", pdf_maket.is_pdf(pair.var(0, 1).get()),
+          pair.sets[0]["disp"][0].get())
 
     def act():
         top = [w for w in A.winfo_children() if isinstance(w, tk.Toplevel)][0]
@@ -154,13 +155,14 @@ try:
                     b.invoke()
                     return
     A.after(1200, act)
-    A._crop_maket(pair, 1)
+    A._crop_maket(pair, 0, 1)
     A.update()
-    spec = pair.v1.get()
+    spec = pair.var(0, 1).get()
     _, page, box = pdf_maket.parse_spec(spec)
-    check("PDF: обрезка рамкой мышью", box is not None and page == 1, pair.d1.get())
+    check("PDF: обрезка рамкой мышью", box is not None and page == 1, pair.sets[0]["disp"][0].get())
     saved = A.store.get(A.current_item).get("макеты") or []
-    check("PDF: обрезка запомнена в «<проект>.паспорта.json»", bool(saved) and saved[0] == spec)
+    check("PDF: обрезка запомнена в «<проект>.паспорта.json»",
+          bool(saved) and saved[0].get("картинки", [""])[0] == spec)
     png = pdf_maket.render_png(spec, A._maket_cache_dir())
     im = Image.open(png)
     dpi = round(im.info.get("dpi", (0, 0))[0])
@@ -168,6 +170,55 @@ try:
           f"{im.size}, {dpi} dpi")
 except Exception as e:
     check("PDF-макет", False, repr(e))
+
+# 3б. несколько макетов на изделие: деление тиража и отдельный паспорт на каждый
+try:
+    mk, imgs = A._makets(), A._images()
+    total = A._qty()
+    mk.add_after(mk.rows[0])
+    A.update()
+    check("Макеты: «+» делит тираж, сумма сходится",
+          mk.count() == 2 and mk.ok() and mk.distributed() == total, mk.get().replace("\n", " / "))
+    mk.rows[1]["num"].set("М-0462")
+    mk.rows[0]["qty"].set(total - 2)
+    mk.rows[1]["qty"].set(2)
+    A.update()
+    caps = [st["w"][0][0].cget("text") for st in imgs.sets]
+    check("Макеты: свои поля картинок у каждого", len(imgs.sets) == 2 and "М-0462" in caps[1], str(caps))
+    mk.rows[1]["qty"].set(5)
+    A.update()
+    bad = "распределено" in mk.hint.cget("text")
+    A.name_override = ""
+    A._generate()
+    A.update()
+    check("Макеты: при несходящемся тираже паспорт не создаётся",
+          bad and any("Распределено" in m[1] for m in msgs), mk.hint.cget("text"))
+    mk.rows[1]["qty"].set(2)
+    A.update()
+    n0 = len(list((work / "out").glob("*.docx"))) if (work / "out").is_dir() else 0
+    A._generate()
+    A.update()
+    files = sorted(p.name for p in (work / "out").glob("*.docx"))
+    want = {f"{total - 2} шт.", "2 шт."}
+    check("Макеты: отдельный файл на каждый макет со своим тиражом",
+          len(files) - n0 == 2 and all(any(f.startswith(w) for f in files) for w in want)
+          and any("М-0462" in f for f in files), " | ".join(files[-2:]))
+    saved = A.store.get(A.current_item).get("макеты") or []
+    check("Макеты: номера, тираж и картинки запомнены",
+          len(saved) == 2 and saved[1].get("номер") == "М-0462" and saved[1].get("тираж") == 2)
+    A.items_list.select(0)
+    A.update()
+    A.items_list.select(idx)
+    A.update()
+    check("Макеты: восстановлены при повторном выборе изделия",
+          A._makets().get().replace("\n", " / ") == f"М-0457|{total - 2} / М-0462|2",
+          A._makets().get().replace("\n", " / "))
+    mk = A._makets()
+    mk.remove(mk.rows[1])
+    A.update()
+    check("Макеты: «−» возвращает тираж", mk.count() == 1 and mk.items()[0]["тираж"] == total)
+except Exception as e:
+    check("Несколько макетов", False, repr(e))
 
 # 4. паспорт без даты продажи
 try:

@@ -24,7 +24,7 @@ import project_import
 from widgets import PALETTES, GradientList, ScrollFrame, install_clipboard
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V2.0"
+APP_VERSION = "V2.1"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -88,7 +88,7 @@ FIELD_DEFS = {
     "НАИМЕНОВАНИЕ_ТИТУЛ": ("Наименование\nна титульном листе\n(по строкам)", "text"),
     "АРТИКУЛ": ("Артикул", "entry"),
     "СЕРИЙНЫЙ_НОМЕР": ("Серийный номер\n(первый)", "serial"),
-    "НОМЕР_МАКЕТА": ("Номер макета", "entry"),
+    "НОМЕР_МАКЕТА": ("Номера макетов", "makets"),
     "ГАРАНТИЯ": ("Гарантийный срок,\nмесяцев", "months"),
     "ДАТА_ПРОДАЖИ": ("Дата продажи", "date"),
     "ИЗОБРАЖЕНИЕ_МАКЕТА": ("Изображение макета\n(Приложение 1)", "image"),
@@ -280,6 +280,18 @@ def times(n):
     return f"{n} раз"
 
 
+def plural(n, one, few, many):
+    """1 макет, 2 макета, 5 макетов."""
+    n = int(n)
+    if 11 <= n % 100 <= 14:
+        return f"{n} {many}"
+    if n % 10 == 1:
+        return f"{n} {one}"
+    if n % 10 in (2, 3, 4):
+        return f"{n} {few}"
+    return f"{n} {many}"
+
+
 # ------------------------------------------------------------------ журнал
 def journal_rows():
     if not JOURNAL_FILE.exists():
@@ -338,10 +350,10 @@ class DownloadStore:
             messagebox.showwarning(APP_NAME, f"Не удалось сохранить счётчик скачиваний:\n{e}")
         return rec
 
-    def set_makets(self, item, specs):
-        """Макеты изделия, выбранные вручную: пути картинок / PDF со страницей и обрезкой."""
+    def set_makets(self, item, makets):
+        """Макеты изделия: [{"номер", "тираж", "картинки": [путь/PDF-спец, …]}, …]."""
         rec = self.data["изделия"].setdefault(self.key(item), {"скачан": 0, "файлы": []})
-        rec["макеты"] = list(specs)
+        rec["макеты"] = list(makets)
         try:
             self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), "utf-8")
         except Exception:
@@ -354,51 +366,267 @@ class DownloadStore:
         return out
 
 
-class ImagePair:
-    """Поля картинок макета по числу сторон изделия (1 или 2) с интерфейсом StringVar:
-    значение — пути через \\n."""
+class MaketRows:
+    """Номера макетов изделия: у каждого свой номер и своя часть тиража.
+    Сумма по строкам равна тиражу изделия, на каждый макет создаётся свой паспорт.
+    Интерфейс как у StringVar: значение — строки «номер|тираж»."""
 
-    def __init__(self):
-        self.v1, self.v2 = tk.StringVar(), tk.StringVar()
-        self.d1, self.d2 = tk.StringVar(), tk.StringVar()      # что видно в поле
-        self.crop_buttons = {}
-        self.rows = {1: [], 2: []}
-        self.sides = 2
-        for v, d, i in ((self.v1, self.d1, 1), (self.v2, self.d2, 2)):
-            v.trace_add("write", lambda *a, v=v, d=d, i=i: self._sync(v, d, i))
+    def __init__(self, cell, on_change=None, on_number=None):
+        self.cell = cell
+        self.on_change = on_change or (lambda: None)
+        self.on_number = on_number or (lambda i: None)
+        self.rows = []                     # [{"num": StringVar, "qty": IntVar, "w": [виджеты]}]
+        self.total = 1
+        self.err = PALETTES["light"]["err"]
+        cell.columnconfigure(1, weight=1)
+        self.hint = ttk.Label(cell, style="Hint.TLabel")
+        self.hint.grid(row=99, column=0, columnspan=6, sticky="w", pady=(2, 0))
+        self._add(notify=False)
 
-    def _sync(self, v, d, i):
-        spec = v.get().strip()
-        d.set(pdf_maket.describe(spec) if spec else "")
-        b = self.crop_buttons.get(i)
-        if b is not None:
+    # --------------------------------------------------------- строки
+    def _add(self, after=None, notify=True):
+        i = len(self.rows) if after is None else after + 1
+        num, qty = tk.StringVar(), tk.IntVar(value=1)
+        row = {"num": num, "qty": qty, "w": []}
+        cap = ttk.Label(self.cell, style="Hint.TLabel")
+        ent = ttk.Entry(self.cell, textvariable=num, width=16)
+        qcap = ttk.Label(self.cell, text="Тираж, шт:", style="Hint.TLabel")
+        spn = ttk.Spinbox(self.cell, from_=1, to=9999, width=5, textvariable=qty)
+        plus = ttk.Button(self.cell, text="+", width=3, command=lambda r=row: self.add_after(r))
+        minus = ttk.Button(self.cell, text="−", width=3, command=lambda r=row: self.remove(r))
+        row["w"] = [cap, ent, qcap, spn, plus, minus]
+        row["entry"] = ent
+        self.rows.insert(i, row)
+        qty.trace_add("write", lambda *a: self._changed())
+        num.trace_add("write", lambda *a: self.on_change())
+        idx = lambda r=row: self.rows.index(r)
+        ent.bind("<FocusOut>", lambda e, r=row: self.on_number(idx()))
+        ent.bind("<Return>", lambda e, r=row: self.on_number(idx()))
+        self._layout()
+        if notify:
+            self._changed()
+        return row
+
+    def add_after(self, row):
+        """«+»: новая строка забирает 1 шт. у этой строки (или у любой, где больше одной)."""
+        donor = row if row["qty"].get() > 1 else next((r for r in self.rows if r["qty"].get() > 1), None)
+        if donor is None:
+            messagebox.showinfo(APP_NAME, f"Тираж изделия — {self.total} шт.: "
+                                          f"больше макетов не получится, в каждой строке уже по 1 шт.")
+            return
+        donor["qty"].set(donor["qty"].get() - 1)
+        new = self._add(after=self.rows.index(row))
+        new["qty"].set(1)
+        new["entry"].focus_set()
+
+    def remove(self, row):
+        if len(self.rows) < 2:
+            return
+        i = self.rows.index(row)
+        back = self.rows[i - 1] if i else self.rows[1]
+        back["qty"].set(back["qty"].get() + row["qty"].get())
+        for w in row["w"]:
+            w.destroy()
+        self.rows.pop(i)
+        self._layout()
+        self._changed()
+
+    def _layout(self):
+        one = len(self.rows) == 1
+        for i, r in enumerate(self.rows):
+            cap, ent, qcap, spn, plus, minus = r["w"]
+            cap.configure(text="Номер макета:" if one else f"Макет {i + 1}")
+            cap.grid(row=i, column=0, sticky="e", padx=(0, 6), pady=1)
+            ent.grid(row=i, column=1, sticky="ew", pady=1)
+            qcap.grid(row=i, column=2, padx=(10, 4))
+            spn.grid(row=i, column=3)
+            plus.grid(row=i, column=4, padx=(6, 0))
+            minus.grid(row=i, column=5, padx=(2, 0))
+            if one:
+                minus.grid_remove()
+
+    # --------------------------------------------------------- тираж
+    def set_palette(self, pal):
+        self.err = pal["err"]
+        self._changed()
+
+    def set_total(self, total):
+        """Тираж изделия поменялся: разница уходит в последнюю строку."""
+        self.total = max(1, int(total or 1))
+        d = self.total - sum(r["qty"].get() for r in self.rows)
+        if d:
+            last = self.rows[-1]
+            last["qty"].set(max(1, last["qty"].get() + d))
+        self._changed()
+
+    def distributed(self):
+        return sum(max(1, r["qty"].get()) for r in self.rows)
+
+    def ok(self):
+        return self.distributed() == self.total
+
+    def _changed(self):
+        for r in self.rows:
             try:
-                b.state(["!disabled"] if pdf_maket.is_pdf(spec) else ["disabled"])
+                if r["qty"].get() < 1:
+                    r["qty"].set(1)
             except tk.TclError:
-                pass
+                r["qty"].set(1)
+        n = self.distributed()
+        if len(self.rows) == 1:
+            self.hint.configure(text="«+» — добавить макет: тираж разделится, на каждый макет "
+                                     "будет свой паспорт", foreground="")
+        elif n == self.total:
+            self.hint.configure(text=f"{plural(len(self.rows), 'макет', 'макета', 'макетов')}, "
+                                     f"всего {n} шт. — на каждый свой паспорт", foreground="")
+        else:
+            self.hint.configure(text=f"распределено {n} из {self.total} шт. — исправьте тираж",
+                                foreground=self.err)
+        self.on_change()
 
-    def var(self, side):
-        return self.v1 if side == 1 else self.v2
+    # --------------------------------------------------------- значения
+    def items(self):
+        return [{"номер": r["num"].get().strip(), "тираж": max(1, r["qty"].get())} for r in self.rows]
 
-    def show(self, sides):
-        """Сколько сторон — столько полей; поле второй стороны скрывается и очищается."""
-        sides = 2 if int(sides or 1) >= 2 else 1
-        self.sides = sides
-        for w in self.rows[2]:
-            (w.grid if sides == 2 else w.grid_remove)()
-        if sides == 1:
-            self.v2.set("")
+    def numbers(self):
+        return [r["num"].get().strip() for r in self.rows]
+
+    def count(self):
+        return len(self.rows)
 
     def get(self):
-        return "\n".join(x for x in (self.v1.get().strip(), self.v2.get().strip()) if x)
-
-    def specs(self):
-        return [self.v1.get().strip(), self.v2.get().strip() if self.sides == 2 else ""]
+        return "\n".join(f'{x["номер"]}|{x["тираж"]}' for x in self.items())
 
     def set(self, value):
+        parts = [l for l in str(value or "").splitlines() if l.strip() != ""] or [""]
+        while len(self.rows) > len(parts):
+            r = self.rows.pop()
+            for w in r["w"]:
+                w.destroy()
+        while len(self.rows) < len(parts):
+            self._add(notify=False)
+        for r, line in zip(self.rows, parts):
+            num, _, q = line.partition("|")
+            r["num"].set(num.strip())
+            try:
+                r["qty"].set(max(1, int(q)))
+            except ValueError:
+                r["qty"].set(self.total if len(parts) == 1 else 1)
+        self._layout()
+        self._changed()
+
+
+class MaketImages:
+    """Поля картинок Приложения 1: свой набор на каждый макет, в наборе — по числу сторон.
+    Значение (get/set) — JSON: [[спец стороны 1, спец стороны 2], …] по макетам."""
+
+    def __init__(self, cell, app, key):
+        self.cell = cell
+        self.app = app
+        self.key = key
+        self.sets = []            # [{"vars":[StringVar×2], "disp":[StringVar×2], "w":[строки]}]
+        self.sides = 1
+        self.titles = [""]
+        cell.columnconfigure(1, weight=1)
+        self._ensure(1)
+
+    # --------------------------------------------------------- построение
+    def _ensure(self, n):
+        while len(self.sets) < n:
+            self._add_set()
+        while len(self.sets) > n:
+            st = self.sets.pop()
+            for row in st["w"]:
+                for w in row:
+                    w.destroy()
+
+    def _add_set(self):
+        m = len(self.sets)
+        st = {"vars": [], "disp": [], "w": [], "crop": []}
+        for side in (1, 2):
+            v, d = tk.StringVar(), tk.StringVar()
+            cap = ttk.Label(self.cell, style="Hint.TLabel")
+            ent = ttk.Entry(self.cell, textvariable=d, state="readonly", width=12)
+            pick = ttk.Button(self.cell, text="…", width=3,
+                              command=lambda mm=m, ss=side: self.app._choose_image(self, mm, ss))
+            crop = ttk.Button(self.cell, text="Обрезать",
+                              command=lambda mm=m, ss=side: self.app._crop_maket(self, mm, ss))
+            clr = ttk.Button(self.cell, text="×", width=3,
+                             command=lambda mm=m, ss=side: self.app._clear_maket(self, mm, ss))
+            crop.state(["disabled"])
+            v.trace_add("write", lambda *a, v=v, d=d, c=crop: self._sync(v, d, c))
+            st["vars"].append(v)
+            st["disp"].append(d)
+            st["crop"].append(crop)
+            st["w"].append([cap, ent, pick, crop, clr])
+        self.sets.append(st)
+
+    @staticmethod
+    def _sync(v, d, crop):
+        spec = v.get().strip()
+        d.set(pdf_maket.describe(spec) if spec else "")
+        try:
+            crop.state(["!disabled"] if pdf_maket.is_pdf(spec) else ["disabled"])
+        except tk.TclError:
+            pass
+
+    def show(self, sides, titles=None):
+        """sides — сторон у изделия (1 или 2); titles — подписи макетов («М-0457» …)."""
+        self.sides = 2 if int(sides or 1) >= 2 else 1
+        self.titles = list(titles or [""])
+        self._ensure(max(1, len(self.titles)))
+        r = 0
+        for m, st in enumerate(self.sets):
+            name = (self.titles[m] if m < len(self.titles) else "") or f"Макет {m + 1}"
+            for side in (1, 2):
+                cap, ent, pick, crop, clr = st["w"][side - 1]
+                if side > self.sides:
+                    for w in (cap, ent, pick, crop, clr):
+                        w.grid_remove()
+                    st["vars"][side - 1].set("")
+                    continue
+                one = len(self.sets) == 1
+                cap.configure(text=(f"Сторона {side}" if one else f"{name} ст. {side}")
+                              if self.sides == 2 else ("Файл" if one else name))
+                cap.grid(row=r, column=0, sticky="w", padx=(0, 6))
+                ent.grid(row=r, column=1, sticky="ew", pady=1)
+                pick.grid(row=r, column=2, padx=(4, 0))
+                crop.grid(row=r, column=3, padx=(2, 0))
+                clr.grid(row=r, column=4, padx=(2, 0))
+                r += 1
+
+    # --------------------------------------------------------- значения
+    def var(self, maket, side):
+        self._ensure(max(len(self.sets), maket + 1))
+        return self.sets[maket]["vars"][side - 1]
+
+    def specs(self):
+        """[[сторона 1, сторона 2], …] — по макетам, с учётом числа сторон."""
+        out = []
+        for st in self.sets:
+            out.append([st["vars"][0].get().strip(),
+                        st["vars"][1].get().strip() if self.sides == 2 else ""])
+        return out
+
+    def set_specs(self, specs):
+        self._ensure(max(1, len(specs)))
+        for st, pair in zip(self.sets, list(specs) + [["", ""]] * len(self.sets)):
+            pair = (list(pair) + ["", ""])[:2]
+            st["vars"][0].set(pair[0])
+            st["vars"][1].set(pair[1])
+
+    def get(self):
+        return json.dumps(self.specs(), ensure_ascii=False)
+
+    def set(self, value):
+        if isinstance(value, str) and value.strip().startswith("["):
+            try:
+                self.set_specs(json.loads(value))
+                return
+            except Exception:
+                pass
         parts = [x for x in str(value or "").splitlines() if x.strip()] + ["", ""]
-        self.v1.set(parts[0])
-        self.v2.set(parts[1])
+        self.set_specs([[parts[0], parts[1]]])
 
 
 # ------------------------------------------------------------------ окно
@@ -520,6 +748,8 @@ class App(tk.Tk):
     def _theme_text_widgets(self):
         p = PALETTES.get(self.theme.get(), PALETTES["light"])
         for kind, w in getattr(self, "field_widgets", {}).values():
+            if kind == "makets":
+                w.set_palette(p)
             if kind == "text":
                 w.configure(bg=p["field"], fg=p["fg"], insertbackground=p["fg"],
                             highlightbackground=p["border"], selectbackground=p["accent"])
@@ -712,8 +942,8 @@ class App(tk.Tk):
                    command=self._generate).pack(side="right")
         ttk.Button(opts, text="Журнал", command=self._show_journal).pack(side="right", padx=8)
 
-        for v in (self.project_name, self.qty):
-            v.trace_add("write", lambda *a: self._update_name_preview())
+        self.project_name.trace_add("write", lambda *a: self._update_name_preview())
+        self.qty.trace_add("write", lambda *a: self._qty_changed())
 
     # ---------------------------------------------------------- тип / шаблон
     def _type_meta(self, name=None):
@@ -817,7 +1047,12 @@ class App(tk.Tk):
 
     def _item_row(self, i, it):
         rec = self.store.get(it) if self.store else {}
-        ident = it.get("номер_макета") or rec.get("серийный_номер") or it.get("серийный_номер") or ""
+        saved = [m for m in (rec.get("макеты") or []) if isinstance(m, dict)]
+        if saved and any(m.get("номер") for m in saved):
+            ident = ", ".join(f'{m.get("номер") or "Б/Н"}×{m.get("тираж", 1)}' for m in saved) \
+                if len(saved) > 1 else str(saved[0].get("номер") or "")
+        else:
+            ident = it.get("номер_макета") or rec.get("серийный_номер") or it.get("серийный_номер") or ""
         if it.get("тип") == "Динамика МЦД" and ident and "–" not in ident:
             ident = serial_range(ident, int(it.get("тираж") or 1))
         typ = it.get("тип") or "?"
@@ -874,20 +1109,9 @@ class App(tk.Tk):
             values["СЕРИЙНЫЙ_НОМЕР"] = next_serial("", self._issued_serials())  # предложение
         for k, val in values.items():
             self._set(k, val)
-        if "НОМЕР_МАКЕТА" in self.field_widgets and not it.get("номер_макета"):
-            self._set("НОМЕР_МАКЕТА", "")
-        saved = self.store.get(it).get("макеты") if self.store else None
-        for k in self.tpl_img_keys:                 # картинки прошлого изделия не переносим
-            if k in self.field_widgets:
-                pair = self.field_widgets[k][1]
-                if isinstance(saved, list) and any(saved):   # выбранные вручную (и обрезка PDF)
-                    specs = (list(saved) + ["", ""])[:2]
-                else:
-                    specs = (self._find_maket_images(it) + ["", ""])[:2]
-                pair.v1.set(specs[0])
-                pair.v2.set(specs[1])
         self._set_table(rows)
         self.qty.set(str(it.get("тираж", 1)))
+        self._restore_makets(it)
         self.project_name.set(self.project["проект"])
         if it["тип"] == "Динамика МЦД":
             info = (f'Расчёт {it.get("префикс")}: модулей {v["модулей_по_ширине"]}×{v["модулей_по_высоте"]} '
@@ -994,49 +1218,32 @@ class App(tk.Tk):
                 v.trace_add("write", upd)
                 self._qty_traces.append(self.qty.trace_add("write", upd))
                 self.field_widgets[key] = ("var", v)
+            elif kind == "makets":
+                mk = MaketRows(cell, on_change=self._on_makets_change,
+                               on_number=self._maket_number_changed)
+                self.field_widgets[key] = ("makets", mk)
             elif kind == "image":
-                pair = ImagePair()
-                for i, (cap, disp) in enumerate((("Сторона 1", pair.d1), ("Сторона 2", pair.d2))):
-                    side = i + 1
-                    crop_b = ttk.Button(cell, text="Обрезать…",
-                                        command=lambda p=pair, s=side: self._crop_maket(p, s))
-                    ws = [ttk.Label(cell, text=cap, style="Hint.TLabel"),
-                          ttk.Entry(cell, textvariable=disp, state="readonly"),
-                          ttk.Button(cell, text="…", width=3,
-                                     command=lambda p=pair, s=side: self._choose_image(p, s)),
-                          crop_b,
-                          ttk.Button(cell, text="×", width=3,
-                                     command=lambda p=pair, s=side: self._clear_maket(p, s))]
-                    pair.crop_buttons[side] = crop_b
-                    crop_b.state(["disabled"])
-                    ws[0].grid(row=i, column=0, sticky="w")
-                    ws[1].grid(row=i, column=1, sticky="ew", pady=1)
-                    ws[2].grid(row=i, column=2, padx=(4, 0))
-                    ws[3].grid(row=i, column=3, padx=(2, 0))
-                    ws[4].grid(row=i, column=4, padx=(2, 0))
-                    pair.rows[side] = ws
-                cell.columnconfigure(0, weight=0)
-                cell.columnconfigure(1, weight=1)
+                imgs = MaketImages(cell, self, key)
                 tip = ttk.Label(cell, text="?", style="Hint.TLabel", cursor="question_arrow")
                 tip.grid(row=0, column=5, padx=(4, 0))
                 tip.bind("<Button-1>", lambda e: messagebox.showinfo(
                     APP_NAME, "Макет — картинка (PNG, JPG…) или PDF. У PDF выбирается страница и "
                               "обрезка («Обрезать…»): в паспорт идёт выбранная область, 300 dpi.\n"
                               "Макет вписывается в поле пропорционально и встаёт по центру.\n"
-                              "Полей столько, сколько сторон у изделия. Сторона 2 встанет под первой "
-                              "через одну строку.\n"
+                              "Полей столько, сколько сторон у изделия, и свой набор на каждый "
+                              "номер макета. Сторона 2 встанет под первой через одну строку.\n"
                               "Файлы ищутся сами рядом с проектом и в папке «Макеты» по номеру макета.\n"
                               "Пусто — в паспорте будет «Нет актуальной информации. Ожидается»."))
-                self.field_widgets[key] = ("image", pair)
+                self.field_widgets[key] = ("image", imgs)
             else:
                 v = tk.StringVar()
                 ttk.Entry(cell, textvariable=v).grid(row=0, column=0, sticky="ew")
                 self.field_widgets[key] = ("var", v)
-            if key in ("АРТИКУЛ", "НОМЕР_МАКЕТА", "СЕРИЙНЫЙ_НОМЕР"):
+            if key in ("АРТИКУЛ", "СЕРИЙНЫЙ_НОМЕР"):
                 self.field_widgets[key][1].trace_add("write", lambda *a: self._update_name_preview())
             r += 1
         self._theme_text_widgets()
-        self._refresh_image_sides()
+        self._refresh_makets()
         self.fields_scroll.fit_width()
 
     def _qty(self):
@@ -1044,6 +1251,37 @@ class App(tk.Tk):
             return max(1, int(self.qty.get()))
         except ValueError:
             return 1
+
+    def _qty_changed(self):
+        """Тираж изделия поменяли руками — разница уходит в последнюю строку макетов."""
+        mk = self._makets()
+        if mk is not None:
+            mk.set_total(self._qty())
+        self._update_name_preview()
+
+    def _restore_makets(self, it):
+        """Номера макетов, деление тиража и картинки: из «<проект>.паспорта.json»,
+        иначе один макет из проекта и автопоиск файлов по его номеру."""
+        mk, imgs = self._makets(), self._images()
+        saved = (self.store.get(it).get("макеты") if self.store else None) or []
+        if saved and isinstance(saved[0], str):          # старый формат: список картинок
+            saved = [{"номер": str(it.get("номер_макета") or ""), "тираж": it.get("тираж", 1),
+                      "картинки": list(saved)}]
+        total = max(1, int(it.get("тираж") or 1))
+        if not saved or sum(int(x.get("тираж") or 1) for x in saved) != total:
+            saved = [{"номер": str(it.get("номер_макета") or ""), "тираж": total, "картинки": None}]
+        if mk is not None:
+            mk.total = total
+            mk.set("\n".join(f'{x.get("номер", "")}|{int(x.get("тираж") or 1)}' for x in saved))
+        if imgs is not None:
+            specs = []
+            for x in saved:
+                pics = x.get("картинки")
+                if pics is None:                          # автопоиск по номеру макета
+                    pics = self._find_maket_images(it, x.get("номер", ""))
+                specs.append((list(pics) + ["", ""])[:2])
+            imgs.set_specs(specs)
+        self._refresh_makets()
 
     def _serial_hint(self, first):
         first = first.replace("№", "").strip()
@@ -1117,10 +1355,10 @@ class App(tk.Tk):
     def _next_serial(self, v):
         v.set(next_serial("", self._issued_serials()))
 
-    def _find_maket_images(self, item):
+    def _find_maket_images(self, item, num=None):
         """Ищет файлы макета рядом с проектом (и в папке «Макеты») по номеру макета:
-        «М-0457.png», «М-0457_1.jpg», «М-0457 сторона 2.png» …"""
-        num = str(item.get("номер_макета") or "").strip()
+        «М-0457.png», «М-0457_1.jpg», «М-0457 сторона 2.png», «М-0457.pdf» …"""
+        num = str(num if num is not None else item.get("номер_макета") or "").strip()
         if not num or not self.project:
             return []
         norm = lambda t: re.sub(r"[\s_\-–№]+", "", t.lower())
@@ -1150,7 +1388,7 @@ class App(tk.Tk):
                 break
         return specs[:sides]
 
-    def _choose_image(self, pair, side):
+    def _choose_image(self, imgs, maket, side):
         f = filedialog.askopenfilename(
             title="Макет — картинка или PDF",
             filetypes=[("Макеты", "*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.pdf"),
@@ -1158,19 +1396,19 @@ class App(tk.Tk):
         if not f:
             return
         if f.lower().endswith(".pdf"):
-            self._crop_maket(pair, side, path=f)
+            self._crop_maket(imgs, maket, side, path=f)
             return
-        pair.var(side).set(f)
+        imgs.var(maket, side).set(f)
         self._remember_makets()
 
-    def _crop_maket(self, pair, side, path=None):
+    def _crop_maket(self, imgs, maket, side, path=None):
         """Окно предпросмотра PDF: страница и рамка обрезки."""
         if not pdf_maket.available():
             messagebox.showerror(APP_NAME, "Для макетов в PDF нужен пакет pypdfium2.\n"
                                            "Установите: pip install pypdfium2\n"
                                            "(«Запуск_Windows.bat» и «Запуск_Mac.command» ставят его сами).")
             return
-        cur = pair.var(side).get().strip()
+        cur = imgs.var(maket, side).get().strip()
         page, box = (side, None) if path else pdf_maket.parse_spec(cur)[1:]
         path = path or pdf_maket.parse_spec(cur)[0]
         if not path or not Path(path).exists():
@@ -1181,34 +1419,41 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror(APP_NAME, f"Не удалось открыть PDF:\n{path}\n\n{e}")
             return
+        titles = self._maket_titles()
+        name = titles[maket] if maket < len(titles) else f"Макет {maket + 1}"
         res = pdf_maket.crop_dialog(self, path, min(page or 1, n), box,
-                                    title=f"Макет, сторона {side}")
+                                    title=f"{name}, сторона {side}" if self._sides() == 2 else name)
         if not res:
             return
         page, box = res
-        pair.var(side).set(pdf_maket.make_spec(path, page, box))
+        imgs.var(maket, side).set(pdf_maket.make_spec(path, page, box))
         # двусторонний макет одним PDF: вторая сторона — следующая страница
-        other = 2 if side == 1 else None
-        if other and pair.sides == 2 and not pair.var(2).get().strip() and n >= page + 1:
+        if side == 1 and imgs.sides == 2 and not imgs.var(maket, 2).get().strip() and n >= page + 1:
             same = pdf_maket.page_size(path, page) == pdf_maket.page_size(path, page + 1)
-            pair.var(2).set(pdf_maket.make_spec(path, page + 1, box if same else None))
+            imgs.var(maket, 2).set(pdf_maket.make_spec(path, page + 1, box if same else None))
             self.status.set(f"Сторона 2 — страница {page + 1} того же PDF"
                             + (" с той же обрезкой." if same and box else ".")
                             + " Изменить — «Обрезать…» у стороны 2.")
         self._remember_makets()
 
-    def _clear_maket(self, pair, side):
-        pair.var(side).set("")
+    def _clear_maket(self, imgs, maket, side):
+        imgs.var(maket, side).set("")
         self._remember_makets()
 
     def _remember_makets(self):
-        """Выбранные макеты (и обрезка PDF) запоминаются в «<проект>.паспорта.json»."""
+        """Номера макетов, деление тиража и выбранные картинки (с обрезкой PDF)
+        запоминаются в «<проект>.паспорта.json»."""
         if not (self.store and self.current_item):
             return
-        pair = next((w for k, w in self.field_widgets.values() if k == "image"), None)
-        if pair is None:
+        imgs, mk = self._images(), self._makets()
+        if imgs is None:
             return
-        self.store.set_makets(self.current_item, pair.specs())
+        specs = imgs.specs()
+        rows = mk.items() if mk is not None else [{"номер": "", "тираж": self._qty()}]
+        data = []
+        for i, row in enumerate(rows):
+            data.append({**row, "картинки": specs[i] if i < len(specs) else ["", ""]})
+        self.store.set_makets(self.current_item, data)
 
     def _maket_cache_dir(self):
         if self.project:
@@ -1229,7 +1474,7 @@ class App(tk.Tk):
             p, v = row[0], row[1]
             src = row[2] if len(row) > 2 else "шаблон"
             self.tree.insert("", "end", values=(p, v, src), tags=(src,))
-        self._refresh_image_sides()
+        self._refresh_makets()
 
     def _sides(self):
         if self.current_item and self.current_item.get("сторон"):
@@ -1245,10 +1490,47 @@ class App(tk.Tk):
                     return int(m.group(0))
         return 1
 
-    def _refresh_image_sides(self):
+    def _makets(self):
+        """Виджет номеров макетов (у динамики его нет)."""
+        w = self.field_widgets.get("НОМЕР_МАКЕТА")
+        return w[1] if w and w[0] == "makets" else None
+
+    def _images(self):
         for kind, w in self.field_widgets.values():
             if kind == "image":
-                w.show(self._sides())
+                return w
+        return None
+
+    def _maket_titles(self):
+        mk = self._makets()
+        if mk is None:
+            return [""]
+        return [n or f"Макет {i + 1}" for i, n in enumerate(mk.numbers())]
+
+    def _refresh_makets(self):
+        """Поля картинок: по набору на каждый макет, в наборе — по числу сторон."""
+        imgs = self._images()
+        if imgs is not None:
+            imgs.show(self._sides(), self._maket_titles())
+        self.fields_scroll.fit_width()
+
+    def _on_makets_change(self):
+        self._refresh_makets()
+        self._update_name_preview()
+
+    def _maket_number_changed(self, index):
+        """Номер макета ввели вручную — подставим картинки этого макета, если поля пустые."""
+        imgs, mk = self._images(), self._makets()
+        if imgs is None or mk is None or index >= mk.count():
+            return
+        num = mk.numbers()[index]
+        if not num or any(imgs.specs()[index] if index < len(imgs.specs()) else []):
+            return
+        found = self._find_maket_images(self.current_item or {}, num)
+        for side, spec in enumerate(found, start=1):
+            imgs.var(index, side).set(spec)
+        if found:
+            self._remember_makets()
 
     def _table_from_template(self):
         if messagebox.askyesno(APP_NAME, "Заменить таблицу значениями из шаблона?"):
@@ -1293,7 +1575,7 @@ class App(tk.Tk):
                 vals[ci] = e.get()
                 vals[2] = "вручную"
                 self.tree.item(iid, values=vals, tags=("вручную",))
-                self._refresh_image_sides()
+                self._refresh_makets()
             e.destroy()
 
         e.bind("<Return>", commit)
@@ -1346,25 +1628,45 @@ class App(tk.Tk):
         self.status.set("Данные загружены: " + f)
 
     # ---------------------------------------------------------- имя файла
-    def _file_base(self, values=None):
-        """«N шт. Артикул НомерМакета Проект» (статика), «N шт. Артикул СерийныйНомер Проект» (динамика)."""
+    def _file_base(self, maket=None, qty=None):
+        """«N шт. Артикул НомерМакета Проект» (статика), «N шт. Артикул СерийныйНомер Проект» (динамика).
+        maket / qty — для конкретной строки макетов; без них берётся первая строка."""
         art = self._get_or("АРТИКУЛ").strip() or self.current_type["тип"]
-        q = self._qty()
+        mk = self._makets()
+        if qty is None:
+            qty = (mk.items()[0]["тираж"] if mk is not None and mk.count() else self._qty())
         if "СЕРИЙНЫЙ_НОМЕР" in self.field_widgets:
-            ident = serial_range(self._get("СЕРИЙНЫЙ_НОМЕР"), q, sep="-")
+            ident = serial_range(self._get("СЕРИЙНЫЙ_НОМЕР"), qty, sep="-")
+        elif maket is not None:
+            ident = str(maket).strip()
         else:
-            ident = self._get_or("НОМЕР_МАКЕТА").strip()
-        parts = [f"{q} шт.", art, ident, self.project_name.get().strip()]
+            ident = (mk.numbers()[0].strip() if mk is not None and mk.count() else "")
+        parts = [f"{qty} шт.", art, ident, self.project_name.get().strip()]
         return safe_name(" ".join(p for p in parts if p))
 
-    def _out_base(self):
-        return safe_name(self.name_override) if getattr(self, "name_override", "") else self._file_base()
+    def _out_base(self, maket=None, qty=None, index=0):
+        """Имя файла; при ручной правке и нескольких макетах к имени добавляется номер макета."""
+        if getattr(self, "name_override", ""):
+            name = safe_name(self.name_override)
+            if index and maket:
+                name = safe_name(f"{name} {maket}")
+            elif index:
+                name = safe_name(f"{name} ({index + 1})")
+            return name
+        return self._file_base(maket, qty)
 
     def _update_name_preview(self):
         try:
             manual = bool(getattr(self, "name_override", ""))
-            self.name_caption.configure(text="Имя файла (изменено вручную):" if manual else "Имя файла:")
-            self.name_preview.configure(text=self._out_base() + ".docx")
+            mk = self._makets()
+            rows = mk.items() if mk is not None else []
+            self.name_caption.configure(text="Имя файла (изменено вручную):" if manual else
+                                             ("Имена файлов:" if len(rows) > 1 else "Имя файла:"))
+            first = self._out_base(rows[0]["номер"] if rows else None,
+                                   rows[0]["тираж"] if rows else None) + ".docx"
+            if len(rows) > 1:
+                first += f"   и ещё {len(rows) - 1}"
+            self.name_preview.configure(text=first)
         except Exception:
             pass
 
@@ -1405,37 +1707,35 @@ class App(tk.Tk):
         e.bind("<Escape>", lambda _e: done(False))
 
     # ---------------------------------------------------------- скачать паспорт
+    def _maket_paths(self, specs):
+        """Пути картинок макета; PDF превращается в PNG 300 dpi. None — ошибка (уже показана)."""
+        paths = []
+        for x in [str(v).strip() for v in specs if str(v).strip()]:
+            src = pdf_maket.parse_spec(x)[0]
+            if not Path(src).exists():
+                messagebox.showerror(APP_NAME, f"Файл макета не найден:\n{src}")
+                return None
+            if pdf_maket.is_pdf(x):
+                try:
+                    self.status.set("Готовлю макет из PDF…")
+                    self.update_idletasks()
+                    x = pdf_maket.render_png(x, self._maket_cache_dir())
+                except Exception as e:
+                    messagebox.showerror(APP_NAME, f"Не удалось подготовить макет из PDF:\n{src}\n\n{e}")
+                    return None
+            paths.append(x)
+        return paths
+
     def _generate(self):
-        values, images, missing = {}, {}, []
+        values, missing = {}, []
         no_date = False
         q = self._qty()
+        img_key = next((k for k, (kind, _) in self.field_widgets.items() if kind == "image"), None)
         for key in self.field_widgets:
             kind = self.field_widgets[key][0]
+            if kind in ("image", "makets"):          # разбираются по строкам макетов, ниже
+                continue
             raw = self._get(key).strip()
-            if kind == "image":
-                paths = []
-                for x in [x.strip() for x in raw.splitlines() if x.strip()]:
-                    src = pdf_maket.parse_spec(x)[0]
-                    if not Path(src).exists():
-                        messagebox.showerror(APP_NAME, f"Файл макета не найден:\n{src}")
-                        return
-                    if pdf_maket.is_pdf(x):            # PDF → PNG выбранной области, 300 dpi
-                        try:
-                            self.status.set("Готовлю макет из PDF…")
-                            self.update_idletasks()
-                            x = pdf_maket.render_png(x, self._maket_cache_dir())
-                        except Exception as e:
-                            messagebox.showerror(APP_NAME, f"Не удалось подготовить макет из PDF:\n{src}\n\n{e}")
-                            return
-                    paths.append(x)
-                images[key] = paths
-                continue
-            if not raw and key == "НОМЕР_МАКЕТА":
-                if not messagebox.askyesno(APP_NAME, "Номер макета не указан — в паспорте будет «Б/Н».\n"
-                                                     "Продолжить?"):
-                    return
-                values[key] = "Б/Н"
-                continue
             if not raw and key == "ДАТА_ПРОДАЖИ":
                 no_date = True
                 values[key] = BLANK_DATE
@@ -1475,16 +1775,54 @@ class App(tk.Tk):
                           "В паспорте останется место для записи от руки."):
             self._focus_field("ДАТА_ПРОДАЖИ")
             return
-        sides = int((self.current_item or {}).get("сторон") or 1)
-        for key, path in images.items():
-            if path and sides == 2 and len(path) == 1 and not messagebox.askyesno(
-                    APP_NAME, "Изделие двустороннее, а выбрано изображение только одной стороны.\n"
-                              "Продолжить?"):
+
+        # ---- строки макетов: на каждую — свой паспорт
+        mk, imgs = self._makets(), self._images()
+        if mk is not None:
+            if not mk.ok():
+                messagebox.showwarning(APP_NAME, f"Распределено {mk.distributed()} шт. из {q}.\n"
+                                                 f"Сумма тиражей по макетам должна совпадать "
+                                                 f"с тиражом изделия.")
                 return
-            if not path and not messagebox.askyesno(
-                    APP_NAME, "Изображение макета не выбрано — в Приложении 1 будет написано "
-                              "«Нет актуальной информации. Ожидается».\nПродолжить?"):
+            rows = mk.items()
+            nums = [x["номер"] for x in rows]
+            dups = {n for n in nums if n and nums.count(n) > 1}
+            if dups and not messagebox.askyesno(
+                    APP_NAME, "Номер макета повторяется: " + ", ".join(sorted(dups)) +
+                              ".\nПаспорты получат одинаковые имена файлов. Продолжить?"):
                 return
+            empty = [i + 1 for i, n in enumerate(nums) if not n]
+            if empty and not messagebox.askyesno(
+                    APP_NAME, ("Номер макета не указан — в паспорте будет «Б/Н».\nПродолжить?"
+                               if len(rows) == 1 else
+                               f"Номер макета не указан в строках: {', '.join(map(str, empty))} — "
+                               f"в паспорте будет «Б/Н».\nПродолжить?")):
+                return
+        else:
+            rows = [{"номер": "", "тираж": q}]
+        specs = imgs.specs() if imgs is not None else [["", ""]]
+        sides = self._sides()
+        jobs = []
+        for i, row in enumerate(rows):
+            pics = specs[i] if i < len(specs) else ["", ""]
+            paths = self._maket_paths(pics)
+            if paths is None:
+                return
+            name = row["номер"] or ("" if mk is None else "Б/Н")
+            if img_key:
+                if paths and sides == 2 and len(paths) == 1 and not messagebox.askyesno(
+                        APP_NAME, f"{'Макет ' + (row['номер'] or str(i + 1)) + ': и' if len(rows) > 1 else 'И'}"
+                                  f"зделие двустороннее, а выбрано изображение только одной стороны.\n"
+                                  f"Продолжить?"):
+                    return
+                if not paths and not messagebox.askyesno(
+                        APP_NAME, f"{'Макет ' + (row['номер'] or str(i + 1)) + ': изображение' if len(rows) > 1 else 'Изображение'}"
+                                  f" макета не выбрано — в Приложении 1 будет написано "
+                                  f"«Нет актуальной информации. Ожидается».\nПродолжить?"):
+                    return
+            jobs.append({"номер": name, "тираж": row["тираж"],
+                         "картинки": {img_key: paths} if img_key else {},
+                         "имя": self._out_base(row["номер"], row["тираж"], i)})
 
         serial = values.get("СЕРИЙНЫЙ_НОМЕР", "")
         if serial:
@@ -1493,8 +1831,8 @@ class App(tk.Tk):
                 if (self.store and self.current_item) else set()
             clash = []
             for r in journal_rows():
-                nums = set(serial_numbers(r.get("Серийный номер", "")))
-                if nums & mine and not nums <= own:
+                nums_r = set(serial_numbers(r.get("Серийный номер", "")))
+                if nums_r & mine and not nums_r <= own:
                     clash.append(r)
             if clash and not messagebox.askyesno(
                     APP_NAME, f"Серийные номера {serial} пересекаются с уже выданными:\n"
@@ -1514,37 +1852,82 @@ class App(tk.Tk):
 
         out_dir = Path(self.out_dir.get().strip() or APP_DIR)
         out_dir.mkdir(parents=True, exist_ok=True)
-        base = self._out_base()
-        out = out_dir / f"{base}.docx"
-        if out.exists():
-            ans = messagebox.askyesnocancel(
-                APP_NAME, f"Файл уже есть:\n{out.name}\n\nДа — заменить\nНет — сохранить копию\n"
-                          f"Отмена — не скачивать")
-            if ans is None:
-                return
-            if ans is False:
-                n = 2
-                while out.exists():
-                    out = out_dir / f"{base} ({n}).docx"
-                    n += 1
+        for job in jobs:                              # файлы: заменить / копия / отмена
+            out = out_dir / f'{job["имя"]}.docx'
+            if out.exists():
+                ans = messagebox.askyesnocancel(
+                    APP_NAME, f"Файл уже есть:\n{out.name}\n\nДа — заменить\nНет — сохранить копию\n"
+                              f"Отмена — не скачивать")
+                if ans is None:
+                    return
+                if ans is False:
+                    n = 2
+                    while out.exists():
+                        out = out_dir / f'{job["имя"]} ({n}).docx'
+                        n += 1
+            job["файл"] = out
 
-        self.status.set("Создаю паспорт…")
-        self.update_idletasks()
+        made, notes = [], []
+        for i, job in enumerate(jobs, start=1):
+            self.status.set(f"Создаю паспорт {i} из {len(jobs)}…" if len(jobs) > 1 else "Создаю паспорт…")
+            self.update_idletasks()
+            vals = dict(values)
+            if mk is not None:
+                vals["НОМЕР_МАКЕТА"] = job["номер"]
+                if "СЕРИЙНЫЙ_НОМЕР" in vals:
+                    vals["СЕРИЙНЫЙ_НОМЕР"] = serial_range(self._get("СЕРИЙНЫЙ_НОМЕР"), job["тираж"])
+            res = self._make_passport(vals, job, hand_date)
+            if res is None:
+                return
+            made.append(res)
+            notes += [f'{job["файл"].name}: {n}' if len(jobs) > 1 else n for n in res["заметки"]]
+
+        count_note = ""
+        if self.store and self.current_item is not None:
+            for res in made:
+                rec = self.store.register(self.current_item, res["файл"], serial)
+            self._remember_makets()
+            idx = self.items_list.selected
+            self._refresh_list(keep=True)
+            if idx is not None:
+                self.items_list.select(idx, notify=False)
+                self._on_item_info_refresh(idx)
+            count_note = f"\nСкачан {times(rec['скачан'])}."
+        self._save_settings()
+        self.status.set(("Паспорта созданы: " if len(made) > 1 else "Паспорт создан: ")
+                        + ", ".join(r["файл"].name for r in made))
+        if len(made) == 1:
+            msg = f'Паспорт создан:\n{made[0]["файл"].name}{made[0]["pdf"]}{count_note}'
+        else:
+            msg = (f"Создано паспортов: {len(made)}\n" +
+                   "\n".join(f'• {r["файл"].name}{r["pdf"]}' for r in made) + count_note)
+        if notes:
+            messagebox.showwarning(APP_NAME, msg + "\n\nВнимание:\n• " + "\n• ".join(notes))
+        else:
+            messagebox.showinfo(APP_NAME, msg)
+        if self.open_after.get():
+            open_path(out_dir)
+
+    def _make_passport(self, values, job, hand_date):
+        """Один паспорт: Word, печати и подписи, PDF и оглавление, запись в журнал.
+        → {"файл", "pdf", "заметки"} или None при ошибке."""
+        out = job["файл"]
         try:
             lib, cfg = stamp_library()
             stamps = {"включено": self.use_stamps.get(), "файлы": lib, "настройки": cfg,
                       "дата": True, "дата_текст": hand_date, "шрифт_даты": handwriting_font(),
                       "цифры": own_digits()}
             rep = engine.generate(self._template_path(), out, values,
-                                  self._table_rows() if self.tpl_table else None, images, stamps)
+                                  self._table_rows() if self.tpl_table else None,
+                                  job["картинки"], stamps)
         except PermissionError:
             messagebox.showerror(APP_NAME, f"Файл занят (открыт в Word?):\n{out}")
             self.status.set("Ошибка")
-            return
+            return None
         except Exception as e:
             messagebox.showerror(APP_NAME, f"Ошибка при создании паспорта:\n{e}")
             self.status.set("Ошибка")
-            return
+            return None
         notes = []
         if rep["остались незаполненными"]:
             notes.append("Остались метки без значения: " + ", ".join(rep["остались незаполненными"]))
@@ -1587,13 +1970,12 @@ class App(tk.Tk):
             self.status.set("Пересчитываю оглавление…")
             self.update_idletasks()
             try:
-                n = book.refresh_toc(out, keep_pdf=self.make_pdf.get())
+                book.refresh_toc(out, keep_pdf=self.make_pdf.get())
                 if self.make_pdf.get():
                     pdf_note = "\nPDF: " + out.with_suffix(".pdf").name
             except Exception as e:
                 if self.make_pdf.get():
                     notes.append(str(e))
-
         journal_add({
             "Создан": datetime.now().strftime("%d.%m.%Y %H:%M"),
             "Проект": self.project_name.get().strip(),
@@ -1601,33 +1983,16 @@ class App(tk.Tk):
             "Тип": self.current_type["тип"],
             "Наименование": values.get("НАИМЕНОВАНИЕ", ""),
             "Артикул": values.get("АРТИКУЛ", ""),
-            "Серийный номер": serial,
+            "Серийный номер": values.get("СЕРИЙНЫЙ_НОМЕР", ""),
             "Номер макета": values.get("НОМЕР_МАКЕТА", ""),
-            "Тираж": q,
+            "Тираж": job["тираж"],
             "Гарантия, мес": self._get_or("ГАРАНТИЯ"),
             "Дата продажи": self._get_or("ДАТА_ПРОДАЖИ"),
             "Печать, подпись и дата": ("да" + (", дата" if rep.get("даты") else ""))
             if self.use_stamps.get() and rep["печати"] else "",
             "Файл": str(out),
         })
-        count_note = ""
-        if self.store and self.current_item is not None:
-            rec = self.store.register(self.current_item, out, serial)
-            idx = self.items_list.selected
-            self._refresh_list(keep=True)
-            if idx is not None:
-                self.items_list.select(idx, notify=False)
-                self._on_item_info_refresh(idx)
-            count_note = f"\nСкачан {times(rec['скачан'])}."
-        self._save_settings()
-        self.status.set("Паспорт создан: " + str(out))
-        msg = f"Паспорт создан:\n{out.name}{pdf_note}{count_note}"
-        if notes:
-            messagebox.showwarning(APP_NAME, msg + "\n\nВнимание:\n• " + "\n• ".join(notes))
-        else:
-            messagebox.showinfo(APP_NAME, msg)
-        if self.open_after.get():
-            open_path(out_dir)
+        return {"файл": out, "pdf": pdf_note, "заметки": notes}
 
     def _on_item_info_refresh(self, idx):
         rec = self.store.get(self.current_item)

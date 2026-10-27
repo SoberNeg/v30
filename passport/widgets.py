@@ -22,12 +22,14 @@ PALETTES = {
               "head_bg": "#eceff3", "head_fg": "#333333", "grid": "#e6e8ec", "head_sep": "#c8ccd2",
               "done_fg": "#1e6b30", "field": "#ffffff", "border": "#c8ccd2", "accent": "#2f6fd6",
               "empty": "#888888", "button": "#e9ebee", "button_active": "#dde1e6",
+              "err": "#c0392b",
               "src": {"расчёт": "#1f5fbf", "проект": "#1e7b34", "шаблон": "#777777", "вручную": "#b35c00"}},
     "dark": {"bg": "#1f2124", "panel": "#2a2d31", "fg": "#e8eaed", "hint": "#9aa0a6",
              "row": "#2a2d31", "row_alt": "#30343a", "sel": "#2f4a72", "sel_outline": "#6c9de6",
              "head_bg": "#33373d", "head_fg": "#e8eaed", "grid": "#3a3e44", "head_sep": "#4a4f56",
              "done_fg": "#7ddc8f", "field": "#25282c", "border": "#4a4f56", "accent": "#5b8fd6",
              "empty": "#9aa0a6", "button": "#383c42", "button_active": "#454a51",
+             "err": "#ff8a7a",
              "src": {"расчёт": "#7fb2ff", "проект": "#6fd88a", "шаблон": "#9aa0a6", "вручную": "#ffb35c"}},
 }
 

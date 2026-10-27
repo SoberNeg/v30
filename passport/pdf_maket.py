@@ -57,7 +57,7 @@ def describe(spec):
     """Текст для поля окна: «М-0457.pdf, стр. 1, обрезка» / путь картинки."""
     path, page, box = parse_spec(spec)
     if page is None:
-        return path
+        return Path(path).name
     return f"{Path(path).name}, стр. {page}, " + ("обрезка" if box else "весь лист")
 
 
