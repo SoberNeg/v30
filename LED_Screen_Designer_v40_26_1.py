@@ -1,4 +1,4 @@
-# V40.04.1 = V40.04 + перенесённые исправления сборки Windows:
+# V40.26.1 = V40.26 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V40.04.1"
+APP_TITLE = "Конструктор LED-экранов V40.26.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -1639,20 +1639,60 @@ ROUND_MCD_ANGLE_KEY = "angle40"
 ROUND_MCD_ANGLE_WEIGHT_GPM = 313.0
 
 MCD_STATIC_ANGLE_INSET_MM = 180.0
-MCD_STATIC_ANGLE_SQUARE_LIMIT_MM = 551.0
+# V40.05: исключение «квадрат со стороной менее 551 мм — по полным габаритам»
+# отменено; все прямоугольные изделия считаются по сторонам минус 180 мм.
+MCD_STATIC_ANGLE_SHORT_LIMIT_MM = 601.0
 
 
 def _mcd_static_angle_sides(w, h):
     """Длины сторон контура уголка для прямоугольной статики МЦД."""
     w = float(w); h = float(h)
-    if abs(w - h) < 1e-9 and w < MCD_STATIC_ANGLE_SQUARE_LIMIT_MM:
-        return w, h
     return max(0.0, w - MCD_STATIC_ANGLE_INSET_MM), max(0.0, h - MCD_STATIC_ANGLE_INSET_MM)
 
 
-def _mcd_static_angle_length_m(w, h):
+def _mcd_static_angle_short(w, h):
+    """Короткая сторона изделия меньше 601 мм — контур стекла сокращается."""
+    return min(float(w), float(h)) < MCD_STATIC_ANGLE_SHORT_LIMIT_MM
+
+
+def _mcd_static_angle_glass_parts(w, h):
+    """Отрезки уголка на ОДНО стекло: [(длина, ось), …].
+
+    Короткая сторона меньше 601 мм — только две длинные стороны изделия
+    (у квадрата длинными считаются горизонтальные). Иначе полный контур.
+    """
     aw, ah = _mcd_static_angle_sides(w, h)
-    return 4.0 * (aw + ah) / 1000.0
+    if _mcd_static_angle_short(w, h):
+        if float(h) > float(w):
+            return [(ah, "высота"), (ah, "высота")]
+        return [(aw, "ширина"), (aw, "ширина")]
+    return [(aw, "ширина"), (aw, "ширина"), (ah, "высота"), (ah, "высота")]
+
+
+def _mcd_static_angle_wall_parts(w, h):
+    """Отрезки уголка на стенку под алюкобонд: всегда полный контур."""
+    aw, ah = _mcd_static_angle_sides(w, h)
+    return [(aw, "ширина"), (aw, "ширина"), (ah, "высота"), (ah, "высота")]
+
+
+def _mcd_static_angle_parts(w, h, sides=1):
+    """Все отрезки уголка на одно изделие: [(длина, ось, назначение), …].
+
+    Одностороннее: стенка под алюкобонд + одно стекло.
+    Двустороннее: стенки нет, два стекла.
+    """
+    out = []
+    if int(sides or 1) >= 2:
+        for _ in range(2):
+            out += [(length, axis, "оргстекло") for length, axis in _mcd_static_angle_glass_parts(w, h)]
+        return out
+    out += [(length, axis, "стенка") for length, axis in _mcd_static_angle_wall_parts(w, h)]
+    out += [(length, axis, "оргстекло") for length, axis in _mcd_static_angle_glass_parts(w, h)]
+    return out
+
+
+def _mcd_static_angle_length_m(w, h, sides=1):
+    return sum(length for length, _axis, _panel in _mcd_static_angle_parts(w, h, sides)) / 1000.0
 
 
 def _v3069_mcd_2side_edge_leds(w, h):
@@ -2506,13 +2546,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.04.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.26.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.04.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.26.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2550,7 +2590,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.04.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.26.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3783,7 +3823,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.04.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.26.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -5225,7 +5265,7 @@ class ScreenDesigner(BaseTk):
                 return
             if self.project_journal_tree.parent(iid):
                 return
-            if not (str(iid).startswith("led:") or str(iid).startswith("static:")):
+            if not (str(iid).startswith("led:") or str(iid).startswith("static:") or str(iid).startswith("manual:")):
                 return
             self._project_journal_drag_iid=iid
             self._project_journal_drag_start_y=event.y
@@ -5707,6 +5747,8 @@ class ScreenDesigner(BaseTk):
                 self._journal_spec_position(s),n,self._journal_fill_mode_text(s),"Статический указатель",
                 s.get("name",""),s.get("article",""),"","","",size,product_qty,self._format_static_sign_weight(s),
                 s.get("sides",1),execution)); n+=1
+        # V40.25: изделия, добавленные вручную (без расчёта).
+        n=self._v4025_insert_manual_rows(n)
 
         # V20.63: восстанавливаем пользовательский порядок и пересчитываем №.
         self._project_journal_apply_saved_order()
@@ -6667,12 +6709,11 @@ class ScreenDesigner(BaseTk):
                     angle_len=round(2.0*math.pi*glass_d/1000.0,3)
                     angle_name=self._round_mcd_angle_name(glass_d)
                 else:
-                    # V30.74: правило двустороннего прямоугольного МЦД приведено
-                    # к одностороннему: два контура по сторонам минус 180 мм
-                    # (квадрат со стороной менее 551 мм — по полным габаритам).
-                    # Раньше контуры считались по сторонам минус 50 мм.
+                    # V40.05: у двустороннего изделия стенки нет — уголок идёт
+                    # только на два стекла. При короткой стороне меньше 601 мм
+                    # на каждое стекло берутся две длинные стороны.
                     angle_w,angle_h=_mcd_static_angle_sides(w,h)
-                    angle_len=_mcd_static_angle_length_m(w,h)
+                    angle_len=_mcd_static_angle_length_m(w,h,2)
                     angle_name="Уголок алюминиевый 30×20×2 мм"
                 add(angle_name,"м.п.",angle_len)
                 add("Уплотнитель 9х7,4мм","м.п.",perimeter*2)
@@ -6722,6 +6763,13 @@ class ScreenDesigner(BaseTk):
                 # (прямоугольник W × H, круглое — π·D²/4), округление вверх.
                 face_area=(math.pi*diameter*diameter/4.0 if is_round else w*h)/1_000_000.0
                 led_count=max(1,math.ceil(face_area*MCD_STATIC_1SIDE_LED_PER_SQM-1e-9))
+                # V40.24 (пробная): прямоугольное изделие — количество по сетке
+                # разметки на стенке под алюкобонд; круглое и 800 × 400 — по норме.
+                try:
+                    if not is_round and not _v3098_is_special(MODE_MCD,False,s.get("face_type","С подсветкой"),w,h):
+                        led_count=_v4024_grid_count(w,h) or led_count
+                except Exception:
+                    pass
                 clean_power=led_count*1.5
                 design_power=clean_power*1.20
                 psus=self._static_mcd_power_supplies(design_power)
@@ -6743,11 +6791,11 @@ class ScreenDesigner(BaseTk):
                     angle_name=self._round_mcd_angle_name(glass_d)
                     aw=ah=0.0
                 else:
-                    # V30.74: то же правило, что и у двустороннего изделия.
-                    # Два контура (переднее оргстекло + задняя стенка) по сторонам
-                    # минус 180 мм; квадрат со стороной менее 551 мм — по габаритам.
+                    # V40.05: стенка под алюкобонд — всегда полный контур,
+                    # лицевое оргстекло — две длинные стороны, если короткая
+                    # сторона изделия меньше 601 мм, иначе тоже полный контур.
                     aw,ah=_mcd_static_angle_sides(w,h)
-                    angle_len=_mcd_static_angle_length_m(w,h)
+                    angle_len=_mcd_static_angle_length_m(w,h,1)
                     angle_name="Уголок алюминиевый 30×20×2 мм"
                 add(angle_name,"м.п.",angle_len)
                 add("Уплотнитель 9х7,4мм","м.п.",perimeter)
@@ -8454,13 +8502,14 @@ class ScreenDesigner(BaseTk):
                                                       "shape":"полукольцо","panel":"оргстекло"}
                                                      for _ in range(count)]
                 elif self._cut_bom_has(bom,"angle30"):
-                    # V30.74: одно правило для 1 и 2 сторон — стороны минус 180 мм
-                    # (квадрат со стороной менее 551 мм — по полным габаритам).
-                    aw,ah=_mcd_static_angle_sides(w,h)
-                    cuts=([aw]*4+[ah]*4)*qprod
+                    # V40.05: отрезки с назначением — стенка под алюкобонд и
+                    # лицевое оргстекло; состав зависит от сторон и габарита.
+                    parts=_mcd_static_angle_parts(w,h,sides)
+                    cuts=[length for length,_axis,_panel in parts]*qprod
                     self._cut_add_entry(out,"angle30",cuts,
-                        f"{self._format_component_qty(aw)} × {self._format_component_qty(ah)} мм × ({qprod} изд.)",
-                        qprod,title)
+                        _mcd_static_angle_display(self,parts,qprod),qprod,title)
+                    out[-1]["cut_details"]=[{"length_mm":length,"axis":axis,"panel":panel}
+                                            for length,axis,panel in parts for _ in range(qprod)]
                 # Существующая перемычка М10: одна длина = высоте.
                 if not is_round and self._cut_bom_has(bom,"rod10"):
                     self._cut_add_entry(out,"rod10",[h]*qprod,
@@ -9833,7 +9882,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.04.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.26.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9846,7 +9895,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.04.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.26.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -10302,6 +10351,8 @@ class ScreenDesigner(BaseTk):
                 for s in payload.get("screens", [])
             ]
             self.saved_static_signs = [dict(s) for s in payload.get("static_signs", [])]
+            # V40.25: изделия, добавленные вручную.
+            self.saved_manual_items = [dict(s) for s in payload.get("manual_items", []) if isinstance(s, dict)]
             self.procurement_records = [
                 dict(r) for r in payload.get("procurement_records", [])
             ]
@@ -13023,6 +13074,17 @@ class ScreenDesigner(BaseTk):
         ml,mt,mr,mb=L+150,y+115,R-100,y+map_h-85
         content_w=(2*w+side_gap_mm) if sides==2 and w else w
         content_h=hh
+        # V40.18: одностороннему МЦД с подсветкой — место под чертёж стенки.
+        try:
+            content_w,content_h,_v4018_sdx,_v4018_sdy=_v4018_content(
+                sign,mode,sides,w,hh,content_w,content_h,mr-ml,mb-mt)
+        except Exception:
+            _v4018_sdx=_v4018_sdy=0.0
+        # V40.21: высокому изделию сетка указателя — слева, остальное — стенке.
+        try:
+            mr,mb=_v4020_sign_area(sign,mode,sides,w,hh,ml,mt,mr,mb)
+        except Exception:
+            pass
         view_w=max(sx,int(math.ceil(max(1,content_w)/float(sx))*sx)) if sx else max(1,content_w)
         view_h=max(sy,int(math.ceil(max(1,content_h)/float(sy))*sy)) if sy else max(1,content_h)
         if content_w and view_w-content_w < sx*0.35:
@@ -13046,6 +13108,7 @@ class ScreenDesigner(BaseTk):
         offset_y=max(0.0,(view_h-content_h)/2.0) if content_h else 0.0
         base_x=ml+offset_x*sc
         base_y=mt+offset_y*sc
+        base_x+=_v4018_sdx*sc; base_y+=_v4018_sdy*sc
 
         is_round=bool(sign.get("round",False)) and mode==MODE_MCD
         split_color=(114,91,0)
@@ -13087,6 +13150,13 @@ class ScreenDesigner(BaseTk):
             if sides==2:
                 label="СТОРОНА 2" if side_no==2 else "СТОРОНА 1"
                 d.text(((x1+x2)/2,y2+28),label,font=self._font_for_print(22,True),fill=(45,45,45),anchor="ma")
+            try:
+                # V40.16 — схематичная разметка фронтальных LED на поле указателя.
+                _v4016_markup(self,d,page,sign,mode,sides,is_round,w,hh,sc,
+                              x1,y1,x1+w*sc,y1+hh*sc,ml,mt,gx2,gy2,mirrored,
+                              right=R,bottom=mb+70)
+            except Exception:
+                pass
 
         if w and hh:
             draw_print_side(base_x,base_y,1,False)
@@ -13254,12 +13324,8 @@ class ScreenDesigner(BaseTk):
         data_count=max(1,len(vals))
         data_step=max(35,min(50,(data_bottom-data_top)//data_count))
         data_label_font=self._font_for_print(24,False)
-        data_value_font=self._font_for_print(27,False)
-        yy=data_top
-        for lab,val in vals:
-            d.text((right_x+20,yy),lab,font=data_label_font,fill="black")
-            d.text((R-20,yy),str(val),font=data_value_font,fill="black",anchor="ra")
-            yy+=data_step
+        # V40.17: значение не заходит на подпись — меньше шрифт или перенос.
+        _v4017_draw_data_rows(self,d,vals,right_x+20,R-20,data_top,data_bottom,data_step,data_label_font)
 
         # Нижняя половина: только названия номенклатуры подгруппы «Крепёж и метизы».
         d.text((right_x+15,right_mid+14),"МЕТИЗЫ",font=bold,fill="black")
@@ -13873,7 +13939,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.04.1: строка остаётся «статической» (серая заливка), только если
+                # V40.26.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -16301,7 +16367,8 @@ def _trial_build_cut_tab(self, parent):
     ttk.Label(controls, text="Пропил, мм").grid(row=0, column=7)
     ttk.Spinbox(controls, textvariable=self.trial_kerf_var, from_=0, to=20, width=5).grid(row=0, column=8, padx=(5, 10))
     ttk.Button(controls, text="Обновить карту", command=self._trial_refresh).grid(row=0, column=9)
-    ttk.Button(controls, text="Печать раскроя (PDF)", command=self._wizard_print_pdf).grid(row=0, column=10, padx=(9, 0))
+    # V40.06: кнопка печатает бирки по размерам раскроя.
+    ttk.Button(controls, text="Печать бирок", command=self._v4006_print_tags).grid(row=0, column=10, padx=(9, 0))
     # V30.48: печатная карта раскроя — A4 альбомная, один профиль = один лист.
     ttk.Button(controls, text="Печать карты раскроя", command=self._v3048_print_cutmap_pdf).grid(row=0, column=11, padx=(7, 0))
     ttk.Label(controls, textvariable=self.trial_stock_hint_var, foreground="#6B7280").grid(row=1, column=4, columnspan=7, sticky="w", pady=(6,0))
@@ -18590,13 +18657,14 @@ def _v3014_print_pdf(self):
 
 # V30.20: preview the exact Pillow pages produced by the existing PDF renderer.
 # PDF is written only after explicit confirmation in the preview window.
-def _v3020_preview_pdf_pages(self, pages):
+def _v3020_preview_pdf_pages(self, pages, title=None, default_name=None):
+    # V40.07: заголовок окна и имя файла задаются вызывающей стороной.
     from PIL import Image, ImageTk
     if not pages:
-        messagebox.showwarning('Предпросмотр раскроя', 'Нет страниц для просмотра.')
+        messagebox.showwarning(title or 'Предпросмотр раскроя', 'Нет страниц для просмотра.')
         return
     win=tk.Toplevel(self)
-    win.title('Предпросмотр раскроя — перед сохранением PDF')
+    win.title((title or 'Предпросмотр раскроя') + ' — перед сохранением PDF')
     win.geometry('1120x780')
     win.minsize(550,400)
     win.transient(self)
@@ -18657,8 +18725,10 @@ def _v3020_preview_pdf_pages(self, pages):
             canvas.xview_moveto(0);canvas.yview_moveto(0)
 
     def save_pdf():
-        path=filedialog.asksaveasfilename(parent=win,title='Сохранить раскрой в PDF',
-              defaultextension='.pdf',initialfile='Раскрой_V30_20.pdf',
+        path=filedialog.asksaveasfilename(parent=win,
+              title=f"Сохранить {(title or 'раскрой').lower()} в PDF",
+              defaultextension='.pdf',
+              initialfile=f"{default_name or 'Раскрой_V30_20'}.pdf",
               filetypes=[('PDF','*.pdf')])
         if not path:return
         try:
@@ -19905,7 +19975,9 @@ def _v3048_print_cutmap_pdf(self):
     pages = []
     for key in dict.fromkeys(g["material"][0] for g in groups):
         chunk = [g for g in groups if g["material"][0] == key]
-        pages.append(_v3048_build_page(chunk[0]["material"], chunk[0]["stock"], chunk, kerf, project_line))
+        # V40.09: для МПК строитель возвращает несколько листов.
+        built = _v3048_build_page(chunk[0]["material"], chunk[0]["stock"], chunk, kerf, project_line)
+        pages.extend(built if isinstance(built, list) else [built])
     if not pages:
         messagebox.showwarning("Печать карты раскроя", "Нет данных для печати.")
         return
@@ -23421,6 +23493,7 @@ def _v3073_merge_window(self, diffs, theirs_payload, path):
         for iid in tree.selection():
             set_take([iid], "ours" if state[iid]["take"] == "theirs" else "theirs")
     tree.bind("<Double-1>", toggle)
+    _v4026_tree_tools(tree, set_take, "theirs", "ours")          # V40.26
 
     result = {"taken": None}
 
@@ -23434,6 +23507,7 @@ def _v3073_merge_window(self, diffs, theirs_payload, path):
     ttk.Button(bar, text="Оставить своё", command=lambda: set_take(tree.selection(), "ours")).pack(side="left", padx=(6, 0))
     ttk.Button(bar, text="Всё из файла", command=lambda: set_take(list(state), "theirs")).pack(side="left", padx=(18, 0))
     ttk.Button(bar, text="Всё своё", command=lambda: set_take(list(state), "ours")).pack(side="left", padx=(6, 0))
+    _v4026_count_label(bar, tree).pack(side="left", padx=(14, 0))   # V40.26
     ttk.Button(bar, text="Отмена", command=win.destroy).pack(side="right")
     ttk.Button(bar, text="Сохранить объединённое", command=finish).pack(side="right", padx=(0, 8))
 
@@ -23957,6 +24031,11 @@ def _v3077_cut_rows(self, sign):
         if not cuts:
             continue
         radius = entry.get("bend_radius_mm")
+        # V40.05: если у отрезков есть назначение, выводим его.
+        details = [d for d in (entry.get("cut_details") or []) if d.get("panel")]
+        if details and not radius:
+            rows.append((label, _v4005_detail_text(details)))
+            continue
         counted = {}
         for length in cuts:
             counted[length] = counted.get(length, 0) + 1
@@ -24181,6 +24260,7 @@ def _v3080_reference_window(self, diffs, history, file_app):
 
     tree.bind("<Double-1>", lambda e: [set_take([iid], "mine" if state[iid]["take"] == "theirs" else "theirs")
                                        for iid in tree.selection()])
+    _v4026_tree_tools(tree, set_take, "theirs", "mine")          # V40.26
 
     save_var = tk.BooleanVar(value=False)
     result = {"value": None}
@@ -24196,6 +24276,7 @@ def _v3080_reference_window(self, diffs, history, file_app):
     ttk.Button(bar, text="Оставить своё", command=lambda: set_take(tree.selection(), "mine")).pack(side="left", padx=(6, 0))
     ttk.Button(bar, text="Всё из файла", command=lambda: set_take(list(state), "theirs")).pack(side="left", padx=(18, 0))
     ttk.Button(bar, text="Всё своё", command=lambda: set_take(list(state), "mine")).pack(side="left", padx=(6, 0))
+    _v4026_count_label(bar, tree).pack(side="left", padx=(14, 0))   # V40.26
     ttk.Checkbutton(bar, text="Сохранить принятое в мой справочник", variable=save_var).pack(side="left", padx=(20, 0))
     ttk.Button(bar, text="Считать по своему", command=win.destroy).pack(side="right")
     ttk.Button(bar, text="Применить", command=finish).pack(side="right", padx=(0, 8))
@@ -28985,8 +29066,3797 @@ for _name, _function in _V4003_REPLACEMENTS.items():
     setattr(messagebox, _name, _v4002_guard(_function))
 
 
+
 # =====================================================================
-# V40.04.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.05 — уголок 30×20×2 прямоугольной статики МЦД считается по
+# назначению: стенка под алюкобонд и лицевое оргстекло.
+#   • Стороны контура всегда W − 180 и H − 180; прежнее исключение
+#     «квадрат со стороной менее 551 мм — по полным габаритам» снято.
+#   • Одностороннее изделие: стенка — всегда 4 отрезка; стекло — два
+#     отрезка по длинным сторонам, если короткая сторона изделия
+#     меньше 601 мм, иначе полный контур.
+#   • Двустороннее изделие: стенки нет, считаются два стекла по тому
+#     же правилу.
+#   • У квадрата длинными считаются горизонтальные стороны.
+#   • Карта раскроя и «Данные указателя» в журнале показывают отрезки
+#     с назначением.
+# =====================================================================
+
+V4005_PANEL_TITLES = {"стенка": "стенка (алюкобонд)", "оргстекло": "оргстекло"}
+
+
+def _v4005_group(parts):
+    """[(длина, ось, назначение)] → {назначение: [(ось, длина, количество)]}"""
+    order, counted = [], {}
+    for length, axis, panel in parts:
+        key = (panel, axis, int(round(float(length))))
+        if key not in counted:
+            counted[key] = 0
+            order.append(key)
+        counted[key] += 1
+    grouped = {}
+    for panel, axis, length in order:
+        grouped.setdefault(panel, []).append((axis, length, counted[(panel, axis, length)]))
+    return grouped
+
+
+def _mcd_static_angle_display(self, parts, qprod):
+    """Короткая подпись позиции в карте раскроя."""
+    grouped = _v4005_group(parts)
+    chunks = []
+    for panel, items in grouped.items():
+        sizes = " + ".join(f"{length}×{count}" for _axis, length, count in items)
+        chunks.append(f"{panel} {sizes}")
+    return " · ".join(chunks) + f" мм × ({qprod} изд.)"
+
+
+def _v4005_detail_text(details):
+    """Готовые детали после раскроя — с назначением и стороной."""
+    parts = [(d.get("length_mm"), d.get("axis", ""), d.get("panel", "")) for d in details]
+    grouped = _v4005_group(parts)
+    chunks = []
+    for panel, items in grouped.items():
+        title = V4005_PANEL_TITLES.get(panel, panel)
+        sizes = ", ".join(f"{axis} {count}×{length} мм" if axis else f"{count}×{length} мм"
+                          for axis, length, count in items)
+        chunks.append(f"{title}: {sizes}")
+    return "; ".join(chunks)
+
+
+# ---------------------------------------------------------------------
+# Справочник: текст правила в обеих секциях статики МЦД
+# ---------------------------------------------------------------------
+V4005_ANGLE_RULE = (
+    "Стороны контура: (W − 180) и (H − 180) мм. "
+    "Одностороннее изделие: стенка под алюкобонд — всегда 4 отрезка "
+    "(2 по ширине и 2 по высоте); лицевое оргстекло — 2 отрезка по длинным "
+    "сторонам, если короткая сторона изделия меньше 601 мм, иначе тоже полный "
+    "контур из 4 отрезков. Двустороннее изделие: стенки нет, по тому же правилу "
+    "считаются два стекла. У квадратного изделия длинными считаются горизонтальные "
+    "стороны. Итоговая длина — сумма всех отрезков, умноженная на количество изделий."
+)
+V4005_SECTIONS = ("МЦД / 1 сторона / с подсветкой", "МЦД / 2 стороны / с подсветкой")
+
+
+def _v4005_reference_rule(data):
+    for section in V4005_SECTIONS:
+        for row in (data or {}).get(section) or []:
+            if not isinstance(row, list) or not row:
+                continue
+            if str(row[0]).strip() == "Уголок алюминиевый 30×20×2 мм":
+                while len(row) < 5:
+                    row.append("")
+                row[1] = V4005_ANGLE_RULE
+                row[2] = "По расчёту"
+                row[3] = "м.п."
+    return data
+
+
+_v4005_orig_reference_defaults = ScreenDesigner._reference_defaults
+ScreenDesigner._reference_defaults = lambda self: _v4005_reference_rule(
+    _v4005_orig_reference_defaults(self))
+_v4005_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_load = lambda self: _v4005_reference_rule(
+    _v4005_orig_reference_load(self))
+
+
+
+# =====================================================================
+# V40.06 — «Печать бирок» вместо прежней кнопки «Печать раскроя (PDF)».
+#   • Бирка собирается по паре «материал + длина детали» в пределах
+#     текущего отбора вкладки «Раскрой» (материал и изделие), поэтому
+#     одинаковые отрезки разных изделий попадают на одну бирку.
+#   • Лист A4 делится пополам: по бирке на каждой половине.
+#   • Состав бирки (макет 2 без строк «Изделие» и «Артикул»):
+#     шапка с проектом, строки «Материал» и «Хлыст», ниже два поля —
+#     размер детали и количество с пояснением «на N изд.».
+#   • Прежняя печать раскроя (_wizard_print_pdf) из программы убрана
+#     только с кнопки, сам расчёт и карта раскроя не меняются.
+# =====================================================================
+
+V4006_PAGE = (2480, 3508)          # A4, 300 dpi
+V4006_MARGIN = 150
+V4006_HEAD_FILL = (236, 240, 246)
+V4006_LINE = (60, 60, 60)
+V4006_SOFT = (205, 205, 205)
+V4006_GREY = (110, 110, 110)
+V4006_INK = (20, 20, 20)
+
+
+def _v4006_material_name(key, fallback=""):
+    for row in TRIAL_MATERIALS:
+        if row[0] == key:
+            return row[2]
+    return fallback
+
+
+def _v4006_tags(self):
+    """Бирки по текущему отбору: [(материал, длина, деталей, изделий, хлыст)]."""
+    rows = list(getattr(self, "trial_rows", []) or [])
+    if not rows:
+        return []
+    merged, order = {}, []
+    for row in rows:
+        key = str(row.get("key", ""))
+        stock = int(row.get("stock", 0) or 0)
+        products = int(row.get("products", 1) or 1)
+        counted = {}
+        for cut in row.get("cuts", []) or []:
+            length = int(round(float(cut)))
+            if length > 0:
+                counted[length] = counted.get(length, 0) + 1
+        for length, pieces in counted.items():
+            tag = (key, length)
+            if tag not in merged:
+                merged[tag] = {"key": key,
+                               "material": _v4006_material_name(key, str(row.get("material", ""))),
+                               "length": length, "pieces": 0, "products": 0, "stock": stock}
+                order.append(tag)
+            merged[tag]["pieces"] += pieces
+            merged[tag]["products"] += products
+    out = [merged[tag] for tag in order]
+    out.sort(key=lambda item: (item["material"], -item["length"]))
+    return out
+
+
+def _v4006_draw_tag(self, draw, top, height, tag, project):
+    """Одна бирка в пределах половины листа."""
+    def font(size, bold=False):
+        return self._font_for_print(size, bold)
+
+    def centre(box, text, f, fill=V4006_INK):
+        x1, y1, x2, y2 = box
+        left, upper, right, lower = draw.textbbox((0, 0), text, font=f)
+        draw.text(((x1 + x2 - (right - left)) / 2 - left,
+                   (y1 + y2 - (lower - upper)) / 2 - upper), text, font=f, fill=fill)
+
+    x1 = V4006_MARGIN
+    x2 = V4006_PAGE[0] - V4006_MARGIN
+    y1 = top + 90
+    y2 = top + height - 90
+    draw.rectangle((x1, y1, x2, y2), outline=V4006_LINE, width=6)
+    draw.rectangle((x1, y1, x2, y1 + 130), fill=V4006_HEAD_FILL)
+    draw.text((x1 + 40, y1 + 42), "БИРКА РАСКРОЯ", font=font(52, True), fill=V4006_INK)
+    draw.text((x2 - 40, y1 + 50), f"Проект: {project}", font=font(40), fill=V4006_GREY, anchor="ra")
+
+    rows = (("Материал", str(tag["material"])), ("Хлыст", f"{tag['stock']} мм"))
+    ry = y1 + 130
+    for label, value in rows:
+        draw.line((x1, ry, x2, ry), fill=V4006_SOFT, width=4)
+        draw.line((x1 + 430, ry, x1 + 430, ry + 118), fill=V4006_SOFT, width=4)
+        draw.text((x1 + 36, ry + 36), label, font=font(42), fill=V4006_GREY)
+        value_font = font(46, True)
+        while draw.textbbox((0, 0), value, font=value_font)[2] > (x2 - x1 - 520) and value_font.size > 26:
+            value_font = font(value_font.size - 2, True)
+        draw.text((x1 + 470, ry + 32), value, font=value_font, fill=V4006_INK)
+        ry += 118
+    draw.line((x1, ry, x2, ry), fill=V4006_LINE, width=6)
+
+    mid = x1 + (x2 - x1) * 0.52
+    draw.line((mid, ry, mid, y2), fill=V4006_LINE, width=6)
+    draw.text((x1 + 40, ry + 32), "РАЗМЕР ДЕТАЛИ", font=font(40), fill=V4006_GREY)
+    draw.text((mid + 40, ry + 32), "КОЛИЧЕСТВО", font=font(40), fill=V4006_GREY)
+    size_text = f"{tag['length']} мм"
+    size_font = font(150, True)
+    while draw.textbbox((0, 0), size_text, font=size_font)[2] > (mid - x1 - 70) and size_font.size > 60:
+        size_font = font(size_font.size - 4, True)
+    # Размер и количество стоят на одной оптической линии.
+    centre((x1, ry + 110, mid, ry + (y2 - ry) * 0.66), size_text, size_font)
+    qty_text = f"{tag['pieces']} шт."
+    qty_font = font(140, True)
+    while draw.textbbox((0, 0), qty_text, font=qty_font)[2] > (x2 - mid - 70) and qty_font.size > 60:
+        qty_font = font(qty_font.size - 4, True)
+    centre((mid, ry + 110, x2, ry + (y2 - ry) * 0.66), qty_text, qty_font)
+    centre((mid, ry + (y2 - ry) * 0.64, x2, y2 - 36),
+           f"на {tag['products']} изд.", font(52), V4006_GREY)
+
+
+def _v4006_build_pages(self, tags):
+    from PIL import Image, ImageDraw
+    project = str(self.project_name_var.get().strip() or self.project_name)
+    pages, half = [], V4006_PAGE[1] / 2
+    for index in range(0, len(tags), 2):
+        image = Image.new("RGB", V4006_PAGE, "white")
+        draw = ImageDraw.Draw(image)
+        image._selectable_text_layer = []
+        for position, tag in enumerate(tags[index:index + 2]):
+            _v4006_draw_tag(self, draw, position * half, half, tag, project)
+        # Линия реза посередине листа.
+        x = V4006_MARGIN
+        while x < V4006_PAGE[0] - V4006_MARGIN:
+            draw.line((x, half, x + 28, half), fill=(150, 150, 150), width=4)
+            x += 48
+        pages.append(image)
+    return pages
+
+
+def _v4006_print_tags(self):
+    """Кнопка «Печать бирок»."""
+    try:
+        tags = _v4006_tags(self)
+    except Exception as exc:
+        import traceback
+        self._print_debug_log(traceback.format_exc())
+        messagebox.showerror("Печать бирок", f"Не удалось собрать бирки:\n{exc}")
+        return
+    if not tags:
+        messagebox.showwarning("Печать бирок",
+                               "Для текущего отбора нет раскраиваемых деталей.\n"
+                               "Проверьте материал и изделие в параметрах раскроя.")
+        return
+    try:
+        pages = _v4006_build_pages(self, tags)
+    except Exception as exc:
+        import traceback
+        self._print_debug_log(traceback.format_exc())
+        messagebox.showerror("Печать бирок", f"Не удалось сформировать бирки:\n{exc}")
+        return
+    # V40.07: имя файла — проект и размеры исходного материала, как у карты раскроя.
+    project = self._safe_filename_part(
+        self._v3048_project_line().split(" — ")[0]) or "Проект"
+    sizes = []
+    for tag in tags:
+        size = _v3077_material_size(tag.get("key", ""))
+        if size and size not in sizes:
+            sizes.append(size)
+    suffix = ("_" + "_".join(sizes)) if sizes else ""
+    self._v3020_preview_pdf_pages(pages, "Бирки раскроя", f"Бирки_{project}{suffix}")
+
+
+ScreenDesigner._v4006_print_tags = _v4006_print_tags
+ScreenDesigner._v4006_tags = _v4006_tags
+ScreenDesigner._v4006_build_pages = _v4006_build_pages
+
+
+
+# =====================================================================
+# V40.08 — новая погонажная позиция статики МЦД: «Прижимная планка
+# МПК 8мм» (поликарбонат 8 мм, высота планки 15 мм).
+#
+# Правило расхода. Планка закрывает те стороны лицевого оргстекла,
+# на которые не пошёл алюминиевый уголок:
+#   • уголок закрыл стекло по длинным сторонам (короткая сторона
+#     изделия меньше 601 мм) → планка на две оставшиеся стороны;
+#   • уголок закрыл стекло полным контуром (короткая сторона 601 мм
+#     и больше) → планка всё равно ставится на две короткие стороны;
+#   • длина планки равна длине уголка того же контура: (W − 180)
+#     для горизонтальной стороны и (H − 180) для вертикальной;
+#   • одностороннее изделие — один комплект, двустороннее — два.
+# Круглые изделия МПК не используют: там уголок гнётся по всей
+# окружности стекла.
+#
+# Раскрой листа 3000 × 2000 мм на станке ЧПУ:
+#   шаг по высоте 29 мм = 1 зазор + 6,5 фреза + 15 планка + 6,5 фреза,
+#   соседние планки делят миллиметровый зазор между проходами;
+#   68 полос с листа, 204 м.п. полос, остаток 28 мм цельной лентой;
+#   вдоль полосы между планками 14 мм (6,5 + 1 + 6,5), от торца 7,5 мм.
+# Для карты раскроя одна «хлыст-полоса» равна 3000 мм.
+# =====================================================================
+
+V4008_NAME = "Прижимная планка МПК 8мм"
+V4008_KEY = "mpk8"
+V4008_STRIP_MM = 3000            # длина полосы = длина листа
+V4008_SHEET_W_MM = 2000
+V4008_PITCH_MM = 29.0            # 1 + 6,5 + 15 + 6,5
+V4008_CROSS_MM = 14.0            # 6,5 + 1 + 6,5 между планками в полосе
+V4008_END_MM = 7.5               # 1 + 6,5 от торца полосы
+V4008_STRIPS_PER_SHEET = int(V4008_SHEET_W_MM // V4008_PITCH_MM)      # 68
+V4008_WEIGHT_GPM = 144.0         # 8 × 15 мм поликарбоната, 1,2 г/см³
+
+V4008_RULE = (
+    "Закрывает те стороны лицевого оргстекла, на которые не пошёл уголок 30×20×2. "
+    "Если уголок закрыл стекло только по длинным сторонам (короткая сторона изделия "
+    "меньше 601 мм) — планка идёт на две оставшиеся стороны; если уголок закрыл стекло "
+    "полным контуром — планка ставится на две короткие стороны. Длина планки равна длине "
+    "уголка того же контура: (W − 180) по горизонтали и (H − 180) по вертикали. "
+    "Одностороннее изделие — один комплект, двустороннее — два, по стеклу на сторону. "
+    "Круглые изделия планку не используют. Раскрой листа 3000 × 2000 мм на ЧПУ: шаг по "
+    "высоте 29 мм (1 зазор + 6,5 фреза + 15 планка + 6,5 фреза), соседние планки делят "
+    "зазор; 68 полос с листа, 204 м.п.; между планками в полосе 14 мм, от торца 7,5 мм."
+)
+V4008_SECTIONS = ("МЦД / 1 сторона / с подсветкой", "МЦД / 2 стороны / с подсветкой")
+
+
+# ---------------------------------------------------------------------
+# Геометрия
+# ---------------------------------------------------------------------
+def _v4008_applies(sign):
+    if (sign or {}).get("mode") != MODE_MCD:
+        return False
+    if bool(sign.get("round", False)):
+        return False
+    return str(sign.get("face_type", "С подсветкой")).strip() == "С подсветкой"
+
+
+def _v4008_plank_parts(w, h, sides=1):
+    """Отрезки планки на одно изделие: [(длина, ось)]."""
+    aw, ah = _mcd_static_angle_sides(w, h)
+    axes = {axis for _length, axis in _mcd_static_angle_glass_parts(w, h)}
+    if len(axes) == 1:
+        axis = "высота" if "ширина" in axes else "ширина"
+    else:
+        # Уголок закрыл стекло полным контуром — планка на короткие стороны.
+        axis = "ширина" if float(w) <= float(h) else "высота"
+    length = aw if axis == "ширина" else ah
+    count = 2 * (2 if int(sides or 1) >= 2 else 1)
+    return [(length, axis)] * count
+
+
+def _v4008_plank_length_m(w, h, sides=1):
+    return sum(length for length, _axis in _v4008_plank_parts(w, h, sides)) / 1000.0
+
+
+def _v4008_sheets(total_m):
+    """Сколько листов 3000×2000 нужно под заданный погонаж планки."""
+    strips = math.ceil(max(0.0, float(total_m)) * 1000.0 / V4008_STRIP_MM - 1e-9)
+    return math.ceil(strips / V4008_STRIPS_PER_SHEET) if strips else 0
+
+
+ScreenDesigner._v4008_plank_length_m = staticmethod(_v4008_plank_length_m)
+ScreenDesigner._v4008_sheets = staticmethod(_v4008_sheets)
+
+
+# ---------------------------------------------------------------------
+# Расчёт комплектующих
+# ---------------------------------------------------------------------
+_v4008_orig_static_mcd = ScreenDesigner._static_mcd_component_rows
+
+
+def _v4008_static_mcd_component_rows(self, signs):
+    rows = list(_v4008_orig_static_mcd(self, signs))
+    total = 0.0
+    for sign in signs or []:
+        if not _v4008_applies(sign):
+            continue
+        try:
+            w = float(sign.get("width", 0) or 0)
+            h = float(sign.get("height", 0) or 0)
+        except Exception:
+            continue
+        if w <= 0 or h <= 0:
+            continue
+        raw = str(sign.get("quantity", "") or "").strip()
+        try:
+            qty = max(1, int(raw)) if raw else 1
+        except Exception:
+            qty = 1
+        sides = int(sign.get("sides", 1) or 1)
+        total += _v4008_plank_length_m(w, h, sides) * qty
+    if total > 0:
+        name = self._v3083_rename_name(V4008_NAME)
+        rows.append((name, "м.п.", round(total, 3)))
+    return rows
+
+
+ScreenDesigner._static_mcd_component_rows = _v4008_static_mcd_component_rows
+
+
+# ---------------------------------------------------------------------
+# Карта раскроя и бирки
+# ---------------------------------------------------------------------
+_v4008_orig_stock_catalog = ScreenDesigner._cut_stock_catalog
+
+
+def _v4008_cut_stock_catalog(self):
+    data = dict(_v4008_orig_stock_catalog(self))
+    data[V4008_KEY] = (V4008_NAME, V4008_STRIP_MM)
+    return data
+
+
+ScreenDesigner._cut_stock_catalog = _v4008_cut_stock_catalog
+
+
+_v4008_orig_material_key = ScreenDesigner._cut_material_key
+
+
+def _v4008_cut_material_key(self, name):
+    key = _v4008_orig_material_key(self, name)
+    if key:
+        return key
+    compact = re.sub(r"\s+", "", str(name or "").casefold().replace("ё", "е"))
+    if "прижимнаяпланкампк8" in compact:
+        return V4008_KEY
+    return None
+
+
+ScreenDesigner._cut_material_key = _v4008_cut_material_key
+
+
+_v4008_orig_entries = ScreenDesigner._cut_map_entries_for_product
+
+
+def _v4008_cut_map_entries_for_product(self, kind, index, rec):
+    out = _v4008_orig_entries(self, kind, index, rec)
+    if kind != "static" or not _v4008_applies(rec):
+        return out
+    try:
+        w = float(rec.get("width", 0) or 0)
+        h = float(rec.get("height", 0) or 0)
+    except Exception:
+        return out
+    if w <= 0 or h <= 0:
+        return out
+    try:
+        qprod = max(1, int(rec.get("quantity", 1) or 1))
+    except Exception:
+        qprod = 1
+    sides = int(rec.get("sides", 1) or 1)
+    parts = _v4008_plank_parts(w, h, sides)
+    if not parts:
+        return out
+    cuts = [length for length, _axis in parts] * qprod
+    grouped = {}
+    for length, axis in parts:
+        grouped[(int(round(length)), axis)] = grouped.get((int(round(length)), axis), 0) + 1
+    display = " + ".join(f"{length}×{count}" for (length, _axis), count in grouped.items())
+    self._cut_add_entry(out, V4008_KEY, cuts, f"{display} мм × ({qprod} изд.)",
+                        qprod, self._cut_product_title(kind, index, rec))
+    out[-1]["cut_details"] = [{"length_mm": int(round(length)), "axis": axis, "panel": "оргстекло"}
+                              for length, axis in parts for _ in range(qprod)]
+    return out
+
+
+ScreenDesigner._cut_map_entries_for_product = _v4008_cut_map_entries_for_product
+
+# Вкладка «Раскрой»: одна «хлыст-полоса» = длина листа 3000 мм.
+if not any(row[0] == V4008_KEY for row in TRIAL_MATERIALS):
+    TRIAL_MATERIALS.append((V4008_KEY, "Планка МПК 8", V4008_NAME,
+                            "8 мм, высота 15 мм", "Поликарбонат", V4008_STRIP_MM))
+
+
+# ---------------------------------------------------------------------
+# Справочник: позиция добавляется сразу после уголка 30×20×2
+# ---------------------------------------------------------------------
+def _v4008_reference_rule(data):
+    # Круглые разделы строятся копированием прямоугольного, поэтому планку,
+    # попавшую туда вместе с копией, убираем: на круглом изделии её нет.
+    for section, rows in (data or {}).items():
+        if section in V4008_SECTIONS or not rows:
+            continue
+        keep = [r for r in rows
+                if not (isinstance(r, (list, tuple)) and r and str(r[0]).strip() == V4008_NAME)]
+        if len(keep) != len(rows):
+            rows[:] = keep
+    for section in V4008_SECTIONS:
+        rows = (data or {}).get(section)
+        if not rows:
+            continue
+        if any(isinstance(r, (list, tuple)) and r and str(r[0]).strip() == V4008_NAME for r in rows):
+            for row in rows:
+                if isinstance(row, list) and row and str(row[0]).strip() == V4008_NAME:
+                    while len(row) < 5:
+                        row.append("")
+                    row[1], row[2], row[3], row[4] = V4008_RULE, "По расчёту", "м.п.", V4008_WEIGHT_GPM
+            continue
+        position = len(rows)
+        for index, row in enumerate(rows):
+            if isinstance(row, (list, tuple)) and row and \
+                    str(row[0]).strip() == "Уголок алюминиевый 30×20×2 мм":
+                position = index + 1
+                break
+        rows.insert(position, [V4008_NAME, V4008_RULE, "По расчёту", "м.п.", V4008_WEIGHT_GPM])
+    return data
+
+
+_v4008_orig_reference_defaults = ScreenDesigner._reference_defaults
+ScreenDesigner._reference_defaults = lambda self: _v4008_reference_rule(
+    _v4008_orig_reference_defaults(self))
+_v4008_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_load = lambda self: _v4008_reference_rule(
+    _v4008_orig_reference_load(self))
+
+
+
+# =====================================================================
+# V40.09 — «Печать карты раскроя» для прижимной планки МПК 8 мм
+# выводится листовой картой, а не хлыстовой: лист 3000 × 2000 мм,
+# полосы с шагом 29 мм, условия реза и деловой остаток — тем же видом,
+# что был согласован в документе «МПК 8мм раскрой».
+# Для остальных материалов карта раскроя не меняется.
+# Укладка планок считается по собственному правилу материала
+# (между планками 14 мм, от торца 7,5 мм) и не зависит от поля
+# «Пропил, мм» на вкладке «Раскрой».
+# =====================================================================
+
+V4009_SHEET_L = float(V4008_STRIP_MM)        # 3000 мм — длина листа
+V4009_SHEET_W = float(V4008_SHEET_W_MM)      # 2000 мм — ширина листа
+V4009_PITCH = V4008_PITCH_MM                 # 29 мм
+V4009_CROSS = V4008_CROSS_MM                 # 14 мм
+V4009_END = V4008_END_MM                     # 7,5 мм
+V4009_STRIPS = V4008_STRIPS_PER_SHEET        # 68
+V4009_PLANK_H = 15.0
+V4009_MILL = 6.5
+V4009_GAP = 1.0
+
+V4009_PLANK = (169, 223, 179)
+V4009_PLANK_EDGE = (20, 93, 37)
+V4009_MILLC = (244, 186, 122)
+V4009_GAPC = (236, 240, 246)
+V4009_REST = (244, 248, 252)
+V4009_REST_EDGE = (150, 170, 190)
+
+
+def _v4009_strip_fits(row, length):
+    return sum(row) + length + len(row) * V4009_CROSS + 2 * V4009_END <= V4009_SHEET_L
+
+
+def _v4009_pack(lengths):
+    """Планки по полосам: длинные вперёд, в первую подходящую полосу."""
+    rows = []
+    for length in sorted((float(x) for x in lengths), reverse=True):
+        for row in rows:
+            if _v4009_strip_fits(row, length):
+                row.append(length)
+                break
+        else:
+            rows.append([length])
+    return rows
+
+
+def _v4009_strip_used(row):
+    return sum(row) + max(0, len(row) - 1) * V4009_CROSS + 2 * V4009_END
+
+
+def _v4009_cuts_from_groups(groups):
+    cuts = []
+    for group in groups or []:
+        repeats = max(1, len(group.get("numbers") or [1]))
+        bar = [int(part[0]) for part in group.get("bar") or []]
+        for _ in range(repeats):
+            cuts += bar
+    return cuts
+
+
+def _v4009_text(d, x, y, text, size, bold=False, fill=_V3048_INK):
+    d.text((x, y), text, font=_v3048_font(size, bold), fill=fill)
+
+
+def _v4009_conditions(d, x, y, width, sheets, strips_used, planks):
+    """Правый столбец: условия реза, сечение и итоги."""
+    _v4009_text(d, x, y, "УСЛОВИЯ РЕЗА", 11, True)
+    y += _v3048_mm(7.0)
+    rows = (("Лист", "3000 × 2000 мм, поликарбонат 8 мм"),
+            ("Фреза", "6,5 мм"),
+            ("Высота планки", "15 мм"),
+            ("Зазор между проходами", "1 мм"),
+            ("Шаг по высоте", "29 мм"),
+            ("Между планками в полосе", "14 мм"),
+            ("От торца полосы", "7,5 мм"))
+    for label, value in rows:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 9, True)
+        y += _v3048_mm(9.0)
+
+    y += _v3048_mm(2.0)
+    _v4009_text(d, x, y, "Сечение по высоте — две соседние планки", 8, False, _V3048_SUB)
+    y += _v3048_mm(5.0)
+    scale = _v3048_mm(1.45)
+    bar_h = _v3048_mm(9.0)
+    segs = (("", V4009_GAP, V4009_GAPC), ("6,5", V4009_MILL, V4009_MILLC),
+            ("15", V4009_PLANK_H, V4009_PLANK), ("6,5", V4009_MILL, V4009_MILLC),
+            ("", V4009_GAP, V4009_GAPC), ("6,5", V4009_MILL, V4009_MILLC),
+            ("15", V4009_PLANK_H, V4009_PLANK), ("6,5", V4009_MILL, V4009_MILLC))
+    sx = x
+    for name, size, color in segs:
+        w = size * scale
+        d.rectangle((sx, y, sx + w, y + bar_h), fill=color, outline=_V3048_EDGE, width=1)
+        if name and w > _v3048_mm(4.0):
+            font = _v3048_font(7, True)
+            box = d.textbbox((0, 0), name, font=font)
+            d.text((sx + (w - (box[2] - box[0])) / 2, y + bar_h / 2 - (box[3] - box[1]) / 2 - box[1]),
+                   name, font=font, fill=_V3048_INK)
+        sx += w
+    y += bar_h + _v3048_mm(2.0)
+    step = V4009_PITCH * scale
+    d.line((x, y, x + step, y), fill=_V3048_INK, width=2)
+    for mark in (x, x + step):
+        d.line((mark, y - _v3048_mm(1.0), mark, y + _v3048_mm(1.0)), fill=_V3048_INK, width=2)
+    _v4009_text(d, x + step + _v3048_mm(2.0), y - _v3048_mm(1.6), "шаг 29 мм", 8, True)
+
+    y += _v3048_mm(8.0)
+    _v4009_text(d, x, y, "ИТОГ", 11, True)
+    y += _v3048_mm(7.0)
+    totals = (("Планок в раскрое", f"{planks} шт."),
+              ("Занято полос", f"{strips_used} из {V4009_STRIPS * sheets}"),
+              ("Листов 3000 × 2000", f"{sheets} шт."),
+              ("Погонаж полос с листа", "204 м.п."),
+              ("Полезный выход", "52 % высоты листа"))
+    for label, value in totals:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 10, True)
+        y += _v3048_mm(9.5)
+    return y
+
+
+def _v4009_build_sheet_page(sheet_rows, sheet_index, sheets, project_line, planks, strips_used):
+    """Один лист A4 (альбомная) с раскладкой одного листа поликарбоната."""
+    from PIL import Image, ImageDraw
+    W = int(round(_v3048_mm(_V3048_PAGE_MM[0])))
+    H = int(round(_v3048_mm(_V3048_PAGE_MM[1])))
+    image = Image.new("RGB", (W, H), "white")
+    d = ImageDraw.Draw(image)
+    margin = _v3048_mm(_V3048_MARGIN_MM)
+
+    _v4009_text(d, margin, margin, project_line, 11)
+    _v4009_text(d, margin, margin + _v3048_mm(6.5), "КАРТА РАСКРОЯ ЛИСТА", 15, True)
+    _v4009_text(d, margin, margin + _v3048_mm(15.0),
+                f"{V4008_NAME} · лист {sheet_index} из {sheets}", 11, True)
+
+    top = margin + _v3048_mm(24.0)
+    draw_w = _v3048_mm(170.0)
+    k = draw_w / V4009_SHEET_L
+    draw_h = V4009_SHEET_W * k
+    d.rectangle((margin, top, margin + draw_w, top + draw_h), outline=_V3048_EDGE, width=2)
+    for index in range(V4009_STRIPS):
+        sy = top + index * V4009_PITCH * k
+        d.rectangle((margin, sy + (V4009_GAP + V4009_MILL) * k,
+                     margin + draw_w, sy + (V4009_GAP + V4009_MILL + V4009_PLANK_H) * k),
+                    outline=(232, 232, 232), width=1)
+    for index, row in enumerate(sheet_rows):
+        sy = top + index * V4009_PITCH * k
+        d.rectangle((margin, sy, margin + draw_w, sy + V4009_PITCH * k), fill=(252, 246, 238))
+        x = margin + V4009_END * k
+        for length in row:
+            d.rectangle((x, sy + (V4009_GAP + V4009_MILL) * k,
+                         x + length * k, sy + (V4009_GAP + V4009_MILL + V4009_PLANK_H) * k),
+                        fill=V4009_PLANK, outline=V4009_PLANK_EDGE, width=1)
+            x += (length + V4009_CROSS) * k
+    rest_mm = V4009_SHEET_W - len(sheet_rows) * V4009_PITCH
+    if rest_mm > 0:
+        ry = top + len(sheet_rows) * V4009_PITCH * k
+        d.rectangle((margin, ry, margin + draw_w, top + draw_h),
+                    fill=V4009_REST, outline=V4009_REST_EDGE, width=2)
+        label = f"ДЕЛОВОЙ ОСТАТОК  3000 × {rest_mm:.0f} мм · ещё {int(rest_mm // V4009_PITCH)} полос"
+        font = _v3048_font(10, True)
+        box = d.textbbox((0, 0), label, font=font)
+        d.text((margin + (draw_w - (box[2] - box[0])) / 2,
+                (ry + top + draw_h) / 2 - (box[3] - box[1]) / 2 - box[1]),
+               label, font=font, fill=(60, 90, 120))
+    _v4009_text(d, margin, top + draw_h + _v3048_mm(2.5), "3000 мм", 8, False, _V3048_SUB)
+
+    # состав занятых полос
+    y = top + draw_h + _v3048_mm(9.0)
+    _v4009_text(d, margin, y, "СОСТАВ ПОЛОС", 10, True)
+    y += _v3048_mm(6.0)
+    limit = 6
+    for index, row in enumerate(sheet_rows[:limit], 1):
+        counted = {}
+        for length in row:
+            counted[int(length)] = counted.get(int(length), 0) + 1
+        text = " + ".join(f"{length}×{count}" for length, count in
+                          sorted(counted.items(), reverse=True))
+        used = _v4009_strip_used(row)
+        _v4009_text(d, margin, y, f"полоса {index}:  {text} мм", 8)
+        _v4009_text(d, margin + _v3048_mm(110.0), y,
+                    f"занято {used:.0f} мм, остаток {V4009_SHEET_L - used:.0f} мм", 8, False, _V3048_SUB)
+        y += _v3048_mm(5.0)
+    if len(sheet_rows) > limit:
+        _v4009_text(d, margin, y, f"…и ещё {len(sheet_rows) - limit} полос того же состава", 8,
+                    False, _V3048_SUB)
+
+    if sheet_index == 1:
+        _v4009_conditions(d, margin + draw_w + _v3048_mm(8.0), margin + _v3048_mm(24.0),
+                          _v3048_mm(90.0), sheets, strips_used, planks)
+    return image
+
+
+def _v4009_build_mpk_pages(material, stock, groups, kerf, project_line):
+    cuts = _v4009_cuts_from_groups(groups)
+    if not cuts:
+        return []
+    rows = _v4009_pack(cuts)
+    sheets = max(1, math.ceil(len(rows) / V4009_STRIPS))
+    pages = []
+    for index in range(sheets):
+        chunk = rows[index * V4009_STRIPS:(index + 1) * V4009_STRIPS]
+        pages.append(_v4009_build_sheet_page(chunk, index + 1, sheets, project_line,
+                                             len(cuts), len(rows)))
+    return pages
+
+
+_v4009_orig_build_page = _v3048_build_page
+
+
+def _v4009_build_page(material, stock, groups, kerf, project_line):
+    """Для МПК — листовая карта, для остальных материалов прежняя хлыстовая."""
+    if str((material or ("",))[0]) == V4008_KEY:
+        pages = _v4009_build_mpk_pages(material, stock, groups, kerf, project_line)
+        if pages:
+            return pages
+    return _v4009_orig_build_page(material, stock, groups, kerf, project_line)
+
+
+_v3048_build_page = _v4009_build_page
+
+
+
+# =====================================================================
+# V40.10 — три изменения.
+#
+# 1. Служебные строки «LED фактически установлено (для расчёта
+#    мощности)» и «Расчётная мощность LED (+20%)» остаются на экране
+#    вкладки «Комплектующие», но не попадают ни в печать, ни в
+#    выгрузку этой вкладки.
+#
+# 2. Новое правило уголка 30×20×2 для СТЕКОЛ статики МЦД
+#    (для стенки под алюкобонд правило прежнее — полный контур):
+#      • стороны W (горизонтальные) — уголок считается всегда,
+#        независимо от размера W;
+#      • стороны H (вертикальные) — уголок ставится, только если
+#        H ≥ 600 мм; при H < 600 мм на эти стороны ни уголка, ни планки;
+#      • прижимная планка МПК идёт в паре с уголком стороны H:
+#        при H ≥ 600 мм — две планки длиной (H − 180), при H < 600 мм
+#        планки нет. На стороны W планка не ставится.
+#      • двустороннее изделие — всё то же, но на два стекла.
+#    Прежний рубеж 601 мм и правило «две длинные стороны» отменены.
+#
+# 3. Вкладка «Раскрой»: для прижимной планки МПК карта на экране
+#    показывается листом 3000 × 2000 мм с полосами и деловым остатком —
+#    тем же видом, что и на печати. Для остальных материалов карта
+#    на экране прежняя, хлыстовая.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 1. Служебные строки не идут в печать и выгрузку «Комплектующих»
+# ---------------------------------------------------------------------
+_v4010_orig_print_rows = ScreenDesigner._components_print_rows
+
+
+def _v4010_components_print_rows(self):
+    rows = _v4010_orig_print_rows(self)
+    return [row for row in rows if not V3095_SERVICE.search(str(row.get("name", "")))]
+
+
+ScreenDesigner._components_print_rows = _v4010_components_print_rows
+
+
+# ---------------------------------------------------------------------
+# 2. Уголок стекла и прижимная планка
+# ---------------------------------------------------------------------
+V4010_H_LIMIT = 600.0
+
+
+def _v4010_glass_parts(w, h):
+    """Отрезки уголка на ОДНО стекло: стороны W всегда, стороны H при H ≥ 600."""
+    aw, ah = _mcd_static_angle_sides(w, h)
+    parts = [(aw, "ширина"), (aw, "ширина")]
+    if float(h) >= V4010_H_LIMIT:
+        parts += [(ah, "высота"), (ah, "высота")]
+    return parts
+
+
+_mcd_static_angle_glass_parts = _v4010_glass_parts
+
+
+def _v4010_plank_parts(w, h, sides=1):
+    """Планка идёт в паре с уголком стороны H и только при H ≥ 600 мм."""
+    if float(h) < V4010_H_LIMIT:
+        return []
+    _aw, ah = _mcd_static_angle_sides(w, h)
+    return [(ah, "высота")] * (2 * (2 if int(sides or 1) >= 2 else 1))
+
+
+_v4008_plank_parts = _v4010_plank_parts
+
+V4005_ANGLE_RULE = (
+    "Стороны контура: (W − 180) и (H − 180) мм. "
+    "Стенка под алюкобонд (только у одностороннего изделия) — всегда полный контур: "
+    "2 отрезка (W − 180) и 2 отрезка (H − 180). "
+    "Лицевое оргстекло: стороны W считаются всегда, независимо от размера W; "
+    "стороны H считаются, только если H ≥ 600 мм, при H меньше 600 мм уголок на эти "
+    "стороны не ставится. Двустороннее изделие: стенки нет, по этому же правилу "
+    "считаются два стекла. Итоговая длина — сумма всех отрезков, умноженная на "
+    "количество изделий."
+)
+
+V4008_RULE = (
+    "Ставится в паре с уголком стороны H лицевого оргстекла: при H ≥ 600 мм — "
+    "2 планки длиной (H − 180) мм на каждое стекло, при H меньше 600 мм планка не "
+    "применяется. На стороны W планка не ставится. Одностороннее изделие — одно стекло, "
+    "двустороннее — два. Круглые изделия планку не используют. "
+    "Раскрой листа 3000 × 2000 мм на ЧПУ: шаг по высоте 29 мм (1 зазор + 6,5 фреза + "
+    "15 планка + 6,5 фреза), соседние планки делят зазор; 68 полос с листа, 204 м.п.; "
+    "между планками в полосе 14 мм, от торца 7,5 мм."
+)
+
+
+# ---------------------------------------------------------------------
+# 3. Экранная карта раскроя МПК — листом
+# ---------------------------------------------------------------------
+V4010_CANVAS_PLANK = "#A9DFB3"
+V4010_CANVAS_PLANK_E = "#145D25"
+V4010_CANVAS_STRIP = "#FCF6EE"
+V4010_CANVAS_REST = "#EAF1F8"
+V4010_CANVAS_REST_E = "#8FA6BC"
+
+
+def _v4010_draw_sheet_canvas(self, c, x, y, width_px, bars, kerf):
+    """Лист 3000 × 2000 с полосами планок на холсте вкладки «Раскрой»."""
+    cuts = []
+    for bar in bars:
+        cuts += [int(part[0]) for part in bar]
+    rows = _v4009_pack(cuts)
+    sheets = max(1, math.ceil(len(rows) / V4009_STRIPS))
+    k = float(width_px) / V4009_SHEET_L
+    for sheet in range(sheets):
+        chunk = rows[sheet * V4009_STRIPS:(sheet + 1) * V4009_STRIPS]
+        height = V4009_SHEET_W * k
+        if sheets > 1:
+            c.create_text(x, y - 16, text=f"Лист {sheet + 1} из {sheets}", anchor="nw",
+                          font=("Arial", 9, "bold"), fill="#172A44")
+        c.create_rectangle(x, y, x + width_px, y + height, fill="white", outline="#222222")
+        for index in range(V4009_STRIPS):
+            sy = y + index * V4009_PITCH * k
+            c.create_rectangle(x, sy + (V4009_GAP + V4009_MILL) * k,
+                               x + width_px, sy + (V4009_GAP + V4009_MILL + V4009_PLANK_H) * k,
+                               outline="#E6E6E6", width=1)
+        for index, row in enumerate(chunk):
+            sy = y + index * V4009_PITCH * k
+            c.create_rectangle(x, sy, x + width_px, sy + V4009_PITCH * k,
+                               fill=V4010_CANVAS_STRIP, outline="")
+            px = x + V4009_END * k
+            for length in row:
+                c.create_rectangle(px, sy + (V4009_GAP + V4009_MILL) * k,
+                                   px + length * k,
+                                   sy + (V4009_GAP + V4009_MILL + V4009_PLANK_H) * k,
+                                   fill=V4010_CANVAS_PLANK, outline=V4010_CANVAS_PLANK_E)
+                px += (length + V4009_CROSS) * k
+            used = _v4009_strip_used(row)
+            c.create_text(x + width_px + 12, sy + V4009_PITCH * k / 2,
+                          text=f"полоса {index + 1}: {len(row)} шт., остаток {V4009_SHEET_L - used:.0f} мм",
+                          anchor="w", font=("Arial", 9), fill="#172A44")
+        rest = V4009_SHEET_W - len(chunk) * V4009_PITCH
+        if rest > 0:
+            ry = y + len(chunk) * V4009_PITCH * k
+            c.create_rectangle(x, ry, x + width_px, y + height,
+                               fill=V4010_CANVAS_REST, outline=V4010_CANVAS_REST_E)
+            c.create_text(x + width_px / 2, (ry + y + height) / 2,
+                          text=f"ДЕЛОВОЙ ОСТАТОК  3000 × {rest:.0f} мм · ещё "
+                               f"{int(rest // V4009_PITCH)} полос",
+                          font=("Arial", 10, "bold"), fill="#3C5A78")
+        y += height + 46
+    c.create_text(x, y - 24, anchor="nw", font=("Arial", 10),
+                  text=f"Планок: {len(cuts)} шт. · полос: {len(rows)} из {V4009_STRIPS * sheets} · "
+                       f"листов 3000 × 2000: {sheets}", fill="#172A44")
+    return y
+
+
+_v4010_orig_paint = _v3014_paint_cached
+
+
+def _v4010_paint_cached(self):
+    c = self.trial_canvas
+    bins = list(getattr(self, "_v3014_cached_canvas_rows", []))
+    if not bins:
+        return
+    if not any(str(m[0]) == V4008_KEY for m, _stock, _bar in bins):
+        return _v4010_orig_paint(self)
+    try:
+        kerf = max(0, int(self.trial_kerf_var.get()))
+    except Exception:
+        kerf = 3
+    c.delete("all")
+    self.trial_segment_items = {}
+    width = max(900, c.winfo_width() - 20)
+    x = 190
+    barw = min(980, max(560, width - x - 260))
+    y = 18
+    by_material = {}
+    for m, stock, b in bins:
+        by_material.setdefault((m[0], stock), [m, stock, []])[2].append(b)
+    total_physical = 0
+    for m, stock, bars in by_material.values():
+        c.create_text(25, y, text=m[2], anchor="nw", font=("Arial", 11, "bold"), fill="#172A44")
+        if str(m[0]) == V4008_KEY:
+            c.create_text(375, y, anchor="nw", font=("Arial", 9), fill="#172A44",
+                          text=_v4017_canvas_header())
+            y += 55
+            y = _v4010_draw_sheet_canvas(self, c, x, y, barw, bars, kerf) + 24
+            continue
+        c.create_text(375, y, text=f"Хлыст {stock} мм · Пропил {kerf} мм", anchor="nw",
+                      font=("Arial", 9), fill="#172A44")
+        y += 55
+        maximum = max(stock - sum(int(z[0]) for z in b) - kerf * max(0, len(b) - 1) for b in bars)
+        if maximum > 0:
+            bx = x + 150
+            bw = max(140, maximum * barw / stock)
+            c.create_polygon(bx, y, bx + bw, y, bx + bw + 23, y - 13, bx + 23, y - 13,
+                             fill="#FFF36A", outline="black")
+            c.create_polygon(bx + bw, y, bx + bw + 23, y - 13, bx + bw + 23, y + 11,
+                             bx + bw, y + 24, fill="#D5B100", outline="black")
+            c.create_rectangle(bx, y, bx + bw, y + 24, fill="#F5EA00", outline="black")
+            c.create_text(bx + bw / 2, y + 12, text=str(maximum), font=("Arial", 9, "bold"))
+            c.create_text(bx + bw + 43, y + 11, text="Максимальный остаток", anchor="w",
+                          font=("Arial", 9))
+            y += 65
+        y = _pack3d_draw_stack_canvas(self, c, x, y, barw, 25, 28, 17, stock, bars, kerf) + 38
+        total_physical += len(bars)
+    if total_physical:
+        c.create_text(25, y, text=f"Требуется (хлыстов) заготовок: {total_physical} шт.",
+                      anchor="nw", font=("Arial", 12))
+        y += 30
+    c.configure(bg="#A9C9EE", scrollregion=(0, 0, max(1400, x + barw + 720),
+                                            max(c.winfo_height(), y + 45)))
+    try:
+        self._trial_highlight()
+    except Exception:
+        pass
+    return None
+
+
+_v3014_paint_cached = _v4010_paint_cached
+ScreenDesigner._v3014_paint_cached = _v4010_paint_cached
+
+
+
+# =====================================================================
+# V40.11 — уточнённые условия раскроя листа под прижимную планку МПК
+# и вывод закупки планки листами.
+#
+# Условия реза:
+#   • фреза 6 мм (было 6,5);
+#   • зазор между проходами 2 мм (был 1);
+#   • расстояние между планками прежнее: 29 мм по высоте и 14 мм
+#     в полосе (6 + 2 + 6);
+#   • у торца листа отступа нет вообще: фреза сразу идёт по кромке
+#     будущей планки, поэтому первая полоса занимает 27 мм
+#     (6 фреза + 15 планка + 6 фреза), а каждая следующая — 29 мм
+#     (2 зазор + 6 + 15 + 6).
+#   На лист 2000 мм входит 69 полос (27 + 68 × 29 = 1999 мм, остаток 1 мм),
+#   погонаж полос с листа — 207 м.п.
+#
+# Заказ комплектующих: планка выводится так же, как погонаж, но в
+# кратности листа поставки 3000 × 2000 мм — отдельной строкой итогов,
+# без добавления страниц в документ.
+# =====================================================================
+
+V4011_MILL = 6.0
+V4011_GAP = 2.0
+V4011_PLANK_H = 15.0
+V4011_FIRST = V4011_MILL + V4011_PLANK_H + V4011_MILL          # 27 мм — первая полоса
+V4011_PITCH = V4011_GAP + V4011_MILL + V4011_PLANK_H + V4011_MILL  # 29 мм — последующие
+V4011_CROSS = V4011_MILL + V4011_GAP + V4011_MILL              # 14 мм между планками
+V4011_END = V4011_MILL                                          # 6 мм от торца полосы
+V4011_SHEET_L = 3000.0
+V4011_SHEET_W = 2000.0
+V4011_STRIPS = int(1 + (V4011_SHEET_W - V4011_FIRST) // V4011_PITCH)   # 69
+
+
+def _v4011_strip_origin(index):
+    return 0.0 if index <= 0 else V4011_FIRST + (index - 1) * V4011_PITCH
+
+
+def _v4011_strip_span(index):
+    return V4011_FIRST if index <= 0 else V4011_PITCH
+
+
+def _v4011_plank_top(index):
+    return V4011_MILL if index <= 0 else _v4011_strip_origin(index) + V4011_GAP + V4011_MILL
+
+
+def _v4011_used_height(count):
+    return 0.0 if count <= 0 else V4011_FIRST + (count - 1) * V4011_PITCH
+
+
+# --- общие константы прежних блоков приводятся к новым условиям -------
+V4008_PITCH_MM = V4011_PITCH
+V4008_CROSS_MM = V4011_CROSS
+V4008_END_MM = V4011_END
+V4008_STRIPS_PER_SHEET = V4011_STRIPS
+V4009_PITCH = V4011_PITCH
+V4009_CROSS = V4011_CROSS
+V4009_END = V4011_END
+V4009_STRIPS = V4011_STRIPS
+V4009_MILL = V4011_MILL
+V4009_GAP = V4011_GAP
+
+V4008_RULE = (
+    "Ставится в паре с уголком стороны H лицевого оргстекла: при H ≥ 600 мм — "
+    "2 планки длиной (H − 180) мм на каждое стекло, при H меньше 600 мм планка не "
+    "применяется. На стороны W планка не ставится. Одностороннее изделие — одно стекло, "
+    "двустороннее — два. Круглые изделия планку не используют. "
+    "Раскрой листа 3000 × 2000 мм на ЧПУ: фреза 6 мм, зазор между проходами 2 мм, "
+    "высота планки 15 мм. У торца листа отступа нет — фреза сразу идёт по кромке планки, "
+    "поэтому первая полоса занимает 27 мм, каждая следующая 29 мм; на лист входит "
+    "69 полос, 207 м.п. В полосе между планками 14 мм, от торца полосы 6 мм. "
+    "Закупка — в кратности листа 3000 × 2000 мм."
+)
+
+
+# ---------------------------------------------------------------------
+# Печатная карта листа
+# ---------------------------------------------------------------------
+def _v4011_conditions(d, x, y, width, sheets, strips_used, planks):
+    _v4009_text(d, x, y, "УСЛОВИЯ РЕЗА", 11, True)
+    y += _v3048_mm(7.0)
+    rows = (("Лист", "3000 × 2000 мм, поликарбонат 8 мм"),
+            ("Фреза", "6 мм"),
+            ("Высота планки", "15 мм"),
+            ("Зазор между проходами", "2 мм"),
+            ("Первая полоса от торца", "27 мм — без отступа"),
+            ("Шаг следующих полос", "29 мм"),
+            ("Между планками в полосе", "14 мм"),
+            ("От торца полосы", "6 мм"))
+    for label, value in rows:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 9, True)
+        y += _v3048_mm(8.4)
+
+    y += _v3048_mm(1.5)
+    _v4009_text(d, x, y, "Сечение по высоте — от торца листа", 8, False, _V3048_SUB)
+    y += _v3048_mm(5.0)
+    scale = _v3048_mm(1.45)
+    bar_h = _v3048_mm(9.0)
+    segs = (("6", V4011_MILL, V4009_MILLC), ("15", V4011_PLANK_H, V4009_PLANK),
+            ("6", V4011_MILL, V4009_MILLC), ("2", V4011_GAP, V4009_GAPC),
+            ("6", V4011_MILL, V4009_MILLC), ("15", V4011_PLANK_H, V4009_PLANK),
+            ("6", V4011_MILL, V4009_MILLC))
+    sx = x
+    for name, size, color in segs:
+        w = size * scale
+        d.rectangle((sx, y, sx + w, y + bar_h), fill=color, outline=_V3048_EDGE, width=1)
+        if w > _v3048_mm(3.5):
+            font = _v3048_font(7, True)
+            box = d.textbbox((0, 0), name, font=font)
+            d.text((sx + (w - (box[2] - box[0])) / 2, y + bar_h / 2 - (box[3] - box[1]) / 2 - box[1]),
+                   name, font=font, fill=_V3048_INK)
+        sx += w
+    y += bar_h + _v3048_mm(2.0)
+    first = V4011_FIRST * scale
+    d.line((x, y, x + first, y), fill=_V3048_INK, width=2)
+    for mark in (x, x + first):
+        d.line((mark, y - _v3048_mm(1.0), mark, y + _v3048_mm(1.0)), fill=_V3048_INK, width=2)
+    _v4009_text(d, x + first + _v3048_mm(2.0), y - _v3048_mm(1.6),
+                "первая полоса 27 мм, далее по 29 мм", 8, True)
+
+    y += _v3048_mm(8.0)
+    _v4009_text(d, x, y, "ИТОГ", 11, True)
+    y += _v3048_mm(7.0)
+    totals = (("Планок в раскрое", f"{planks} шт."),
+              ("Занято полос", f"{strips_used} из {V4011_STRIPS * sheets}"),
+              ("Листов 3000 × 2000", f"{sheets} шт."),
+              ("Погонаж полос с листа", "207 м.п."),
+              ("Полезный выход", "52 % высоты листа"))
+    for label, value in totals:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 10, True)
+        y += _v3048_mm(9.0)
+    return y
+
+
+def _v4011_build_sheet_page(sheet_rows, sheet_index, sheets, project_line, planks, strips_used):
+    from PIL import Image, ImageDraw
+    W = int(round(_v3048_mm(_V3048_PAGE_MM[0])))
+    H = int(round(_v3048_mm(_V3048_PAGE_MM[1])))
+    image = Image.new("RGB", (W, H), "white")
+    d = ImageDraw.Draw(image)
+    margin = _v3048_mm(_V3048_MARGIN_MM)
+
+    _v4009_text(d, margin, margin, project_line, 11)
+    _v4009_text(d, margin, margin + _v3048_mm(6.5), "КАРТА РАСКРОЯ ЛИСТА", 15, True)
+    _v4009_text(d, margin, margin + _v3048_mm(15.0),
+                f"{V4008_NAME} · лист {sheet_index} из {sheets}", 11, True)
+
+    top = margin + _v3048_mm(24.0)
+    draw_w = _v3048_mm(170.0)
+    k = draw_w / V4011_SHEET_L
+    draw_h = V4011_SHEET_W * k
+    d.rectangle((margin, top, margin + draw_w, top + draw_h), outline=_V3048_EDGE, width=2)
+    for index in range(V4011_STRIPS):
+        py = top + _v4011_plank_top(index) * k
+        d.rectangle((margin, py, margin + draw_w, py + V4011_PLANK_H * k),
+                    outline=(232, 232, 232), width=1)
+    for index, row in enumerate(sheet_rows):
+        oy = top + _v4011_strip_origin(index) * k
+        d.rectangle((margin, oy, margin + draw_w, oy + _v4011_strip_span(index) * k),
+                    fill=(252, 246, 238))
+        py = top + _v4011_plank_top(index) * k
+        x = margin + V4011_END * k
+        for length in row:
+            d.rectangle((x, py, x + length * k, py + V4011_PLANK_H * k),
+                        fill=V4009_PLANK, outline=V4009_PLANK_EDGE, width=1)
+            x += (length + V4011_CROSS) * k
+    rest_mm = V4011_SHEET_W - _v4011_used_height(len(sheet_rows))
+    if rest_mm > 0:
+        ry = top + _v4011_used_height(len(sheet_rows)) * k
+        d.rectangle((margin, ry, margin + draw_w, top + draw_h),
+                    fill=V4009_REST, outline=V4009_REST_EDGE, width=2)
+        label = _v4017_rest_label(rest_mm)                 # V40.17
+        font = _v3048_font(10, True)
+        box = d.textbbox((0, 0), label, font=font)
+        if (top + draw_h - ry) >= (box[3] - box[1]) + 4:
+            d.text((margin + (draw_w - (box[2] - box[0])) / 2,
+                    (ry + top + draw_h) / 2 - (box[3] - box[1]) / 2 - box[1]),
+                   label, font=font, fill=(60, 90, 120))
+    _v4009_text(d, margin, top + draw_h + _v3048_mm(2.5), "3000 мм", 8, False, _V3048_SUB)
+
+    y = top + draw_h + _v3048_mm(9.0)
+    _v4009_text(d, margin, y, "СОСТАВ ПОЛОС", 10, True)
+    y += _v3048_mm(6.0)
+    for index, row in enumerate(sheet_rows[:6], 1):
+        counted = {}
+        for length in row:
+            counted[int(length)] = counted.get(int(length), 0) + 1
+        text = " + ".join(f"{length}×{count}" for length, count in sorted(counted.items(), reverse=True))
+        used = _v4009_strip_used(row)
+        _v4009_text(d, margin, y, f"полоса {index}:  {text} мм", 8)
+        _v4009_text(d, margin + _v3048_mm(110.0), y,
+                    f"занято {used:.0f} мм, остаток {V4011_SHEET_L - used:.0f} мм", 8, False, _V3048_SUB)
+        y += _v3048_mm(5.0)
+    if len(sheet_rows) > 6:
+        _v4009_text(d, margin, y, f"…и ещё {len(sheet_rows) - 6} полос того же состава", 8,
+                    False, _V3048_SUB)
+
+    if sheet_index == 1:
+        _v4011_conditions(d, margin + draw_w + _v3048_mm(8.0), margin + _v3048_mm(24.0),
+                          _v3048_mm(90.0), sheets, strips_used, planks)
+    return image
+
+
+_v4009_build_sheet_page = _v4011_build_sheet_page
+
+
+# ---------------------------------------------------------------------
+# Экранная карта
+# ---------------------------------------------------------------------
+def _v4011_draw_sheet_canvas(self, c, x, y, width_px, bars, kerf):
+    cuts = []
+    for bar in bars:
+        cuts += [int(part[0]) for part in bar]
+    rows = _v4009_pack(cuts)
+    sheets = max(1, math.ceil(len(rows) / V4011_STRIPS))
+    k = float(width_px) / V4011_SHEET_L
+    for sheet in range(sheets):
+        chunk = rows[sheet * V4011_STRIPS:(sheet + 1) * V4011_STRIPS]
+        height = V4011_SHEET_W * k
+        if sheets > 1:
+            c.create_text(x, y - 16, text=f"Лист {sheet + 1} из {sheets}", anchor="nw",
+                          font=("Arial", 9, "bold"), fill="#172A44")
+        c.create_rectangle(x, y, x + width_px, y + height, fill="white", outline="#222222")
+        for index in range(V4011_STRIPS):
+            py = y + _v4011_plank_top(index) * k
+            c.create_rectangle(x, py, x + width_px, py + V4011_PLANK_H * k,
+                               outline="#E6E6E6", width=1)
+        for index, row in enumerate(chunk):
+            oy = y + _v4011_strip_origin(index) * k
+            c.create_rectangle(x, oy, x + width_px, oy + _v4011_strip_span(index) * k,
+                               fill=V4010_CANVAS_STRIP, outline="")
+            py = y + _v4011_plank_top(index) * k
+            px = x + V4011_END * k
+            for length in row:
+                c.create_rectangle(px, py, px + length * k, py + V4011_PLANK_H * k,
+                                   fill=V4010_CANVAS_PLANK, outline=V4010_CANVAS_PLANK_E)
+                px += (length + V4011_CROSS) * k
+            used = _v4009_strip_used(row)
+            c.create_text(x + width_px + 12, oy + _v4011_strip_span(index) * k / 2,
+                          text=f"полоса {index + 1}: {len(row)} шт., остаток {V4011_SHEET_L - used:.0f} мм",
+                          anchor="w", font=("Arial", 9), fill="#172A44")
+        rest = V4011_SHEET_W - _v4011_used_height(len(chunk))
+        if rest > 0:
+            ry = y + _v4011_used_height(len(chunk)) * k
+            c.create_rectangle(x, ry, x + width_px, y + height,
+                               fill=V4010_CANVAS_REST, outline=V4010_CANVAS_REST_E)
+            if (y + height - ry) >= 14:                     # V40.17
+                c.create_text(x + width_px / 2, (ry + y + height) / 2,
+                              text=_v4017_rest_label(rest),
+                              font=("Arial", 10, "bold"), fill="#3C5A78")
+        y += height + 46
+    c.create_text(x, y - 24, anchor="nw", font=("Arial", 10),
+                  text=f"Планок: {len(cuts)} шт. · полос: {len(rows)} из {V4011_STRIPS * sheets} · "
+                       f"листов 3000 × 2000: {sheets}", fill="#172A44")
+    return y
+
+
+_v4010_draw_sheet_canvas = _v4011_draw_sheet_canvas
+
+
+# ---------------------------------------------------------------------
+# Заказ комплектующих: планка — в кратности листа 3000 × 2000
+# ---------------------------------------------------------------------
+_v4011_orig_supplier_rows = ScreenDesigner._v3063_supplier_rows
+
+
+def _v4011_supplier_rows(self, supplier_name):
+    rows = _v4011_orig_supplier_rows(self, supplier_name)
+    name = self._v3083_rename_name(V4008_NAME)
+    cuts = []
+    for row in rows:
+        if row.get("kind") != "cut" or str(row.get("group", "")).endswith(" — сводно"):
+            continue
+        label = str(row.get("name", ""))
+        if not label.startswith(name):
+            continue
+        match = re.search(r"—\s*(\d+)\s*мм", label)
+        if match:
+            cuts += [int(match.group(1))] * int(float(row.get("qty") or 0))
+    if not cuts:
+        return rows
+    strips = len(_v4009_pack(cuts))
+    sheets = max(1, math.ceil(strips / V4011_STRIPS))
+    out = []
+    for row in rows:
+        label = str(row.get("name", ""))
+        if row.get("kind") == "total" and label.startswith(name):
+            if "расчётное количество" in label:
+                out.append(row)
+                out.append(dict(row, name=f"{name} — всего требуется полос (полоса {int(V4011_SHEET_L)} мм)",
+                                unit="полоса", qty=float(strips), weight=None))
+                out.append(dict(row, name=f"{name} — всего требуется листов "
+                                          f"{int(V4011_SHEET_L)} × {int(V4011_SHEET_W)} мм",
+                                unit="лист", qty=float(sheets), weight=None))
+            continue
+        out.append(row)
+    return out
+
+
+ScreenDesigner._v3063_supplier_rows = _v4011_supplier_rows
+
+
+
+# =====================================================================
+# V40.12 — раскрой листа под прижимную планку МПК выгружается чертежом
+# DXF (ASCII R12, читается любым CAM).
+#
+# Слои:
+#   SHEET     — габарит листа 3000 × 2000 мм;
+#   PLANK     — контуры планок 1:1, готовые детали;
+#   TOOLPATH  — осевые линии проходов фрезы: контур планки, смещённый
+#               наружу на 3 мм (половина фрезы 6 мм);
+#   REST      — деловой остаток листа;
+#   TEXT      — подписи (латиницей, чтобы не зависеть от кодировки).
+#
+# Единицы — миллиметры, начало координат в левом нижнем углу листа,
+# ось Y вверх. Один файл на один лист поликарбоната.
+# =====================================================================
+
+V4012_HALF_MILL = V4011_MILL / 2.0
+V4012_LAYERS = (("SHEET", 8), ("PLANK", 3), ("TOOLPATH", 1), ("REST", 5), ("TEXT", 7))
+
+
+def _v4012_pair(code, value):
+    return f"{code}\n{value}\n"
+
+
+def _v4012_polyline(layer, points, closed=True):
+    """Замкнутый контур в формате R12: POLYLINE + VERTEX + SEQEND."""
+    out = [_v4012_pair(0, "POLYLINE"), _v4012_pair(8, layer), _v4012_pair(66, 1),
+           _v4012_pair(70, 1 if closed else 0)]
+    for x, y in points:
+        out += [_v4012_pair(0, "VERTEX"), _v4012_pair(8, layer),
+                _v4012_pair(10, f"{x:.3f}"), _v4012_pair(20, f"{y:.3f}")]
+    out.append(_v4012_pair(0, "SEQEND"))
+    out.append(_v4012_pair(8, layer))
+    return "".join(out)
+
+
+def _v4012_rect(layer, x1, y1, x2, y2):
+    return _v4012_polyline(layer, ((x1, y1), (x2, y1), (x2, y2), (x1, y2)))
+
+
+def _v4012_text(layer, x, y, height, text):
+    return "".join((_v4012_pair(0, "TEXT"), _v4012_pair(8, layer),
+                    _v4012_pair(10, f"{x:.3f}"), _v4012_pair(20, f"{y:.3f}"),
+                    _v4012_pair(40, f"{height:.3f}"), _v4012_pair(1, text)))
+
+
+def _v4012_sheet_dxf(rows, sheet_index, sheets, project):
+    """DXF одного листа 3000 × 2000 с планками текущего раскроя."""
+    body = [_v4012_pair(0, "SECTION"), _v4012_pair(2, "HEADER"),
+            _v4012_pair(9, "$INSUNITS"), _v4012_pair(70, 4),
+            _v4012_pair(9, "$EXTMIN"), _v4012_pair(10, "0.0"), _v4012_pair(20, "0.0"),
+            _v4012_pair(9, "$EXTMAX"), _v4012_pair(10, f"{V4011_SHEET_L:.1f}"),
+            _v4012_pair(20, f"{V4011_SHEET_W:.1f}"), _v4012_pair(0, "ENDSEC"),
+            _v4012_pair(0, "SECTION"), _v4012_pair(2, "TABLES"),
+            _v4012_pair(0, "TABLE"), _v4012_pair(2, "LAYER"), _v4012_pair(70, len(V4012_LAYERS))]
+    for name, color in V4012_LAYERS:
+        body += [_v4012_pair(0, "LAYER"), _v4012_pair(2, name), _v4012_pair(70, 0),
+                 _v4012_pair(62, color), _v4012_pair(6, "CONTINUOUS")]
+    body += [_v4012_pair(0, "ENDTAB"), _v4012_pair(0, "ENDSEC"),
+             _v4012_pair(0, "SECTION"), _v4012_pair(2, "ENTITIES")]
+
+    body.append(_v4012_rect("SHEET", 0.0, 0.0, V4011_SHEET_L, V4011_SHEET_W))
+    for index, row in enumerate(rows):
+        top = _v4011_plank_top(index)                      # отсчёт сверху листа
+        y2 = V4011_SHEET_W - top                           # в DXF ось Y вверх
+        y1 = y2 - V4011_PLANK_H
+        x = V4011_END
+        for length in row:
+            body.append(_v4012_rect("PLANK", x, y1, x + length, y2))
+            body.append(_v4012_rect("TOOLPATH", x - V4012_HALF_MILL, y1 - V4012_HALF_MILL,
+                                    x + length + V4012_HALF_MILL, y2 + V4012_HALF_MILL))
+            body.append(_v4012_text("TEXT", x + 12.0, y1 + 3.0, 8.0, f"{int(length)}"))
+            x += length + V4011_CROSS
+    rest = V4011_SHEET_W - _v4011_used_height(len(rows))
+    if rest > 0:
+        body.append(_v4012_rect("REST", 0.0, 0.0, V4011_SHEET_L, rest))
+        body.append(_v4012_text("TEXT", 20.0, rest / 2.0, 20.0,
+                                f"REST 3000 x {rest:.0f} mm"))
+    body.append(_v4012_text("TEXT", 0.0, V4011_SHEET_W + 30.0, 24.0,
+                            f"{project} / MPK 8 mm / sheet {sheet_index} of {sheets} / "
+                            f"mill {V4011_MILL:g} mm, gap {V4011_GAP:g} mm, plank "
+                            f"{V4011_PLANK_H:g} mm"))
+    body += [_v4012_pair(0, "ENDSEC"), _v4012_pair(0, "EOF")]
+    return "".join(body)
+
+
+def _v4012_rows_for_export(self):
+    """Планки текущего отбора вкладки «Раскрой»."""
+    cuts = []
+    for row in getattr(self, "trial_rows", []) or []:
+        if str(row.get("key", "")) != V4008_KEY:
+            continue
+        cuts += [int(round(float(c))) for c in row.get("cuts", []) if float(c) > 0]
+    return _v4009_pack(cuts) if cuts else []
+
+
+def _v4012_export_dxf(self):
+    """Кнопка «Чертёж DXF»: раскрой листа под планку МПК."""
+    rows = _v4012_rows_for_export(self)
+    if not rows:
+        messagebox.showwarning("Чертёж DXF",
+                               "В текущем отборе нет прижимной планки МПК.\n"
+                               "Выберите материал «Планка МПК 8» или «Все».")
+        return
+    sheets = max(1, math.ceil(len(rows) / V4011_STRIPS))
+    project = self._safe_filename_part(
+        self.project_name_var.get().strip() or self.project_name) or "Проект"
+    path = filedialog.asksaveasfilename(
+        parent=self, title="Чертёж раскроя DXF", defaultextension=".dxf",
+        initialfile=f"Раскрой_МПК_{project}.dxf", filetypes=[("Чертёж DXF", "*.dxf")])
+    if not path:
+        return
+    base = str(path)
+    if base.lower().endswith(".dxf"):
+        base = base[:-4]
+    written = []
+    try:
+        for index in range(sheets):
+            chunk = rows[index * V4011_STRIPS:(index + 1) * V4011_STRIPS]
+            name = f"{base}.dxf" if sheets == 1 else f"{base}_лист{index + 1}.dxf"
+            _atomic_write_text(Path(name), _v4012_sheet_dxf(chunk, index + 1, sheets, project))
+            written.append(name)
+    except Exception as exc:
+        import traceback
+        self._print_debug_log(traceback.format_exc())
+        messagebox.showerror("Чертёж DXF", f"Не удалось сохранить чертёж:\n{exc}")
+        return
+    planks = sum(len(row) for row in rows)
+    messagebox.showinfo("Чертёж DXF",
+                        f"Сохранено файлов: {len(written)}\n" + "\n".join(written)
+                        + f"\n\nПланок: {planks} шт., полос: {len(rows)}, листов: {sheets}."
+                        + "\nСлои: SHEET — лист, PLANK — контуры деталей, "
+                          "REST — деловой остаток.")
+
+
+ScreenDesigner._v4012_export_dxf = _v4012_export_dxf
+ScreenDesigner._v4012_sheet_dxf = staticmethod(_v4012_sheet_dxf)
+
+
+_v4012_orig_build_cut_tab = ScreenDesigner._trial_build_cut_tab
+
+
+def _v4012_trial_build_cut_tab(self, parent):
+    _v4012_orig_build_cut_tab(self, parent)
+    try:
+        controls = None
+        for child in parent.winfo_children():
+            if isinstance(child, ttk.LabelFrame) and str(child.cget("text")) == "Параметры раскроя":
+                controls = child
+                break
+        if controls is not None:
+            ttk.Button(controls, text="Чертёж DXF",
+                       command=self._v4012_export_dxf).grid(row=0, column=12, padx=(7, 0))
+    except Exception:
+        pass
+
+
+ScreenDesigner._trial_build_cut_tab = _v4012_trial_build_cut_tab
+
+
+
+# =====================================================================
+# V40.13 — прижимная планка МПК ставится на КАЖДЫЙ уголок лицевого
+# оргстекла, то есть её расход повторяет расход уголка на стекло:
+#   • стороны W — всегда, 2 планки (W − 180);
+#   • стороны H — при H ≥ 600 мм, 2 планки (H − 180);
+#   • двустороннее изделие — то же на каждое стекло.
+# На стенку под алюкобонд планка не идёт. Круглые изделия планку
+# не используют.
+# Правило уголка не меняется.
+# =====================================================================
+
+
+def _v4013_plank_parts(w, h, sides=1):
+    """Планка повторяет уголок стекла: те же стороны и те же длины."""
+    parts = list(_mcd_static_angle_glass_parts(w, h))
+    return parts * (2 if int(sides or 1) >= 2 else 1)
+
+
+_v4008_plank_parts = _v4013_plank_parts
+
+V4008_RULE = (
+    "Ставится на каждый уголок лицевого оргстекла, поэтому расход планки равен расходу "
+    "уголка 30×20×2 на стекло: стороны W — всегда 2 планки длиной (W − 180) мм; стороны H — "
+    "2 планки длиной (H − 180) мм, если H ≥ 600 мм, при H меньше 600 мм на эти стороны "
+    "ни уголка, ни планки. Одностороннее изделие — одно стекло, двустороннее — два. "
+    "На стенку под алюкобонд планка не идёт, круглые изделия планку не используют. "
+    "Раскрой листа 3000 × 2000 мм на ЧПУ: фреза 6 мм, зазор между проходами 2 мм, высота "
+    "планки 15 мм. У торца листа отступа нет — фреза сразу идёт по кромке планки, поэтому "
+    "первая полоса занимает 27 мм, каждая следующая 29 мм; на лист входит 69 полос, "
+    "207 м.п. В полосе между планками 14 мм, от торца полосы 6 мм. "
+    "Закупка — в кратности листа 3000 × 2000 мм."
+)
+
+
+
+# =====================================================================
+# V40.14 — в чертеже DXF остаются только контуры деталей: слой
+# TOOLPATH с осями проходов фрезы убран. Траекторию инструмента
+# строит CAM по контуру планки, а шаг раскладки уже учитывает
+# фрезу 6 мм и зазор 2 мм.
+# =====================================================================
+
+V4012_LAYERS = (("SHEET", 8), ("PLANK", 3), ("REST", 5), ("TEXT", 7))
+
+
+def _v4014_sheet_dxf(rows, sheet_index, sheets, project):
+    """DXF одного листа 3000 × 2000: лист, контуры планок, остаток, подписи."""
+    body = [_v4012_pair(0, "SECTION"), _v4012_pair(2, "HEADER"),
+            _v4012_pair(9, "$INSUNITS"), _v4012_pair(70, 4),
+            _v4012_pair(9, "$EXTMIN"), _v4012_pair(10, "0.0"), _v4012_pair(20, "0.0"),
+            _v4012_pair(9, "$EXTMAX"), _v4012_pair(10, f"{V4011_SHEET_L:.1f}"),
+            _v4012_pair(20, f"{V4011_SHEET_W:.1f}"), _v4012_pair(0, "ENDSEC"),
+            _v4012_pair(0, "SECTION"), _v4012_pair(2, "TABLES"),
+            _v4012_pair(0, "TABLE"), _v4012_pair(2, "LAYER"), _v4012_pair(70, len(V4012_LAYERS))]
+    for name, color in V4012_LAYERS:
+        body += [_v4012_pair(0, "LAYER"), _v4012_pair(2, name), _v4012_pair(70, 0),
+                 _v4012_pair(62, color), _v4012_pair(6, "CONTINUOUS")]
+    body += [_v4012_pair(0, "ENDTAB"), _v4012_pair(0, "ENDSEC"),
+             _v4012_pair(0, "SECTION"), _v4012_pair(2, "ENTITIES")]
+
+    body.append(_v4012_rect("SHEET", 0.0, 0.0, V4011_SHEET_L, V4011_SHEET_W))
+    for index, row in enumerate(rows):
+        top = _v4011_plank_top(index)
+        y2 = V4011_SHEET_W - top
+        y1 = y2 - V4011_PLANK_H
+        x = V4011_END
+        for length in row:
+            body.append(_v4012_rect("PLANK", x, y1, x + length, y2))
+            body.append(_v4012_text("TEXT", x + 12.0, y1 + 3.0, 8.0, f"{int(length)}"))
+            x += length + V4011_CROSS
+    rest = V4011_SHEET_W - _v4011_used_height(len(rows))
+    if rest > 0:
+        body.append(_v4012_rect("REST", 0.0, 0.0, V4011_SHEET_L, rest))
+        body.append(_v4012_text("TEXT", 20.0, rest / 2.0, 20.0, f"REST 3000 x {rest:.0f} mm"))
+    body.append(_v4012_text("TEXT", 0.0, V4011_SHEET_W + 30.0, 24.0,
+                            f"{project} / MPK 8 mm / sheet {sheet_index} of {sheets} / "
+                            f"mill {V4011_MILL:g} mm, gap {V4011_GAP:g} mm, plank "
+                            f"{V4011_PLANK_H:g} mm"))
+    body += [_v4012_pair(0, "ENDSEC"), _v4012_pair(0, "EOF")]
+    return "".join(body)
+
+
+_v4012_sheet_dxf = _v4014_sheet_dxf
+ScreenDesigner._v4012_sheet_dxf = staticmethod(_v4014_sheet_dxf)
+
+
+
+# =====================================================================
+# V40.15 — служебные строки «LED фактически установлено…» и
+# «Расчётная мощность LED (+20%)» убираются только в самих командах
+# печати и выгрузки, а не в общем источнике строк.
+#
+# В V40.10 фильтр стоял в _components_print_rows, из-за чего строки
+# пропали и там, где они нужны на экране: предпросмотр комплектующих
+# по Ctrl + клик в журнале проекта и «Расход по изделиям».
+# Теперь источник отдаёт строки целиком, а скрытие включается только
+# на время работы команд печати, выгрузки и списков по поставщикам.
+# =====================================================================
+
+_V4015_EXPORT = [0]
+_v4015_unfiltered = _v4010_orig_print_rows          # исходный источник строк
+_v4015_filtered = ScreenDesigner._components_print_rows   # версия V40.10 со скрытием
+
+
+def _v4015_components_print_rows(self):
+    if _V4015_EXPORT[0] > 0:
+        return _v4015_filtered(self)
+    return _v4015_unfiltered(self)
+
+
+ScreenDesigner._components_print_rows = _v4015_components_print_rows
+
+
+def _v4015_mark_export(name):
+    """Внутри этой команды служебные строки не выводятся."""
+    original = getattr(ScreenDesigner, name, None)
+    if original is None:
+        return
+
+    def wrapper(self, *args, **kwargs):
+        _V4015_EXPORT[0] += 1
+        try:
+            return original(self, *args, **kwargs)
+        finally:
+            _V4015_EXPORT[0] = max(0, _V4015_EXPORT[0] - 1)
+
+    wrapper.__name__ = getattr(original, "__name__", name)
+    setattr(ScreenDesigner, name, wrapper)
+
+
+for _v4015_name in ("_print_components_list",            # печать вкладки «Комплектующие»
+                    "_export_components_list_xlsx",      # выгрузка в Excel
+                    "_download_components_list",         # скачивание
+                    "_print_components_for_supplier_id",  # печать по поставщику
+                    "_v3063_component_rows_by_product",   # источник списков по поставщикам
+                    "_components_rows_for_entire_project"):
+    _v4015_mark_export(_v4015_name)
+
+
+
+# =====================================================================
+# V40.16 — схематичная разметка фронтальных светодиодов на карте
+# указателя (журнал изделия), вариант «монтажный шаблон от базы».
+#
+# Рисуется только для статического МЦД: односторонний, с подсветкой,
+# прямоугольной геометрии. Двусторонние изделия используют торцевой
+# светодиод и размечаются иначе, круглые и особая геометрия 800 × 400
+# пока не размечаются.
+#
+# Правило раскладки — то же, что считает количество LED в BOM:
+#   • количество = ⌈площадь изделия (м²) × 60⌉;
+#   • ряды по высоте с межосевым шагом 120 мм;
+#   • минимальный отступ оси крайнего ряда от кромки 49,5 мм;
+#   • ряды и светодиоды в ряду расположены симметрично габаритам.
+#
+# На поле: белые посадочные места 70 × 15 мм с крестом оси, красным
+# отбита база (левая и верхняя кромка), накопительные размеры X вынесены
+# под изделие тремя ярусами, накопительные Y — слева. Собственные
+# подписи журнала («1000 мм», «300 мм», «2 × П-элемент») не меняются.
+# =====================================================================
+
+V4016_LED_W = 70.0
+V4016_LED_H = 15.0
+V4016_ROW_PITCH = 120.0
+V4016_ROW_MIN_EDGE = 49.5
+
+V4016_BASE = (196, 48, 48)
+V4016_MARK = (31, 111, 235)
+V4016_SEAT = (255, 255, 255)
+V4016_SEAT_EDGE = (20, 93, 37)
+V4016_HINT = (110, 110, 110)
+
+V4016_RULE = (
+    "Фронтальные светодиоды раскладываются рядами по высоте изделия: межосевой шаг рядов "
+    "120 мм, минимальный отступ оси крайнего ряда от кромки 49,5 мм, ряды расположены "
+    "симметрично по высоте. Светодиоды в ряду распределяются равномерно по ширине, "
+    "симметрично габариту. Общее количество равно расчётному по норме 60 LED на 1 м² "
+    "площади изделия; если количество не делится на число рядов, лишние светодиоды "
+    "добавляются в ряды от середины к краям попарно, чтобы раскладка оставалась "
+    "симметричной."
+)
+
+
+def _v4016_plan(w, h):
+    """(кол-во, список рядов) для изделия w × h мм.
+
+    Ряд: {"y": ось от верхней кромки, "n": шт., "pitch": шаг, "xs": оси от левой кромки}.
+    """
+    try:
+        w = float(w); h = float(h)
+    except Exception:
+        return 0, []
+    if w <= 0 or h <= 0:
+        return 0, []
+    total = max(1, math.ceil(w * h / 1_000_000.0 * MCD_STATIC_1SIDE_LED_PER_SQM - 1e-9))
+    rows = max(1, int((h - 2 * V4016_ROW_MIN_EDGE) // V4016_ROW_PITCH) + 1)
+    rows = min(rows, total)
+    top = (h - (rows - 1) * V4016_ROW_PITCH) / 2.0
+    base, extra = divmod(total, rows)
+    counts = [base] * rows
+    middle = rows // 2
+    if rows % 2:
+        pairs = [(middle - step, middle + step) for step in range(1, middle + 1)]
+        centre = middle
+    else:
+        pairs = [(middle - 1 - step, middle + step) for step in range(middle)]
+        centre = middle - 1
+    if extra % 2 and rows % 2:
+        counts[centre] += 1
+        extra -= 1
+    for left, right in pairs:
+        if extra < 2:
+            break
+        counts[left] += 1
+        counts[right] += 1
+        extra -= 2
+    while extra:
+        counts[centre] += 1
+        extra -= 1
+    out = []
+    for index, count in enumerate(counts):
+        pitch = w / count
+        out.append({"y": top + index * V4016_ROW_PITCH, "n": count, "pitch": pitch,
+                    "xs": [pitch * (i + 0.5) for i in range(count)]})
+    return total, out
+
+
+def _v4016_fmt(value):
+    text = f"{float(value):.1f}"
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text.replace(".", ",")
+
+
+def _v4016_allowed(sign, mode, sides, is_round, w, h):
+    if mode != MODE_MCD or int(sides or 1) != 1 or is_round:
+        return False
+    if str(sign.get("face_type", "С подсветкой")) != "С подсветкой":
+        return False
+    try:
+        if _v3098_is_special(mode, is_round, sign.get("face_type", "С подсветкой"), w, h):
+            return False
+    except Exception:
+        pass
+    return bool(w and h)
+
+
+def _v4016_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    """Разметка фронтальных LED поверх зелёного поля карты указателя."""
+    if not _v4016_allowed(sign, mode, sides, is_round, w, h):
+        return
+    total, rows = _v4016_plan(w, h)
+    if not rows:
+        return
+    seat_w = V4016_LED_W * sc
+    seat_h = V4016_LED_H * sc
+    edge = max(2, int(round(sc * 1.2)))
+
+    # Белые посадочные места с крестом оси.
+    for row in rows:
+        py = y1 + row["y"] * sc
+        for cx in row["xs"]:
+            px = x1 + cx * sc
+            d.rectangle((px - seat_w / 2, py - seat_h / 2, px + seat_w / 2, py + seat_h / 2),
+                        fill=V4016_SEAT, outline=V4016_SEAT_EDGE, width=edge)
+            arm = seat_h * 0.42
+            d.line((px - arm, py, px + arm, py), fill=V4016_SEAT_EDGE, width=max(1, edge - 1))
+            d.line((px, py - arm, px, py + arm), fill=V4016_SEAT_EDGE, width=max(1, edge - 1))
+
+    # База — левая и верхняя кромка изделия.
+    corner = min(90.0 * sc, (x2 - x1) / 2.0, (y2 - y1) / 2.0)
+    base_w = max(3, int(round(sc * 3.5)))
+    bx = x2 if mirrored else x1
+    d.line((bx, y1 + corner, bx, y2 - corner), fill=V4016_BASE, width=base_w)
+    d.line((x1 + corner, y1, x2 - corner, y1), fill=V4016_BASE, width=base_w)
+    bf = self._font_for_print(20, True)
+    d.text((bx + (-(corner + 12) if mirrored else corner + 12), y1 + base_w + 10), "БАЗА",
+           font=bf, fill=V4016_BASE, anchor="ra" if mirrored else "la")
+
+    mf = self._font_for_print(18, False)
+    uniform = len({row["n"] for row in rows}) == 1
+
+    # Накопительные размеры X — под изделием, до трёх ярусов.
+    # Только если все ряды одинаковые (одна цепочка верна для всех рядов)
+    # и подписи одного яруса не наезжают друг на друга.
+    room_below = max(0.0, gy2 - y2)
+    first = 30.0
+    if uniform and room_below > first + 10:
+        step = max(22.0, min(38.0, (room_below - first - 8) / 2.0))
+        fit_levels = [count for count in (1, 2, 3) if room_below >= first + (count - 1) * step + 8]
+        widest = max(d.textbbox((0, 0), _v4016_fmt(cx), font=mf)[2] for cx in rows[0]["xs"])
+        levels = 0
+        for count in fit_levels:
+            if count * rows[0]["pitch"] * sc >= widest + 14:
+                levels = count
+                break
+        if levels:
+            for index, cx in enumerate(rows[0]["xs"]):
+                px = x1 + cx * sc
+                ly = y2 + first + (index % levels) * step
+                d.line((px, y2, px, ly), fill=(185, 198, 216), width=1)
+                d.line((x1, ly, px, ly), fill=V4016_MARK, width=1)
+                d.ellipse((px - 4, ly - 4, px + 4, ly + 4), fill=V4016_MARK)
+                d.text((px - 5, ly - 5), _v4016_fmt(cx), font=mf, fill=V4016_MARK, anchor="rd")
+
+    # Накопительные размеры Y — слева от изделия; подписи только если
+    # помещаются между изделием и шкалой координатного поля.
+    room_left = max(0.0, (x1 - ml) if not mirrored else (gx2 - x2))
+    if room_left > 40:
+        offset = min(110.0, room_left * 0.55)
+        axis = (x1 - offset) if not mirrored else (x2 + offset)
+        widest = max(d.textbbox((0, 0), _v4016_fmt(row["y"]), font=mf)[2] for row in rows)
+        labels = (room_left - offset) >= widest + 14
+        spacing = V4016_ROW_PITCH * sc
+        for row in rows:
+            py = y1 + row["y"] * sc
+            d.line((x1 if not mirrored else x2, py, axis, py), fill=(185, 198, 216), width=1)
+            d.line((axis, y1, axis, py), fill=V4016_MARK, width=1)
+            d.ellipse((axis - 4, py - 4, axis + 4, py + 4), fill=V4016_MARK)
+            if labels and spacing >= 20:
+                d.text((axis + (10 if mirrored else -10), py), _v4016_fmt(row["y"]), font=mf,
+                       fill=V4016_MARK, anchor="lm" if mirrored else "rm")
+
+    # Таблица рядов и порядок разметки — справа от координатного поля,
+    # в свободной части блока «Карта указателя».
+    # Если справа места нет (очень длинное изделие) — под полем.
+    if right is not None:
+        if right - 24 - (gx2 + 50) >= 460:
+            _v4016_legend(self, d, total, rows, gx2 + 50, mt - 10, right - 24, gy2)
+        elif bottom is not None:
+            _v4016_legend(self, d, total, rows, ml, gy2 + 52, right - 24, bottom)
+
+    # Короткая подпись под координатным полем.
+    try:
+        if uniform:
+            row_text = f"в ряду {rows[0]['n']} шт. с шагом {_v4016_fmt(rows[0]['pitch'])} мм"
+        else:
+            counts = sorted({row["n"] for row in rows})
+            row_text = "в рядах по " + " и ".join(str(c) for c in counts) + " LED"
+        hint = (f"Разметка фронтальных LED: {total} шт., рядов {len(rows)}, межосевой шаг "
+                f"{_v4016_fmt(V4016_ROW_PITCH)} мм, {row_text}. "
+                f"Размеры накопительные от базового угла.")
+        d.text((ml, gy2 + 12), hint, font=self._font_for_print(19, False), fill=V4016_HINT)
+    except Exception:
+        pass
+
+
+def _v4016_ranges(numbers):
+    """[1,2,3,10,11] → «1–3, 10–11»."""
+    out = []
+    start = prev = None
+    for value in sorted(numbers):
+        if start is None:
+            start = prev = value
+        elif value == prev + 1:
+            prev = value
+        else:
+            out.append(f"{start}–{prev}" if prev != start else f"{start}")
+            start = prev = value
+    if start is not None:
+        out.append(f"{start}–{prev}" if prev != start else f"{start}")
+    return ", ".join(out)
+
+
+def _v4016_wrap(d, text, font, width):
+    lines, current = [], ""
+    for word in str(text).split(" "):
+        candidate = word if not current else current + " " + word
+        if d.textbbox((0, 0), candidate, font=font)[2] <= width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _v4016_legend(self, d, total, rows, left, top, right, bottom):
+    """Справа от поля: ряды с координатами и порядок разметки."""
+    width = right - left
+    if width < 460 or bottom - top < 160:
+        return
+    head = self._font_for_print(24, True)
+    bold = self._font_for_print(20, True)
+    reg = self._font_for_print(19, False)
+    line = 27
+    y = top
+
+    def put(text, font, fill=(17, 17, 17), indent=0):
+        nonlocal y
+        for part in _v4016_wrap(d, text, font, width - indent):
+            if y + line > bottom:
+                return False
+            d.text((left + indent, y), part, font=font, fill=fill)
+            y += line
+        return True
+
+    put("РАЗМЕТКА ФРОНТАЛЬНЫХ LED", head, V4016_SEAT_EDGE)
+    y += 4
+    put(f"Всего {total} шт. · рядов {len(rows)} · шаг рядов {_v4016_fmt(V4016_ROW_PITCH)} мм", reg)
+    y += 8
+
+    groups = {}
+    for index, row in enumerate(rows, 1):
+        groups.setdefault(row["n"], []).append((index, row))
+    for count, items in groups.items():
+        numbers = [index for index, _row in items]
+        pitch = items[0][1]["pitch"]
+        title = ("Ряд " if len(numbers) == 1 else "Ряды ") + _v4016_ranges(numbers)
+        if not put(f"{title} — {count} шт., шаг {_v4016_fmt(pitch)} мм", bold):
+            return
+        if not put("Y: " + "; ".join(_v4016_fmt(row["y"]) for _i, row in items), reg, indent=18):
+            return
+        if not put("X: " + "; ".join(_v4016_fmt(cx) for cx in items[0][1]["xs"]), reg,
+                   V4016_MARK, indent=18):
+            return
+        y += 6
+
+    y += 6
+    if not put("ПОРЯДОК РАЗМЕТКИ", bold):
+        return
+    steps = ("1. Отбить базу — левая и верхняя кромка изделия.",
+             "2. По левой кромке отложить Y рядов, провести горизонтали.",
+             "3. По верхней кромке отложить X ряда.",
+             "4. Пересечения — оси LED; корпус 70 × 15 мм клеить симметрично кресту.")
+    for text in steps:
+        if not put(text, reg, indent=0):
+            return
+
+
+ScreenDesigner._v4016_plan = staticmethod(_v4016_plan)
+ScreenDesigner._v4016_markup = _v4016_markup
+
+
+
+# =====================================================================
+# V40.17 — три изменения.
+#
+# 1. Разметка фронтальных LED на карте указателя (журнал изделия)
+#    строится от центральной оси изделия (заменяет правило V40.16):
+#    • база поперёк рядов — центральная ось изделия, она рисуется
+#      штрих-пунктиром;
+#    • поперёк рядов: при размере до 300 мм включительно — ряды на 60 мм
+#      по обе стороны от оси, далее через 120 мм; при большем размере —
+#      ряд на самой оси, далее через 120 мм; ось крайнего ряда не ближе
+#      49,5 мм к кромке; если ряды ±60 не помещаются — один ряд на оси;
+#      если «ряд на оси» даёт один ряд, в котором корпуса наезжают друг
+#      на друга (размер 301–338 мм), берутся ряды ±60;
+#    • вдоль ряда: линия разметки — торец корпуса, первый торец в 54 мм
+#      от базовой кромки, последний корпус заканчивается в 54 мм от
+#      противоположной кромки, шаг одинаковый; все размеры накопительно
+#      от базовой кромки;
+#    • количество — по норме 60 LED на 1 м², распределение по рядам
+#      симметричное;
+#    • изделие шире или квадратное — ряды горизонтальные, ось
+#      горизонтальная, база вдоль ряда — левая кромка;
+#      изделие выше, чем шире — ряды вертикальные, ось вертикальная,
+#      база вдоль ряда — верхняя кромка, корпуса стоят вертикально.
+#
+# 2. Журнал изделия, «ДАННЫЕ УКАЗАТЕЛЯ»: позиция с несколькими
+#    назначениями (уголок: стенка и оргстекло) выводится отдельной
+#    строкой на каждое назначение. Значение строки больше не наезжает
+#    на подпись: шрифт уменьшается, при нехватке места значение
+#    переносится на следующую строку.
+#
+# 3. Прижимная планка МПК 8мм: высота сечения 15 → 10 мм.
+#    Первая полоса 22 мм, шаг 24 мм, 83 полосы на лист, 249 м.п.,
+#    96 г/м.п. Все подписи собираются из констант.
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# 1. Разметка фронтальных LED от оси
+# ---------------------------------------------------------------------
+V4017_LED_W = 70.0            # длина корпуса — вдоль ряда
+V4017_LED_H = 15.0            # ширина корпуса — поперёк ряда
+V4017_ROW_PITCH = 120.0
+V4017_ROW_MIN_EDGE = 49.5
+V4017_LOW_LIMIT = 300.0
+V4017_HALF = 60.0
+V4017_SIDE = 54.0
+
+V4017_BASE = (196, 48, 48)
+V4017_MARK = (31, 111, 235)
+V4017_AXIS = (40, 62, 92)
+V4017_LINE = (96, 150, 112)
+V4017_SEAT = (255, 255, 255)
+V4017_SEAT_EDGE = (20, 93, 37)
+V4017_HINT = (110, 110, 110)
+V4017_GREEN = (210, 235, 215)
+V4017_SPLIT = (114, 91, 0)
+V4017_LEADER = (185, 198, 216)
+
+
+def _v4017_rows_across(breadth, low_rule):
+    """Оси рядов поперёк, от ближней кромки (верхней или левой)."""
+    c = breadth / 2.0
+    out = []
+    if low_rule:
+        k = 0
+        while c - V4017_HALF - V4017_ROW_PITCH * k >= V4017_ROW_MIN_EDGE - 1e-9:
+            off = V4017_HALF + V4017_ROW_PITCH * k
+            out += [c - off, c + off]
+            k += 1
+        if not out:
+            out = [c]
+    else:
+        out = [c]
+        k = 1
+        while c - V4017_ROW_PITCH * k >= V4017_ROW_MIN_EDGE - 1e-9:
+            out += [c - V4017_ROW_PITCH * k, c + V4017_ROW_PITCH * k]
+            k += 1
+    return sorted(out)
+
+
+def _v4017_counts(total, count):
+    """Количество по рядам: поровну, лишние — от середины к краям попарно."""
+    base, extra = divmod(total, count)
+    counts = [base] * count
+    middle = count // 2
+    if count % 2:
+        pairs = [(middle - s, middle + s) for s in range(1, middle + 1)]
+        centre = middle
+    else:
+        pairs = [(middle - 1 - s, middle + s) for s in range(middle)]
+        centre = middle - 1
+    if extra % 2 and count % 2:
+        counts[centre] += 1
+        extra -= 1
+    for a, b in pairs:
+        if extra < 2:
+            break
+        counts[a] += 1
+        counts[b] += 1
+        extra -= 2
+    while extra:
+        counts[centre] += 1
+        extra -= 1
+    return counts
+
+
+def _v4017_pitch(length, n):
+    return 0.0 if n <= 1 else (length - 2 * V4017_SIDE - V4017_LED_W) / (n - 1)
+
+
+def _v4017_plan(w, h):
+    """Раскладка: {"total", "vertical", "length", "breadth", "rows"}.
+
+    Ряд: pos — ось ряда поперёк от ближней кромки; n — шт.; pitch — шаг;
+    starts — торцы корпусов вдоль ряда от базовой кромки.
+    """
+    try:
+        w = float(w); h = float(h)
+    except Exception:
+        return None
+    if w <= 0 or h <= 0:
+        return None
+    vertical = h > w
+    length, breadth = (h, w) if vertical else (w, h)
+    total = max(1, math.ceil(w * h / 1_000_000.0 * MCD_STATIC_1SIDE_LED_PER_SQM - 1e-9))
+    low_rule = breadth <= V4017_LOW_LIMIT
+    across = _v4017_rows_across(breadth, low_rule)
+    if not low_rule and len(across) == 1 and _v4017_pitch(length, total) < V4017_LED_W:
+        # Один ряд на оси с наезжающими корпусами — ряды ±60 от оси.
+        alt = _v4017_rows_across(breadth, True)
+        if len(alt) > 1:
+            across, low_rule = alt, True
+    if len(across) > total:
+        across = [breadth / 2.0]
+    rows = []
+    for pos, n in zip(across, _v4017_counts(total, len(across))):
+        pitch = _v4017_pitch(length, n)
+        starts = ([(length - V4017_LED_W) / 2.0] if n <= 1
+                  else [V4017_SIDE + i * pitch for i in range(n)])
+        rows.append({"pos": pos, "n": n, "pitch": pitch, "starts": starts})
+    return {"total": total, "vertical": vertical, "length": length,
+            "breadth": breadth, "low_rule": low_rule, "rows": rows}
+
+
+def _v4017_fmt(value):
+    text = f"{float(value):.1f}"
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text.replace(".", ",")
+
+
+def _v4017_vspan(px, x1, y1, x2, y2, r):
+    """Вертикальный пролёт скруглённого контура на абсциссе px."""
+    if px < x1 + r:
+        dx = x1 + r - px
+    elif px > x2 - r:
+        dx = px - (x2 - r)
+    else:
+        return y1, y2
+    dy = r - math.sqrt(max(0.0, r * r - dx * dx))
+    return y1 + dy, y2 - dy
+
+
+def _v4017_hspan(py, x1, y1, x2, y2, r):
+    """Горизонтальный пролёт скруглённого контура на ординате py."""
+    if py < y1 + r:
+        dy = y1 + r - py
+    elif py > y2 - r:
+        dy = py - (y2 - r)
+    else:
+        return x1, x2
+    dx = r - math.sqrt(max(0.0, r * r - dy * dy))
+    return x1 + dx, x2 - dx
+
+
+def _v4017_dash(d, xa, ya, xb, yb, fill, width=2, on=14, off=8):
+    length = math.hypot(xb - xa, yb - ya)
+    if length <= 0:
+        return
+    ux, uy = (xb - xa) / length, (yb - ya) / length
+    p = 0.0
+    while p < length:
+        q = min(length, p + on)
+        d.line((xa + ux * p, ya + uy * p, xa + ux * q, ya + uy * q), fill=fill, width=width)
+        p = q + off
+
+
+def _v4017_dashdot(d, xa, ya, xb, yb, fill, width=4):
+    """Штрих-пунктир: штрих 34 — пробел 10 — точка 5 — пробел 10."""
+    length = math.hypot(xb - xa, yb - ya)
+    if length <= 0:
+        return
+    ux, uy = (xb - xa) / length, (yb - ya) / length
+    p = 0.0
+    while p < length:
+        q = min(length, p + 34)
+        d.line((xa + ux * p, ya + uy * p, xa + ux * q, ya + uy * q), fill=fill, width=width)
+        p = q + 10
+        if p < length:
+            q = min(length, p + 5)
+            d.line((xa + ux * p, ya + uy * p, xa + ux * q, ya + uy * q), fill=fill, width=width)
+            p = q + 10
+
+
+def _v4017_vtext(page, cx, cy, text, font, fill):
+    """Подпись, повёрнутая на 90°."""
+    from PIL import Image, ImageDraw
+    probe = ImageDraw.Draw(page)
+    box = probe.textbbox((0, 0), text, font=font)
+    pad = 6
+    label = Image.new("RGBA", (box[2] - box[0] + 2 * pad, box[3] - box[1] + 2 * pad), (255, 255, 255, 0))
+    ImageDraw.Draw(label).text((pad - box[0], pad - box[1]), text, font=font, fill=tuple(fill) + (255,))
+    label = label.rotate(90, expand=True, resample=Image.Resampling.BICUBIC)
+    page.paste(label, (int(cx - label.width / 2), int(cy - label.height / 2)), label)
+
+
+def _v4017_hits(box, rects, pad=3):
+    return any(not (box[2] + pad < r[0] or box[0] - pad > r[2] or box[3] + pad < r[1] or box[1] - pad > r[3])
+               for r in rects)
+
+
+def _v4017_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    """Разметка фронтальных LED от оси на карте указателя (печать журнала)."""
+    if not _v4016_allowed(sign, mode, sides, is_round, w, h):
+        return
+    plan = _v4017_plan(w, h)
+    if not plan or not plan["rows"]:
+        return
+    rows = plan["rows"]
+    vertical = plan["vertical"]
+    breadth = plan["breadth"]
+    r = min(90.0 * sc, (x2 - x1) / 2.0, (y2 - y1) / 2.0)
+    cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+    edge = max(2, int(round(sc * 1.2)))
+    mf = self._font_for_print(18, False)
+    gf = self._font_for_print(20, False)
+    split_label = "" if (w > 2999 or h > 2999) else "2 × П-элемент"
+    split_box = d.textbbox((cx, cy - 8), split_label, font=gf, anchor="ms") if split_label else None
+
+    def to_page(along, across):
+        return ((x1 + across * sc, y1 + along * sc) if vertical
+                else (x1 + along * sc, y1 + across * sc))
+
+    seat_rects = []
+    for row in rows:
+        for start in row["starts"]:
+            ax, ay = to_page(start, row["pos"])
+            if vertical:
+                seat_rects.append((ax - V4017_LED_H * sc / 2, ay, ax + V4017_LED_H * sc / 2,
+                                   ay + V4017_LED_W * sc))
+            else:
+                seat_rects.append((ax, ay - V4017_LED_H * sc / 2, ax + V4017_LED_W * sc,
+                                   ay + V4017_LED_H * sc / 2))
+
+    # Подпись «2 × П-элемент» журнала: если её закрывают корпуса — переносим.
+    on_axis = any(abs(row["pos"] - breadth / 2.0) < 1e-6 for row in rows)
+    move_split = bool(split_box) and ((not vertical and on_axis) or
+                                      (vertical and _v4017_hits(split_box, seat_rects)))
+    if move_split:
+        d.rectangle((split_box[0] - 3, split_box[1] - 3, split_box[2] + 3, split_box[3] + 3),
+                    fill=V4017_GREEN)
+
+    # 1. Центральная ось — штрих-пунктир.
+    room_below = max(0.0, gy2 - y2)
+    if vertical:
+        tail = min(30.0, max(8.0, room_below - 6))
+        _v4017_dashdot(d, cx, y1 - 12, cx, y2 + tail, V4017_AXIS, width=4)
+        if room_below >= 40:
+            d.text((cx + 10, y2 + tail - 2), "ОСЬ", font=self._font_for_print(20, True),
+                   fill=V4017_AXIS, anchor="ld")
+    else:
+        d.line((x1 + 6, cy, x2 - 6, cy), fill=V4017_GREEN, width=8)   # пунктир П-элемента
+        _v4017_dashdot(d, x1 - 12, cy, x2 + 40, cy, V4017_AXIS, width=4)
+        d.text((x2 + 50, cy), "ОСЬ", font=self._font_for_print(22, True), fill=V4017_AXIS, anchor="lm")
+        if move_split:
+            d.text((cx, cy - V4017_LED_H * sc / 2 - 12), split_label, font=gf, fill=V4017_SPLIT,
+                   anchor="ms")
+
+    # 2. Оси рядов и линии разметки торцов.
+    for row in rows:
+        half = min(V4017_ROW_PITCH / 2.0, row["pos"], breadth - row["pos"]) * sc
+        if vertical:
+            px = x1 + row["pos"] * sc
+            top, bot = _v4017_vspan(px, x1, y1, x2, y2, r)
+            _v4017_dash(d, px, top + 10, px, bot - 10, V4017_LINE, width=2)
+            for start in row["starts"]:
+                py = y1 + start * sc
+                lft, rgt = _v4017_hspan(py, x1, y1, x2, y2, r)
+                _v4017_dash(d, max(lft + 6, px - half), py, min(rgt - 6, px + half), py,
+                            V4017_LINE, width=2, on=10, off=7)
+        else:
+            py = y1 + row["pos"] * sc
+            lft, rgt = _v4017_hspan(py, x1, y1, x2, y2, r)
+            _v4017_dash(d, lft + 10, py, rgt - 10, py, V4017_LINE, width=2)
+            for start in row["starts"]:
+                px = x1 + start * sc
+                top, bot = _v4017_vspan(px, x1, y1, x2, y2, r)
+                _v4017_dash(d, px, max(top + 6, py - half), px, min(bot - 6, py + half),
+                            V4017_LINE, width=2, on=10, off=7)
+
+    # 3. Корпуса торцом на линию разметки, красная метка — торец.
+    for box in seat_rects:
+        d.rectangle(box, fill=V4017_SEAT, outline=V4017_SEAT_EDGE, width=edge)
+        if vertical:
+            span = (box[2] - box[0]) * 0.9
+            mid = (box[0] + box[2]) / 2.0
+            d.line((mid - span, box[1], mid + span, box[1]), fill=V4017_BASE, width=edge + 1)
+        else:
+            span = (box[3] - box[1]) * 0.9
+            mid = (box[1] + box[3]) / 2.0
+            d.line((box[0], mid - span, box[0], mid + span), fill=V4017_BASE, width=edge + 1)
+
+    # 4. База вдоль ряда: левая кромка (горизонтальные ряды) или верхняя.
+    base_w = max(3, int(round(sc * 3.5)))
+    bold20 = self._font_for_print(20, True)
+    if vertical:
+        d.line((x1 + r, y1, x2 - r, y1), fill=V4017_BASE, width=base_w)
+        width_box = d.textbbox((cx, y1 - 45), f"{w} мм", font=self._font_for_print(36, True), anchor="ma")
+        tb = d.textbbox((0, 0), "БАЗА", font=bold20)
+        bx = min(x1 + r - 6, width_box[0] - 12)
+        if bx - (tb[2] - tb[0]) >= ml + 4:
+            d.text((bx, y1 - 8), "БАЗА", font=bold20, fill=V4017_BASE, anchor="rs")
+    else:
+        d.line((x1, y1 + r, x1, y2 - r), fill=V4017_BASE, width=base_w)
+        above = [row["pos"] for row in rows if row["pos"] < breadth / 2.0 - 1e-6]
+        mid_mm = (breadth / 2.0 + max(above)) / 2.0 if above else breadth / 4.0
+        tb = d.textbbox((0, 0), "БАЗА", font=bold20)
+        half_len = (tb[2] - tb[0]) / 2.0 + 6
+        mid_px = y1 + mid_mm * sc
+        if mid_px - half_len >= y1 + r and mid_px + half_len <= y2 - r:
+            _v4017_vtext(page, x1 + 18, mid_px, "БАЗА", bold20, V4017_BASE)
+        else:
+            # Короткая прямая кромка (низкое изделие) — подпись под изделием слева.
+            d.text((x1 - 6, y2 + 8), "БАЗА", font=bold20, fill=V4017_BASE, anchor="ra")
+
+    # Подпись «4 × Г-элемент» (изделия больше 3 м): если её закрывают корпуса,
+    # а под изделием нет цепочки размеров — переносим под изделие.
+    chain_below = (not vertical and room_below > 46) or (vertical and room_below > 46)
+    if not split_label:
+        g_label = "4 × Г-элемент"
+        g_box = d.textbbox((cx + 10, cy + 10), g_label, font=gf, anchor="la")
+        if _v4017_hits(g_box, seat_rects) and not chain_below and room_below >= 28:
+            d.rectangle((g_box[0] - 3, g_box[1] - 3, g_box[2] + 3, g_box[3] + 3), fill=V4017_GREEN)
+            for box in seat_rects:
+                if _v4017_hits(g_box, [box]):
+                    d.rectangle(box, fill=V4017_SEAT, outline=V4017_SEAT_EDGE, width=edge)
+            d.text((cx + 10, y2 + 6), g_label, font=gf, fill=V4017_SPLIT, anchor="la")
+
+    used_right = gx2
+    ref = rows[-1]
+    if not vertical:
+        # 5. Торцы от левой кромки — под изделием, накопительно.
+        room = room_below
+        if room > 46:
+            widest = max(d.textbbox((0, 0), _v4017_fmt(v), font=mf)[2] for v in ref["starts"])
+            step = max(24.0, min(36.0, (room - 38) / 2.0))
+            levels = 0
+            for count in (1, 2, 3):
+                if room < 30 + (count - 1) * step + 8:
+                    break
+                if ref["pitch"] <= 0 or count * ref["pitch"] * sc >= widest + 14:
+                    levels = count
+                    break
+            for i, start in enumerate(ref["starts"] if levels else []):
+                px = x1 + start * sc
+                ly = y2 + 30 + (i % levels) * step
+                d.line((px, y2, px, ly), fill=V4017_LEADER, width=1)
+                d.line((x1, ly, px, ly), fill=V4017_MARK, width=1)
+                d.ellipse((px - 4, ly - 4, px + 4, ly + 4), fill=V4017_MARK)
+                d.text((px - 5, ly - 5), _v4017_fmt(start), font=mf, fill=V4017_MARK, anchor="rd")
+        # 6. Ряды от оси — слева.
+        room_left = max(0.0, x1 - ml)
+        if room_left > 60:
+            offset = min(110.0, room_left * 0.55)
+            axis_x = x1 - offset
+            d.line((axis_x - 12, cy, axis_x + 12, cy), fill=V4017_AXIS, width=3)
+            for row in rows:
+                delta = row["pos"] - breadth / 2.0
+                if abs(delta) < 1e-6:
+                    continue
+                py = y1 + row["pos"] * sc
+                d.line((x1, py, axis_x - 10, py), fill=V4017_LEADER, width=1)
+                d.line((axis_x, cy, axis_x, py), fill=V4017_MARK, width=2)
+                d.ellipse((axis_x - 4, py - 4, axis_x + 4, py + 4), fill=V4017_MARK)
+                if room_left - offset >= 60:
+                    d.text((axis_x - 10, py), _v4017_fmt(abs(delta)), font=mf,
+                           fill=V4017_MARK, anchor="rm")
+    else:
+        # 5. Торцы от верхней кромки — справа от изделия, накопительно.
+        xd = x2 + 22
+        label_h = d.textbbox((0, 0), "0", font=mf)[3]
+        show = ref["pitch"] <= 0 or ref["pitch"] * sc >= label_h + 8
+        for start in ref["starts"]:
+            py = y1 + start * sc
+            d.line((x2, py, xd, py), fill=V4017_LEADER, width=1)
+            d.line((xd, y1, xd, py), fill=V4017_MARK, width=1)
+            d.ellipse((xd - 4, py - 4, xd + 4, py + 4), fill=V4017_MARK)
+            if show:
+                text = _v4017_fmt(start)
+                d.text((xd + 8, py), text, font=mf, fill=V4017_MARK, anchor="lm")
+                used_right = max(used_right, xd + 8 + d.textbbox((0, 0), text, font=mf)[2])
+        d.line((xd - 12, y1, xd + 12, y1), fill=V4017_BASE, width=3)
+        # 6. Ряды от оси — под изделием, если есть место.
+        if room_below > 46:
+            for row in rows:
+                delta = row["pos"] - breadth / 2.0
+                if abs(delta) < 1e-6:
+                    continue
+                px = x1 + row["pos"] * sc
+                ly = y2 + 30
+                d.line((px, y2, px, ly), fill=V4017_LEADER, width=1)
+                d.line((cx, ly, px, ly), fill=V4017_MARK, width=2)
+                d.ellipse((px - 4, ly - 4, px + 4, ly + 4), fill=V4017_MARK)
+                d.text((px, ly - 6), _v4017_fmt(abs(delta)), font=mf, fill=V4017_MARK, anchor="md")
+        # Подпись П-элемента — справа, на продолжении линии разъёма.
+        if move_split:
+            tx = max(used_right + 18, gx2 + 12)
+            _v4017_dash(d, x2 + 2, cy, tx - 6, cy, V4017_SPLIT, width=3, on=12, off=8)
+            d.text((tx, cy), split_label, font=gf, fill=V4017_SPLIT, anchor="lm")
+            used_right = max(used_right, tx + d.textbbox((0, 0), split_label, font=gf)[2])
+
+    # 7. Таблица справа (или под полем) и итоговая строка.
+    if right is not None:
+        left = max(gx2 + 50, used_right + 30)
+        if right - 24 - left >= 460:
+            _v4017_legend(self, d, plan, left, mt - 10, right - 24, gy2)
+        elif bottom is not None:
+            _v4017_legend(self, d, plan, ml, gy2 + 52, right - 24, bottom)
+    try:
+        counts = sorted({row["n"] for row in rows})
+        per = (f"в ряду {counts[0]} шт." if len(counts) == 1
+               else "в рядах по " + " и ".join(str(c) for c in counts) + " шт.")
+        if len(rows) == 1:
+            how = "один ряд на оси"
+        elif plan["low_rule"]:
+            how = "ряды ±60 мм от оси"
+        else:
+            how = "ряд на оси, далее через 120 мм"
+        if vertical:
+            tail = "ряды вертикальные, Y — верхний торец корпуса от верхней кромки"
+        else:
+            tail = "X — левый торец корпуса от левой кромки"
+        hint = (f"Разметка фронтальных LED: {plan['total']} шт., рядов {len(rows)} ({how}), {per} "
+                f"{tail}, крайние корпуса в 54 мм от кромок.")
+        d.text((ml, gy2 + 12), hint, font=self._font_for_print(19, False), fill=V4017_HINT)
+    except Exception:
+        pass
+
+
+def _v4017_legend(self, d, plan, left, top, right, bottom):
+    width = right - left
+    if width < 460 or bottom - top < 160:
+        return
+    head = self._font_for_print(24, True)
+    bold = self._font_for_print(20, True)
+    reg = self._font_for_print(19, False)
+    line = 27
+    y = top
+    vertical = plan["vertical"]
+    rows = plan["rows"]
+    breadth = plan["breadth"]
+
+    def put(text, font, fill=(17, 17, 17), indent=0):
+        nonlocal y
+        for part in _v4016_wrap(d, text, font, width - indent):
+            if y + line > bottom:
+                return False
+            d.text((left + indent, y), part, font=font, fill=fill)
+            y += line
+        return True
+
+    put("РАЗМЕТКА ФРОНТАЛЬНЫХ LED", head, V4017_SEAT_EDGE)
+    y += 4
+    put(f"Всего {plan['total']} шт. · рядов {len(rows)}" +
+        (" · ряды вертикальные (высота больше ширины)" if vertical else ""), reg)
+    put("База поперёк рядов — ось изделия, вдоль рядов — " +
+        ("верхняя кромка" if vertical else "левая кромка"), reg)
+    y += 8
+    side_minus, side_plus = ("левее", "правее") if vertical else ("выше", "ниже")
+    coord = "Y" if vertical else "X"
+    groups = {}
+    for index, row in enumerate(rows, 1):
+        groups.setdefault(row["n"], []).append((index, row))
+    for count, items in groups.items():
+        numbers = [index for index, _row in items]
+        title = ("Ряд " if len(numbers) == 1 else "Ряды ") + _v4016_ranges(numbers)
+        pitch = items[0][1]["pitch"]
+        if not put(f"{title} — {count} шт." + (f", шаг {_v4017_fmt(pitch)} мм" if pitch else ""), bold):
+            return
+        marks = []
+        for _index, row in items:
+            delta = row["pos"] - breadth / 2.0
+            marks.append("на оси" if abs(delta) < 1e-6 else
+                         f"{_v4017_fmt(abs(delta))} {side_minus if delta < 0 else side_plus}")
+        if not put("От оси: " + "; ".join(marks), reg, indent=18):
+            return
+        if not put(f"{coord} торцов: " + "; ".join(_v4017_fmt(v) for v in items[0][1]["starts"]),
+                   reg, V4017_MARK, indent=18):
+            return
+        y += 6
+    y += 6
+    if not put("ПОРЯДОК РАЗМЕТКИ", bold):
+        return
+    if vertical:
+        steps = ("1. Провести вертикальную ось изделия — штрих-пунктир.",
+                 "2. От оси отложить оси рядов, провести вертикали.",
+                 "3. От верхней кромки отложить Y — верхние торцы корпусов.",
+                 "4. Корпус ставить верхним торцом на линию, по оси ряда.")
+    else:
+        steps = ("1. Провести центральную ось изделия — штрих-пунктир.",
+                 "2. От оси отложить оси рядов, провести горизонтали.",
+                 "3. От левой кромки отложить X — левые торцы корпусов.",
+                 "4. Корпус ставить левым торцом на линию, по оси ряда.")
+    for text in steps:
+        if not put(text, reg):
+            return
+
+
+_v4016_markup = _v4017_markup
+ScreenDesigner._v4017_plan = staticmethod(_v4017_plan)
+ScreenDesigner._v4016_markup = _v4017_markup
+
+
+# ---------------------------------------------------------------------
+# 2. «ДАННЫЕ УКАЗАТЕЛЯ»: строка на каждое назначение, без наложений
+# ---------------------------------------------------------------------
+V4017_PANEL_ORDER = ("стенка", "оргстекло")
+
+
+def _v4017_cut_rows(self, sign):
+    """Готовые детали изделия после раскроя: [(подпись, значение), …]."""
+    rows = []
+    try:
+        record = dict(sign or {})
+        record["quantity"] = "1"
+        entries = self._cut_map_entries_for_product("static", 0, record)
+    except Exception:
+        return rows
+    try:
+        width = float(record.get("width", 0) or 0)
+        height = float(record.get("height", 0) or 0)
+    except Exception:
+        width = height = 0.0
+    for entry in entries:
+        key = str(entry.get("key", ""))
+        if key in V3077_SKIP_KEYS:
+            continue
+        label = V3077_MATERIAL_LABELS.get(key) or str(entry.get("material", ""))
+        cuts = [int(round(float(c))) for c in entry.get("cuts", []) if float(c) > 0]
+        if not cuts:
+            continue
+        radius = entry.get("bend_radius_mm")
+        details = [item for item in (entry.get("cut_details") or []) if item.get("panel")]
+        if details and not radius:
+            grouped = _v4005_group([(item.get("length_mm"), item.get("axis", ""), item.get("panel", ""))
+                                    for item in details])
+            order = ([panel for panel in V4017_PANEL_ORDER if panel in grouped]
+                     + [panel for panel in grouped if panel not in V4017_PANEL_ORDER])
+            for panel in order:
+                sizes = ", ".join(f"{axis} {count}×{length} мм" if axis else f"{count}×{length} мм"
+                                  for axis, length, count in grouped[panel])
+                rows.append((f"{label} · {panel}", sizes))
+            continue
+        counted = {}
+        for length in cuts:
+            counted[length] = counted.get(length, 0) + 1
+        lengths = sorted(counted, reverse=True)
+        contour = key in V3077_CONTOUR_KEYS and not radius
+        first, second = ("ширина", "высота") if width >= height else ("высота", "ширина")
+        if not contour:
+            parts = [f"{counted[length]}×{length} мм" + (f" (полукольцо R{_v3077_num(radius)})" if radius else "")
+                     for length in lengths]
+        elif len(lengths) == 1:
+            half = counted[lengths[0]] // 2
+            parts = ([f"{first} {half}×{lengths[0]} мм", f"{second} {half}×{lengths[0]} мм"]
+                     if half else [f"{counted[lengths[0]]}×{lengths[0]} мм"])
+        else:
+            long_side, short_side = lengths[0], lengths[-1]
+            parts = [f"{first} {counted[long_side]}×{long_side} мм",
+                     f"{second} {counted[short_side]}×{short_side} мм"]
+            for middle in lengths[1:-1]:
+                parts.append(f"{counted[middle]}×{middle} мм")
+        rows.append((label, "; ".join(parts)))
+    return rows
+
+
+_v3077_cut_rows = _v4017_cut_rows
+ScreenDesigner._v3077_cut_rows = _v4017_cut_rows
+
+
+def _v4017_wrap_value(d, text, font, width):
+    """Перенос значения по «; » и «, », при необходимости — по словам."""
+    tokens = []
+    for chunk in str(text).split("; "):
+        pieces = chunk.split(", ")
+        for index, piece in enumerate(pieces):
+            tokens.append(piece + ("," if index < len(pieces) - 1 else ""))
+        if tokens:
+            tokens[-1] = tokens[-1] + ";"
+    if tokens:
+        tokens[-1] = tokens[-1].rstrip(";")
+    lines, current = [], ""
+    for token in tokens:
+        candidate = token if not current else current + " " + token
+        if d.textbbox((0, 0), candidate, font=font)[2] <= width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = token
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
+def _v4017_draw_data_rows(self, d, vals, left, right, top, bottom, step_max, label_font):
+    """«Данные указателя»: подпись слева, значение справа, без наложения."""
+    gap = 16
+    plan = []
+    for lab, val in vals:
+        lab = str(lab)
+        val = "" if val is None else str(val)
+        label_w = d.textbbox((0, 0), lab, font=label_font)[2]
+        room = right - left - label_w - gap
+        chosen = None
+        for size in (27, 26, 25, 24, 23, 22, 21, 20):
+            font = self._font_for_print(size, False)
+            if not val or d.textbbox((0, 0), val, font=font)[2] <= room:
+                chosen = font
+                break
+        if chosen is not None:
+            plan.append((lab, [val], chosen, True))
+        else:
+            font = self._font_for_print(22, False)
+            plan.append((lab, _v4017_wrap_value(d, val, font, right - left - 24), font, False))
+    lines = sum(1 if inline else 1 + len(parts) for _lab, parts, _font, inline in plan)
+    step = max(28, min(int(step_max), int((bottom - top) // max(1, lines))))
+    yy = top
+    for lab, parts, font, inline in plan:
+        d.text((left, yy), lab, font=label_font, fill="black")
+        if inline:
+            d.text((right, yy), parts[0], font=font, fill="black", anchor="ra")
+            yy += step
+            continue
+        yy += step
+        for part in parts:
+            d.text((right, yy), part, font=font, fill="black", anchor="ra")
+            yy += step
+
+
+ScreenDesigner._v4017_draw_data_rows = _v4017_draw_data_rows
+
+
+# ---------------------------------------------------------------------
+# 3. Прижимная планка МПК 8мм — высота сечения 10 мм
+# ---------------------------------------------------------------------
+V4011_PLANK_H = 10.0
+V4011_FIRST = V4011_MILL + V4011_PLANK_H + V4011_MILL                  # 22 мм
+V4011_PITCH = V4011_GAP + V4011_MILL + V4011_PLANK_H + V4011_MILL      # 24 мм
+V4011_STRIPS = int(1 + (V4011_SHEET_W - V4011_FIRST) // V4011_PITCH)   # 83
+
+V4008_PITCH_MM = V4011_PITCH
+V4008_STRIPS_PER_SHEET = V4011_STRIPS
+V4009_PITCH = V4011_PITCH
+V4009_STRIPS = V4011_STRIPS
+V4009_PLANK_H = V4011_PLANK_H
+
+V4017_MPK_THICK = 8.0
+V4017_MPK_DENSITY = 1.2                                                # г/см³
+V4008_WEIGHT_GPM = round(V4017_MPK_THICK * V4011_PLANK_H * V4017_MPK_DENSITY, 1)   # 96 г/м.п.
+
+
+def _v4017_n(value):
+    text = f"{float(value):.1f}"
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text.replace(".", ",")
+
+
+def _v4017_mpk_run():
+    return V4011_STRIPS * V4011_SHEET_L / 1000.0
+
+
+def _v4017_mpk_yield():
+    return V4011_STRIPS * V4011_PLANK_H / V4011_SHEET_W * 100.0
+
+
+V4008_RULE = (
+    "Ставится на каждый уголок лицевого оргстекла, поэтому расход планки равен расходу "
+    "уголка 30×20×2 на стекло: стороны W — всегда 2 планки длиной (W − 180) мм; стороны H — "
+    "2 планки длиной (H − 180) мм, если H ≥ 600 мм, при H меньше 600 мм на эти стороны "
+    "ни уголка, ни планки. Одностороннее изделие — одно стекло, двустороннее — два. "
+    "На стенку под алюкобонд планка не идёт, круглые изделия планку не используют. "
+    f"Раскрой листа {_v4017_n(V4011_SHEET_L)} × {_v4017_n(V4011_SHEET_W)} мм на ЧПУ: "
+    f"фреза {_v4017_n(V4011_MILL)} мм, зазор между проходами {_v4017_n(V4011_GAP)} мм, "
+    f"высота планки {_v4017_n(V4011_PLANK_H)} мм. У торца листа отступа нет — фреза сразу "
+    f"идёт по кромке планки, поэтому первая полоса занимает {_v4017_n(V4011_FIRST)} мм, "
+    f"каждая следующая {_v4017_n(V4011_PITCH)} мм; на лист входит {V4011_STRIPS} полосы, "
+    f"{_v4017_n(_v4017_mpk_run())} м.п. В полосе между планками {_v4017_n(V4011_CROSS)} мм, "
+    f"от торца полосы {_v4017_n(V4011_END)} мм. "
+    f"Закупка — в кратности листа {_v4017_n(V4011_SHEET_L)} × {_v4017_n(V4011_SHEET_W)} мм."
+)
+
+
+def _v4017_conditions(d, x, y, width, sheets, strips_used, planks):
+    """Печатная карта листа МПК: условия реза, сечение и итог — из констант."""
+    _v4009_text(d, x, y, "УСЛОВИЯ РЕЗА", 11, True)
+    y += _v3048_mm(7.0)
+    rows = (("Лист", f"{_v4017_n(V4011_SHEET_L)} × {_v4017_n(V4011_SHEET_W)} мм, поликарбонат "
+                     f"{_v4017_n(V4017_MPK_THICK)} мм"),
+            ("Фреза", f"{_v4017_n(V4011_MILL)} мм"),
+            ("Высота планки", f"{_v4017_n(V4011_PLANK_H)} мм"),
+            ("Зазор между проходами", f"{_v4017_n(V4011_GAP)} мм"),
+            ("Первая полоса от торца", f"{_v4017_n(V4011_FIRST)} мм — без отступа"),
+            ("Шаг следующих полос", f"{_v4017_n(V4011_PITCH)} мм"),
+            ("Между планками в полосе", f"{_v4017_n(V4011_CROSS)} мм"),
+            ("От торца полосы", f"{_v4017_n(V4011_END)} мм"))
+    for label, value in rows:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 9, True)
+        y += _v3048_mm(8.4)
+
+    y += _v3048_mm(1.5)
+    _v4009_text(d, x, y, "Сечение по высоте — от торца листа", 8, False, _V3048_SUB)
+    y += _v3048_mm(5.0)
+    scale = _v3048_mm(1.45)
+    bar_h = _v3048_mm(9.0)
+    mill, plank, gap = _v4017_n(V4011_MILL), _v4017_n(V4011_PLANK_H), _v4017_n(V4011_GAP)
+    segs = ((mill, V4011_MILL, V4009_MILLC), (plank, V4011_PLANK_H, V4009_PLANK),
+            (mill, V4011_MILL, V4009_MILLC), (gap, V4011_GAP, V4009_GAPC),
+            (mill, V4011_MILL, V4009_MILLC), (plank, V4011_PLANK_H, V4009_PLANK),
+            (mill, V4011_MILL, V4009_MILLC))
+    sx = x
+    for name, size, color in segs:
+        w = size * scale
+        d.rectangle((sx, y, sx + w, y + bar_h), fill=color, outline=_V3048_EDGE, width=1)
+        if w > _v3048_mm(3.5):
+            font = _v3048_font(7, True)
+            box = d.textbbox((0, 0), name, font=font)
+            d.text((sx + (w - (box[2] - box[0])) / 2, y + bar_h / 2 - (box[3] - box[1]) / 2 - box[1]),
+                   name, font=font, fill=_V3048_INK)
+        sx += w
+    y += bar_h + _v3048_mm(2.0)
+    first = V4011_FIRST * scale
+    d.line((x, y, x + first, y), fill=_V3048_INK, width=2)
+    for mark in (x, x + first):
+        d.line((mark, y - _v3048_mm(1.0), mark, y + _v3048_mm(1.0)), fill=_V3048_INK, width=2)
+    _v4009_text(d, x + first + _v3048_mm(2.0), y - _v3048_mm(1.6),
+                f"первая полоса {_v4017_n(V4011_FIRST)} мм, далее по {_v4017_n(V4011_PITCH)} мм",
+                8, True)
+
+    y += _v3048_mm(8.0)
+    _v4009_text(d, x, y, "ИТОГ", 11, True)
+    y += _v3048_mm(7.0)
+    totals = (("Планок в раскрое", f"{planks} шт."),
+              ("Занято полос", f"{strips_used} из {V4011_STRIPS * sheets}"),
+              (f"Листов {_v4017_n(V4011_SHEET_L)} × {_v4017_n(V4011_SHEET_W)}", f"{sheets} шт."),
+              ("Погонаж полос с листа", f"{_v4017_n(_v4017_mpk_run())} м.п."),
+              ("Полезный выход", f"{_v4017_n(_v4017_mpk_yield())} % высоты листа"))
+    for label, value in totals:
+        _v4009_text(d, x, y, label, 8, False, _V3048_SUB)
+        _v4009_text(d, x, y + _v3048_mm(3.4), value, 10, True)
+        y += _v3048_mm(9.0)
+    return y
+
+
+_v4011_conditions = _v4017_conditions
+
+
+def _v4017_rest_label(rest_mm):
+    """Подпись остатка листа: «ещё N полос» — только если полоса туда входит."""
+    more = int((rest_mm - V4011_FIRST) // V4011_PITCH) + 1 if rest_mm >= V4011_FIRST else 0
+    text = f"ДЕЛОВОЙ ОСТАТОК  {_v4017_n(V4011_SHEET_L)} × {rest_mm:.0f} мм"
+    return text + (f" · ещё {more} полос" if more > 0 else "")
+
+
+def _v4017_canvas_header():
+    return (f"Лист {_v4017_n(V4011_SHEET_L)} × {_v4017_n(V4011_SHEET_W)} мм · первая полоса "
+            f"{_v4017_n(V4011_FIRST)} мм, шаг {_v4017_n(V4011_PITCH)} мм · между планками "
+            f"{_v4017_n(V4011_CROSS)} мм")
+
+
+
+# =====================================================================
+# V40.18–V40.24 — разметка фронтальных LED переносится на чертёж стенки
+# под алюкобонд (одностороннее изделие статики МЦД, с подсветкой).
+#
+# • На координатном поле карты указателя, кроме контура указателя,
+#   выводится отдельный контур стенки — по расчётным размерам
+#   алюкобонда (W − 52) × (H − 52) мм. Радиусы условные, как у
+#   указателя, на чертеже не подписываются.
+# • Расположение: изделие длиннее, чем выше, — стенка под указателем;
+#   квадратное или высокое — стенка справа от указателя.
+# • Вся разметка LED — на стенке. На указателе разметки больше нет.
+# • База вдоль ряда — кромка стенки (левая у горизонтальных рядов,
+#   верхняя у вертикальных): первый торец корпуса в 34 мм от базы,
+#   последний корпус заканчивается в 34 мм от противоположной кромки.
+# • Ряды по-прежнему от центральной оси изделия (она же ось стенки):
+#   ±60 мм при размере поперёк рядов до 300 мм, иначе ряд на оси и
+#   через 120 мм; изделие выше, чем шире, — ряды вертикальные.
+# • Текстовых пояснений (таблица, порядок разметки, «ОСЬ», «БАЗА»,
+#   итоговая строка) на поле больше нет — только размеры: интервалы
+#   рядов, отступы 34 мм, шаг и новый размер — расстояние между
+#   торцами соседних корпусов в ряду.
+# =====================================================================
+
+V4018_WALL_TRIM = 52.0         # алюкобонд = габарит − 52 мм
+V4018_WALL_INSET = V4018_WALL_TRIM / 2.0
+V4018_SIDE = 34.0              # от кромки стенки до торца крайнего корпуса
+
+V4018_WALL_FILL = (232, 236, 241)
+V4018_WALL_EDGE = (70, 82, 98)
+V4018_DIM = (31, 111, 235)
+V4018_EXT = (185, 198, 216)
+
+
+def _v4018_allowed(sign, mode, sides, w, h):
+    is_round = bool((sign or {}).get("round", False)) and mode == MODE_MCD
+    try:
+        w = float(w); h = float(h)
+    except Exception:
+        return False
+    if w - V4018_WALL_TRIM <= 0 or h - V4018_WALL_TRIM <= 0:
+        return False
+    return _v4016_allowed(sign or {}, mode, sides, is_round, w, h)
+
+
+def _v4022_layout_for(sign, mode, sides, w, h, area_w, area_h, stacked_force=None):
+    """Место указателя и стенки на координатном поле (мм от начала содержимого).
+
+    Запасы под размеры задаются в пикселях печати и пересчитываются в мм
+    через масштаб поля — так подписи помещаются при любом габарите.
+    """
+    if not _v4018_allowed(sign, mode, sides, w, h):
+        return None
+    w = float(w); h = float(h)
+    aw, ah = w - V4018_WALL_TRIM, h - V4018_WALL_TRIM
+    stacked = (w > h) if stacked_force is None else bool(stacked_force)
+    vertical_rows = h > w
+    # V40.19: у высокого изделия стенка на поле повёрнута на 90° против часовой
+    # стрелки — лежит длинной стороной по горизонтали, верхняя кромка стенки
+    # (база вертикальных рядов) оказывается слева, ряды — горизонтальными.
+    rotated = vertical_rows
+    dw, dh = (ah, aw) if rotated else (aw, ah)      # размер стенки на чертеже
+    sx, sy = float(MCD_MODULE_W), float(MCD_MODULE_H)
+    need_above = 60.0                   # подпись ширины стенки
+    need_left = 250.0                   # цепь интервалов на выносках, габарит, зазор
+    need_below = 110.0                  # V40.24: цепь вдоль ряда под стенкой
+    sc = min(area_w / max(1.0, w), area_h / max(1.0, h))
+    layout = None
+    for _ in range(6):
+        above, left, below = need_above / sc, need_left / sc, need_below / sc
+        sign_top, sign_left = 60.0 / sc, 60.0 / sc     # подписи габарита указателя
+        if stacked:
+            gap = max(100.0, above)
+            pad_l = max(sign_left, left - V4018_WALL_INSET)
+            content_w = pad_l + w
+            content_h = sign_top + h + gap + ah + below
+            sign_xy = (pad_l, sign_top)
+            wall_xy = (pad_l + V4018_WALL_INSET, sign_top + h + gap)
+        else:
+            gap = max(160.0, left)
+            inset = (h - dh) / 2.0                   # стенка по центру высоты указателя
+            pad_t = max(sign_top, above - inset)
+            pad_b = max(0.0, below - inset)
+            content_w = sign_left + w + gap + dw
+            content_h = pad_t + h + pad_b
+            sign_xy = (sign_left, pad_t)
+            wall_xy = (sign_left + w + gap, pad_t + inset)
+        view_w = max(sx, math.ceil(content_w / sx) * sx)
+        view_h = max(sy, math.ceil(content_h / sy) * sy)
+        if view_w - content_w < sx * 0.35:
+            view_w += sx
+        if view_h - content_h < sy * 0.35:
+            view_h += sy
+        new_sc = min(area_w / view_w, area_h / view_h)
+        layout = {"stacked": stacked, "vertical_rows": vertical_rows, "aw": aw, "ah": ah,
+                  "rotated": rotated, "dw": dw, "dh": dh,
+                  "content_w": content_w, "content_h": content_h,
+                  "sign_dx": sign_xy[0], "sign_dy": sign_xy[1],
+                  "wall_dx": wall_xy[0] - sign_xy[0], "wall_dy": wall_xy[1] - sign_xy[1],
+                  "sc": new_sc}
+        if abs(new_sc - sc) < 1e-6:
+            break
+        sc = new_sc
+    return layout
+
+
+def _v4018_content(sign, mode, sides, w, h, content_w, content_h, area_w, area_h):
+    """Размер содержимого координатного поля журнала (с учётом стенки)."""
+    layout = _v4018_layout(sign, mode, sides, w, h, area_w, area_h)
+    if not layout or layout.get("rotated"):
+        # Высокое изделие: стенка вне сетки, в своём масштабе (V40.21).
+        return content_w, content_h, 0.0, 0.0
+    return layout["content_w"], layout["content_h"], layout["sign_dx"], layout["sign_dy"]
+
+
+def _v4018_plan(w, h):
+    """Раскладка на стенке: ряды от оси изделия, торцы от кромки стенки."""
+    try:
+        w = float(w); h = float(h)
+    except Exception:
+        return None
+    if w <= V4018_WALL_TRIM or h <= V4018_WALL_TRIM:
+        return None
+    vertical = h > w
+    length, breadth = (h, w) if vertical else (w, h)
+    wall_len = length - V4018_WALL_TRIM
+    total = max(1, math.ceil(w * h / 1_000_000.0 * MCD_STATIC_1SIDE_LED_PER_SQM - 1e-9))
+
+    def pitch_for(n):
+        return 0.0 if n <= 1 else (wall_len - 2 * V4018_SIDE - V4017_LED_W) / (n - 1)
+
+    low_rule = breadth <= V4017_LOW_LIMIT
+    across = _v4017_rows_across(breadth, low_rule)
+    if not low_rule and len(across) == 1 and pitch_for(total) < V4017_LED_W:
+        alt = _v4017_rows_across(breadth, True)
+        if len(alt) > 1:
+            across, low_rule = alt, True
+    if len(across) > total:
+        across = [breadth / 2.0]
+    rows = []
+    for pos, n in zip(across, _v4017_counts(total, len(across))):
+        pitch = pitch_for(n)
+        starts = ([(wall_len - V4017_LED_W) / 2.0] if n <= 1
+                  else [V4018_SIDE + i * pitch for i in range(n)])
+        rows.append({"pos": pos - V4018_WALL_INSET, "n": n, "pitch": pitch, "starts": starts})
+    return {"total": total, "vertical": vertical, "wall_len": wall_len,
+            "wall_breadth": breadth - V4018_WALL_TRIM, "low_rule": low_rule, "rows": rows}
+
+
+def _v4018_tick(d, x, y, horizontal, size=7, fill=V4018_DIM):
+    """Засечка размерной линии — наклонная, как на строительных чертежах."""
+    d.line((x - size, y + size, x + size, y - size), fill=fill, width=2)
+
+
+def _v4018_chain_h(self, d, xs, y, font, below=True, fill=V4018_DIM):
+    """Горизонтальная размерная цепь по узлам xs (пиксели) на линии y."""
+    if len(xs) < 2:
+        return
+    d.line((xs[0], y, xs[-1], y), fill=fill, width=2)
+    for x in xs:
+        _v4018_tick(d, x, y, True, fill=fill)
+    return
+
+
+def _v4018_label_h(d, xa, xb, y, text, font, below=True, fill=V4018_DIM):
+    box = d.textbbox((0, 0), text, font=font)
+    tw, th = box[2] - box[0], box[3] - box[1]
+    cx = (xa + xb) / 2.0
+    ty = y + 6 if below else y - 6 - th
+    d.text((cx - tw / 2.0, ty - box[1]), text, font=font, fill=fill)
+
+
+def _v4018_label_v(page, d, ya, yb, x, text, font, right=True, fill=V4018_DIM):
+    box = d.textbbox((0, 0), text, font=font)
+    th = box[3] - box[1]
+    cx = x + (8 + th / 2.0 + 4) * (1 if right else -1)
+    _v4017_vtext(page, cx, (ya + yb) / 2.0, text, font, fill)
+
+
+def _v4018_along_nodes(row, wall_len):
+    starts = row["starts"]
+    nodes = [0.0] + list(starts) + [starts[-1] + V4017_LED_W, wall_len]
+    return nodes
+
+
+def _v4018_along_labels(d, row, wall_len, sc, font):
+    """Подписи цепи вдоль ряда: [(от, до, текст)] в мм.
+
+    Если шаг на печати уже подписи — шаги объединяются в одну подпись
+    «шаг × количество».
+    """
+    starts = row["starts"]
+    last = starts[-1]
+    out = [(0.0, starts[0], _v4017_fmt(starts[0]))]
+    if len(starts) > 1:
+        pitch = row["pitch"]
+        text = _v4017_fmt(pitch)
+        width = d.textbbox((0, 0), text, font=font)[2]
+        if pitch * sc >= width + 8:
+            out += [(a, b, text) for a, b in zip(starts, starts[1:])]
+        else:
+            out.append((starts[0], last, f"{text} × {len(starts) - 1}"))
+    out.append((last, last + V4017_LED_W, _v4017_fmt(V4017_LED_W)))
+    out.append((last + V4017_LED_W, wall_len, _v4017_fmt(wall_len - last - V4017_LED_W)))
+    return out
+
+
+V4020_SIGN_SHARE_SIDE = 0.42      # наибольшая доля ширины поля под указатель
+V4020_WALL_MAX_SC = 2.6           # предельный масштаб стенки, пикс/мм
+V4020_NEED_LEFT = 235.0           # слева от стенки: цепь интервалов на выносках и габарит
+V4020_NEED_ABOVE = 62.0           # над стенкой: подпись ширины
+V4020_NEED_BELOW = 110.0          # V40.24: цепь вдоль ряда под стенкой
+
+
+V4022_STACK_TOLERANCE = 1.10   # «справа» должно выигрывать в масштабе больше 10 %
+
+
+def _v4018_layout(sign, mode, sides, w, h, area_w, area_h):
+    """V40.22: расположение стенки выбирается по масштабу.
+
+    • высокое изделие (H > W) — стенка справа, в своём масштабе;
+    • квадратное — справа;
+    • длинное — считаются оба варианта; стенка под указателем, только если
+      расположение справа даёт масштаб крупнее менее чем на 10 %.
+    """
+    try:
+        long_item = float(w) > float(h)
+    except Exception:
+        return None
+    if not long_item:
+        return _v4022_layout_for(sign, mode, sides, w, h, area_w, area_h, False)
+    below = _v4022_layout_for(sign, mode, sides, w, h, area_w, area_h, True)
+    side = _v4022_layout_for(sign, mode, sides, w, h, area_w, area_h, False)
+    if not below or not side:
+        return below or side
+    return side if side["sc"] >= below["sc"] * V4022_STACK_TOLERANCE else below
+
+
+def _v4020_sign_area(sign, mode, sides, w, h, ml, mt, mr, mb):
+    """Границы сетки указателя: остальная часть блока отдаётся стенке."""
+    if not _v4018_allowed(sign, mode, sides, w, h):
+        return mr, mb
+    w = float(w); h = float(h)
+    sx, sy = float(MCD_MODULE_W), float(MCD_MODULE_H)
+    view_w = max(sx, math.ceil(w / sx) * sx)
+    view_h = max(sy, math.ceil(h / sy) * sy)
+    if view_w - w < sx * 0.35:
+        view_w += sx
+    if view_h - h < sy * 0.35:
+        view_h += sy
+    if h <= w:
+        return mr, mb                               # длинное и квадратное — общий масштаб
+    natural = view_w * (mb - mt) / view_h          # ширина сетки при полной высоте
+    return ml + min(natural, (mr - ml) * V4020_SIGN_SHARE_SIDE), mb
+
+
+def _v4020_wall_frame(layout, dw, dh, ml, mt, gx2, gy2, right, bottom):
+    """(масштаб, x, y) стенки в свободной части блока карты."""
+    block_bottom = bottom + 15                    # bottom = нижняя граница поля + 70
+    if layout["stacked"]:
+        left, top = ml - 60, gy2 + 34
+    else:
+        left, top = gx2 + 40, mt - 30
+    rgt, bot = right - 30, block_bottom - 18
+    avail_w = rgt - left - V4020_NEED_LEFT - 10
+    avail_h = bot - top - V4020_NEED_ABOVE - V4020_NEED_BELOW
+    if avail_w <= 50 or avail_h <= 30:
+        return None
+    sc = min(avail_w / dw, avail_h / dh, V4020_WALL_MAX_SC)
+    x0 = left + V4020_NEED_LEFT + (avail_w - dw * sc) / 2.0
+    y0 = top + V4020_NEED_ABOVE + (avail_h - dh * sc) / 2.0
+    return sc, x0, y0
+
+
+def _v4018_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    """Чертёж стенки под алюкобонд с разметкой фронтальных LED (печать журнала)."""
+    if right is None or bottom is None:
+        return
+    area_w = (right - 100) - ml
+    area_h = (bottom - 70) - mt
+    layout = _v4018_layout(sign, mode, sides, w, h, area_w, area_h)
+    plan = _v4018_plan(w, h)
+    if not layout or not plan or not plan["rows"]:
+        return
+    rows = plan["rows"]
+    vertical = plan["vertical"]
+    aw, ah = layout["aw"], layout["ah"]
+    if layout.get("rotated"):
+        # Стенка повёрнута на 90° против часовой: верх стенки — слева,
+        # левая кромка — снизу; вертикальные ряды рисуются горизонтальными.
+        vertical = False
+        aw, ah = layout["dw"], layout["dh"]
+        rows = [dict(row, pos=plan["wall_breadth"] - row["pos"]) for row in rows]
+    # V40.20: у стенки свой масштаб — она занимает свободную часть блока
+    # «Карта указателя» (под сеткой указателя у длинных изделий, справа —
+    # у квадратных и высоких). Все размеры на стенке проставлены явно.
+    # V40.21: свой масштаб — только у высоких изделий; длинные и квадратные
+    # рисуются в масштабе сетки указателя, как в V40.19.
+    if layout.get("rotated"):
+        frame = _v4020_wall_frame(layout, aw, ah, ml, mt, gx2, gy2, right, bottom)
+        if not frame:
+            return
+        sc, ax1, ay1 = frame
+    else:
+        ax1 = x1 + layout["wall_dx"] * sc
+        ay1 = y1 + layout["wall_dy"] * sc
+    ax2, ay2 = ax1 + aw * sc, ay1 + ah * sc
+    r = min(90.0 * sc, (ax2 - ax1) / 2.0, (ay2 - ay1) / 2.0)
+    acx, acy = (ax1 + ax2) / 2.0, (ay1 + ay2) / 2.0
+    edge = max(2, int(round(sc * 1.2)))
+    dim_font = self._font_for_print(30 if layout.get("rotated") else 28, False)
+    breadth = plan["wall_breadth"]
+    wall_len = plan["wall_len"]
+
+    # Контур стенки.
+    d.rounded_rectangle((ax1, ay1, ax2, ay2), radius=r, fill=V4018_WALL_FILL,
+                        outline=V4018_WALL_EDGE, width=max(4, int(round(sc * 4))))
+
+    def to_page(along, across):
+        return ((ax1 + across * sc, ay1 + along * sc) if vertical
+                else (ax1 + along * sc, ay1 + across * sc))
+
+    # Ось изделия (она же ось стенки) — штрих-пунктир.
+    if vertical:
+        _v4017_dashdot(d, acx, ay1 - 14, acx, ay2 + 14, V4017_AXIS, width=3)
+    else:
+        _v4017_dashdot(d, ax1 - 14, acy, ax2 + 14, acy, V4017_AXIS, width=3)
+
+    # Оси рядов и линии разметки торцов.
+    for row in rows:
+        half = min(V4017_ROW_PITCH / 2.0, row["pos"], breadth - row["pos"]) * sc
+        if vertical:
+            px = ax1 + row["pos"] * sc
+            top, bot = _v4017_vspan(px, ax1, ay1, ax2, ay2, r)
+            _v4017_dash(d, px, top + 8, px, bot - 8, V4017_LINE, width=2)
+            for start in row["starts"]:
+                py = ay1 + start * sc
+                lft, rgt = _v4017_hspan(py, ax1, ay1, ax2, ay2, r)
+                _v4017_dash(d, max(lft + 4, px - half), py, min(rgt - 4, px + half), py,
+                            V4017_LINE, width=2, on=10, off=7)
+        else:
+            py = ay1 + row["pos"] * sc
+            lft, rgt = _v4017_hspan(py, ax1, ay1, ax2, ay2, r)
+            _v4017_dash(d, lft + 8, py, rgt - 8, py, V4017_LINE, width=2)
+            for start in row["starts"]:
+                px = ax1 + start * sc
+                top, bot = _v4017_vspan(px, ax1, ay1, ax2, ay2, r)
+                _v4017_dash(d, px, max(top + 4, py - half), px, min(bot - 4, py + half),
+                            V4017_LINE, width=2, on=10, off=7)
+
+    # Корпуса торцом на линию разметки; красная метка — торец.
+    seat_long, seat_short = V4017_LED_W * sc, V4017_LED_H * sc
+    for row in rows:
+        for start in row["starts"]:
+            px, py = to_page(start, row["pos"])
+            if vertical:
+                box = (px - seat_short / 2, py, px + seat_short / 2, py + seat_long)
+                d.rectangle(box, fill=V4017_SEAT, outline=V4017_SEAT_EDGE, width=edge)
+                d.line((px - seat_short * 0.9, py, px + seat_short * 0.9, py),
+                       fill=V4017_BASE, width=edge + 1)
+            else:
+                box = (px, py - seat_short / 2, px + seat_long, py + seat_short / 2)
+                d.rectangle(box, fill=V4017_SEAT, outline=V4017_SEAT_EDGE, width=edge)
+                d.line((px, py - seat_short * 0.9, px, py + seat_short * 0.9),
+                       fill=V4017_BASE, width=edge + 1)
+
+    # База вдоль рядов — кромка стенки.
+    base_w = max(3, int(round(sc * 3.5)))
+    if vertical:
+        d.line((ax1 + r, ay1, ax2 - r, ay1), fill=V4017_BASE, width=base_w)
+    else:
+        d.line((ax1, ay1 + r, ax1, ay2 - r), fill=V4017_BASE, width=base_w)
+
+    # Габарит стенки — как у указателя: ширина сверху, высота слева.
+    # У горизонтальных рядов слева идёт цепь интервалов — высоту ставим левее неё.
+    size_font = self._font_for_print(30, True)
+    d.text((acx, ay1 - 45), f"{_v4017_fmt(aw)} мм", font=size_font, fill=V4018_WALL_EDGE, anchor="ma")
+    _v4017_vtext(page, ax1 - (30 if vertical else 200), acy, f"{_v4017_fmt(ah)} мм", size_font,
+                 V4018_WALL_EDGE)
+
+    # V40.23: размеры разметки — крупным шрифтом, на выносках, и только
+    # отличающиеся значения (одинаковый интервал подписывается один раз).
+    segs = []
+    taken = [d.textbbox((acx, ay1 - 45), f"{_v4017_fmt(aw)} мм", font=size_font, anchor="ma")]
+
+    def callout(px, py, text, dx, dy):
+        """Выноска: точка на размерной линии → наклонная → полка с текстом."""
+        tb = d.textbbox((0, 0), text, font=dim_font)
+        tw, th = tb[2] - tb[0], tb[3] - tb[1]
+        # V40.24: выноска не должна пересекать уже нарисованные выноски и
+        # подписи — сначала удлиняется вдоль ряда, затем полка уходит ниже.
+        sgn = 1 if dx >= 0 else -1
+        best = None
+        for level in range(4):
+            for attempt in range(6):
+                ex = px + dx + sgn * attempt * (tw + 24)
+                ey = py + dy + level * (th + 14) * (1 if dy >= 0 else -1)
+                shelf_end = ex + sgn * (tw + 12)
+                box = (min(ex, shelf_end), ey - th - 8, max(ex, shelf_end), ey + 2)
+                cand = [(px, py, ex, ey), (ex, ey, shelf_end, ey)]
+                if _v4017_hits(box, taken, pad=4):
+                    continue
+                if any(_v4024_cross(c, sg) for c in cand for sg in segs):
+                    continue
+                best = (ex, ey, box, cand)
+                break
+            if best:
+                break
+        if best is None:
+            ex, ey = px + dx, py + dy
+            box = (min(ex, ex + sgn * (tw + 12)), ey - th - 8, max(ex, ex + sgn * (tw + 12)), ey + 2)
+            cand = [(px, py, ex, ey), (ex, ey, ex + sgn * (tw + 12), ey)]
+        else:
+            ex, ey, box, cand = best
+        segs.extend(cand)
+        taken.append(box)
+        d.ellipse((px - 4, py - 4, px + 4, py + 4), fill=V4018_DIM)
+        d.line((px, py, ex, ey), fill=V4018_DIM, width=2)
+        if dx >= 0:
+            d.line((ex, ey, ex + tw + 12, ey), fill=V4018_DIM, width=2)
+            d.text((ex + 6, ey - 4), text, font=dim_font, fill=V4018_DIM, anchor="ld")
+        else:
+            d.line((ex - tw - 12, ey, ex, ey), fill=V4018_DIM, width=2)
+            d.text((ex - 6, ey - 4), text, font=dim_font, fill=V4018_DIM, anchor="rd")
+
+    def chain(points, fixed, horizontal):
+        if horizontal:
+            d.line((points[0], fixed, points[-1], fixed), fill=V4018_DIM, width=2)
+            for p in points:
+                _v4018_tick(d, p, fixed, True)
+        else:
+            d.line((fixed, points[0], fixed, points[-1]), fill=V4018_DIM, width=2)
+            for p in points:
+                _v4018_tick(d, fixed, p, False)
+
+    # Интервалы рядов поперёк — от кромки через ряды и ось до кромки.
+    nodes = sorted({0.0, breadth} | {row["pos"] for row in rows})   # V40.24: ось цепь не делит
+    seen_rows = set()
+    if vertical:
+        hy = ay2 + 30
+        for v in nodes:
+            d.line((ax1 + v * sc, ay2 - 4, ax1 + v * sc, hy + 8), fill=V4018_EXT, width=1)
+        chain([ax1 + v * sc for v in nodes], hy, True)
+        for a, b in zip(nodes, nodes[1:]):
+            text = _v4017_fmt(b - a)
+            if text not in seen_rows:
+                seen_rows.add(text)
+                callout(ax1 + (a + b) / 2.0 * sc, hy, text, 18, 24)
+    else:
+        vx = ax1 - 72
+        for v in nodes:
+            py = ay1 + v * sc
+            d.line((ax1 + (0 if v in (0.0, breadth) else 4), py, vx - 8, py), fill=V4018_EXT, width=1)
+        chain([ay1 + v * sc for v in nodes], vx, False)
+        for a, b in zip(nodes, nodes[1:]):
+            text = _v4017_fmt(b - a)
+            if text not in seen_rows:
+                seen_rows.add(text)
+                callout(vx, ay1 + (a + b) / 2.0 * sc, text, -20, -18)
+
+    # Вдоль ряда: по одному ряду на каждую группу с одинаковым шагом —
+    # цепь 34 · шаг … · 70 · 34 и расстояние между торцами соседних корпусов.
+    groups = {}
+    for row in rows:
+        groups.setdefault(row["n"], []).append(row)
+    seen_along = set()
+    for _count, items in groups.items():
+        row = min(items, key=lambda item: item["pos"])
+        starts = row["starts"]
+        along = _v4018_along_nodes(row, wall_len)
+        gap_mm = row["pitch"] - V4017_LED_W if row["n"] > 1 else 0.0
+        labels = [(0.0, starts[0])]
+        if len(starts) > 1:
+            labels.append((starts[0], starts[1]))
+        labels += [(starts[-1], starts[-1] + V4017_LED_W), (starts[-1] + V4017_LED_W, wall_len)]
+        if vertical:
+            cxp = ax1 + row["pos"] * sc
+            lx = cxp + seat_short / 2 + 10
+            chain([ay1 + v * sc for v in along], lx, False)
+            for a, b in labels:
+                text = _v4017_fmt(b - a)
+                if text not in seen_along:
+                    seen_along.add(text)
+                    callout(lx, ay1 + (a + b) / 2.0 * sc, text, 22, -14)
+            if gap_mm > 0:
+                ga, gb = starts[0] + V4017_LED_W, starts[1]
+                gx = cxp - seat_short / 2 - 10
+                chain([ay1 + ga * sc, ay1 + gb * sc], gx, False)
+                callout(gx, ay1 + (ga + gb) / 2.0 * sc, _v4017_fmt(gap_mm), -22, -14)
+        else:
+            # V40.24: цепь вдоль ряда — под стенкой, вне контура. Подписаны
+            # поле до крайнего торца с обеих сторон и шаг (у крайних пар и
+            # обычный, если они отличаются). Расстояние между торцами — над
+            # рядом и только там, где оно отличается от 65 мм.
+            cyp = ay1 + row["pos"] * sc
+            ly = ay2 + 30
+            xs = [ax1 + v * sc for v in along]
+            for xv in xs[1:-1]:
+                d.line((xv, ay2 + 2, xv, ly + 8), fill=V4018_EXT, width=1)
+            chain(xs, ly, True)
+            last_end = starts[-1] + V4017_LED_W
+            callout(ax1 + starts[0] / 2.0 * sc, ly, _v4017_fmt(starts[0]), -22, 40)
+            callout(ax1 + (last_end + wall_len) / 2.0 * sc, ly, _v4017_fmt(wall_len - last_end), 22, 40)
+            if len(starts) > 1:
+                first = (starts[0], starts[1])
+                mid_i = (len(starts) - 1) // 2
+                middle = (starts[mid_i], starts[mid_i + 1])
+                pairs = [first]
+                if abs((middle[1] - middle[0]) - (first[1] - first[0])) > 0.05:
+                    pairs.append(middle)
+                for a, b in pairs:
+                    callout(ax1 + (a + b) / 2.0 * sc, ly, _v4017_fmt(b - a), 20, 40)
+            seen_gap = set()
+            for k in range(len(starts) - 1):
+                ga, gb = starts[k] + V4017_LED_W, starts[k + 1]
+                if abs((gb - ga) - V4024_GAP) < 0.05:
+                    continue
+                text = _v4017_fmt(gb - ga)
+                if text in seen_gap:
+                    continue
+                seen_gap.add(text)
+                gyl = cyp - seat_short / 2 - 10
+                chain([ax1 + ga * sc, ax1 + gb * sc], gyl, True)
+                callout(ax1 + (ga + gb) / 2.0 * sc, gyl, text, 20, -30)
+
+_v4016_markup = _v4018_markup
+ScreenDesigner._v4016_markup = _v4018_markup
+ScreenDesigner._v4018_plan = staticmethod(_v4018_plan)
+
+
+# =====================================================================
+# V40.24 (пробная) — количество фронтальных LED одностороннего
+# прямоугольного МЦД считается по сетке разметки на стенке, а не по
+# норме 60 шт./м². Круглые и особая геометрия 800 × 400 — по-прежнему
+# по норме.
+#
+# Сетка на стенке (W − 52) × (H − 52):
+#   • корпус 70 × 15 мм, между торцами 65 мм — шаг в ряду 135 мм;
+#   • шаг рядов 120 мм (горизонтальные), 130 мм (вертикальные — изделие
+#     выше, чем шире); ряды симметрично относительно оси изделия;
+#   • от кромки стенки до края корпуса — не меньше 32 мм;
+#   • в ряду — сколько помещается целиком, остаток поровну на оба торца;
+#   • если следующему светодиоду при шаге 135 мм не хватает до поля 32 мм
+#     не больше 20 мм — он ставится, а недостающее забирается поровну из
+#     зазоров первой и последней пары; поля у торцов — ровно 32 мм.
+#   • количество = ряды × светодиоды в ряду.
+# =====================================================================
+V4024_LED_L = 70.0
+V4024_LED_T = 15.0
+V4024_GAP = 65.0
+V4024_PITCH = V4024_LED_L + V4024_GAP
+V4024_EDGE = 32.0
+V4024_ROW_H = 120.0
+V4024_ROW_V = 130.0
+V4024_EXTRA_LIMIT = 20.0
+
+
+def _v4024_cross(s1, s2):
+    """Пересекаются ли два отрезка (касание концами не считается)."""
+    (x1, y1, x2, y2), (x3, y3, x4, y4) = s1, s2
+
+    def side(ax, ay, bx, by, cx, cy):
+        return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+
+    d1 = side(x3, y3, x4, y4, x1, y1)
+    d2 = side(x3, y3, x4, y4, x2, y2)
+    d3 = side(x1, y1, x2, y2, x3, y3)
+    d4 = side(x1, y1, x2, y2, x4, y4)
+    return d1 * d2 < 0 and d3 * d4 < 0
+
+
+def _v4024_row_starts(wall_len):
+    """Торцы корпусов вдоль ряда от базовой кромки стенки."""
+    avail = wall_len - 2 * V4024_EDGE
+    if avail < V4024_LED_L:
+        return [(wall_len - V4024_LED_L) / 2.0] if wall_len >= V4024_LED_L else []
+    n = int((avail + V4024_GAP) // V4024_PITCH)
+    need = (n + 1) * V4024_LED_L + n * V4024_GAP
+    short = need - avail
+    if short <= V4024_EXTRA_LIMIT:
+        count = n + 1
+        gaps = [V4024_GAP] * (count - 1)
+        if count - 1 == 1:
+            gaps[0] -= short
+        elif gaps:
+            gaps[0] -= short / 2.0
+            gaps[-1] -= short / 2.0
+        start = V4024_EDGE
+    else:
+        count = n
+        gaps = [V4024_GAP] * (count - 1)
+        start = V4024_EDGE + (avail - (count * V4024_LED_L + (count - 1) * V4024_GAP)) / 2.0
+    starts = [start]
+    for gap in gaps:
+        starts.append(starts[-1] + V4024_LED_L + gap)
+    return starts
+
+
+def _v4024_plan(w, h):
+    try:
+        w = float(w); h = float(h)
+    except Exception:
+        return None
+    if w <= V4018_WALL_TRIM or h <= V4018_WALL_TRIM:
+        return None
+    vertical = h > w
+    length, breadth = (h, w) if vertical else (w, h)
+    wall_len, wall_breadth = length - V4018_WALL_TRIM, breadth - V4018_WALL_TRIM
+    pitch = V4024_ROW_V if vertical else V4024_ROW_H
+    span = wall_breadth - 2 * V4024_EDGE - V4024_LED_T
+    count = int(span // pitch) + 1 if span >= 0 else 1
+    first = (wall_breadth - (count - 1) * pitch) / 2.0
+    starts = _v4024_row_starts(wall_len)
+    rows = [{"pos": first + i * pitch, "n": len(starts), "pitch": V4024_PITCH, "starts": list(starts)}
+            for i in range(count)] if starts else []
+    return {"total": len(rows) * len(starts), "vertical": vertical, "wall_len": wall_len,
+            "wall_breadth": wall_breadth, "low_rule": True, "rows": rows}
+
+
+def _v4024_grid_count(w, h):
+    plan = _v4024_plan(w, h)
+    return plan["total"] if plan else 0
+
+
+_v4018_plan = _v4024_plan
+ScreenDesigner._v4018_plan = staticmethod(_v4024_plan)
+ScreenDesigner._v4024_grid_count = staticmethod(_v4024_grid_count)
+
+V4024_RULE = (
+    "Прямоугольное изделие: количество по сетке разметки на стенке под алюкобонд "
+    "(W − 52) × (H − 52) мм. Корпус 70 × 15 мм, между торцами 65 мм (шаг 135 мм); шаг рядов "
+    "120 мм, у изделий выше, чем шире, ряды вертикальные с шагом 130 мм; ряды симметрично "
+    "относительно оси изделия. От кромки стенки до края корпуса не меньше 32 мм, остаток в ряду "
+    "делится поровну на оба торца. Если следующему светодиоду не хватает до поля 32 мм не больше "
+    "20 мм — он ставится, недостающее забирается поровну из зазоров первой и последней пары. "
+    "Количество = ряды × светодиоды в ряду. Круглое изделие — 60 шт. на 1 м² площади π·D²/4, "
+    "округление вверх."
+)
+V4024_LED_NAME = "Фронтальный светодиод 70×15 мм, 1,5 Вт"
+
+
+def _v4024_reference_rule(data):
+    for row in (data or {}).get("МЦД / 1 сторона / с подсветкой") or []:
+        if isinstance(row, list) and row and str(row[0]).strip() == V4024_LED_NAME:
+            while len(row) < 5:
+                row.append("")
+            row[1] = V4024_RULE
+    return data
+
+
+_v4024_orig_reference_defaults = ScreenDesigner._reference_defaults
+_v4024_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_defaults = lambda self: _v4024_reference_rule(_v4024_orig_reference_defaults(self))
+ScreenDesigner._reference_load = lambda self: _v4024_reference_rule(_v4024_orig_reference_load(self))
+
+
+
+# =====================================================================
+# V40.25 — журнал проекта: цвет шрифта по состоянию и изделия,
+# добавленные вручную.
+#
+# 1. Строки журнала больше не заливаются цветом. Состояние показывается
+#    цветом шрифта:
+#      • «В работе» (новое состояние, в меню — «В работе — всё
+#        количество») — жёлтый;
+#      • количество на любом складе («На складе», «Холодный склад»,
+#        «Склад Москва», склады пользователя) — зелёный;
+#      • отгружено всё — синий;
+#      • отменено всё — серый.
+#    Если в строке несколько состояний, приоритет: «В работе», склад,
+#    отгружено. Изделие без расчёта — те же цвета, но бледнее; без
+#    состояния — серый, как раньше. Чекбокс «Расчёт» не меняется.
+#
+# 2. Кнопка «Добавить изделие вручную» рядом с «Редактированием»
+#    (работает и без отметки «Редактирование»). Все поля журнала —
+#    свободный текст. Изделие хранится в проекте отдельным списком
+#    (manual_items), в строке «Заполнение: Вручную», «Расчёт» снят и не
+#    включается. В комплектующие, раскрой, поставщиков и журналы
+#    изделий (лист A4) не попадает. Двойной щелчок — правка в том же
+#    окне; удаление — кнопкой «Удалить изделие»; состояние и
+#    комментарий — правым щелчком, как у остальных.
+# =====================================================================
+
+V4025_WORK = "В работе"
+V40_BASE_STATES = (V4025_WORK, V40_SHIPPED, "На складе", "Холодный склад", "Склад Москва", V40_CANCEL)
+
+V4025_FG = {
+    "work": ("#B08A00", "#DEC978"),       # (с расчётом, без расчёта)
+    "stock": ("#1C803A", "#96CBA3"),
+    "shipped": ("#1F5FBF", "#9DB8E3"),
+    "cancel": ("#8A8A8A", "#B5B5B5"),
+}
+V4025_MANUAL_FILL = "Вручную"
+V4025_MANUAL_PREFIX = "manual:"
+V4025_MANUAL_FIELDS = (
+    ("spec_position", "Поз. спецификации"),
+    ("type", "Тип"),
+    ("name", "Наименование"),
+    ("article", "Артикул"),
+    ("serial", "Серийный №"),
+    ("mark", "Маркировка"),
+    ("series", "Серия"),
+    ("size", "Габарит"),
+    ("quantity", "Кол-во"),
+    ("weight", "Вес"),
+    ("sides", "Сторон"),
+    (V40_COMMENT_FIELD, "Комментарий"),
+)
+
+
+# ---------------------------------------------------------------------
+# 1. Цвет шрифта по состоянию, без заливки
+# ---------------------------------------------------------------------
+def _v4025_kind(mapping, total):
+    if not mapping:
+        return None
+    if mapping.get(V4025_WORK, 0) > 0:
+        return "work"
+    if any(qty > 0 for name, qty in mapping.items()
+           if name not in (V40_SHIPPED, V40_CANCEL, V4025_WORK)):
+        return "stock"
+    progress, cancelled = _v40_progress(mapping, total)
+    if cancelled:
+        return "cancel"
+    if progress is not None and progress >= 1.0 - 1e-9:
+        return "shipped"
+    return None
+
+
+def _v4025_apply_row(self, tree, iid, mapping, total):
+    record = self._project_journal_record_for_iid(iid)
+    calc_on = _product_calc_enabled(record) if isinstance(record, dict) else True
+    tags = [t for t in (tree.item(iid, "tags") or ())
+            if not str(t).startswith("v40_state") and not str(t).startswith("v4025_")]
+    kind = _v4025_kind(mapping, total)
+    if kind:
+        color = V4025_FG[kind][0 if calc_on else 1]
+        tag = f"v4025_{kind}_{'on' if calc_on else 'off'}"
+        tree.tag_configure(tag, foreground=color)
+        tags = [t for t in tags if t != "calc_off"]
+        tags.insert(0, tag)
+    tree.item(iid, tags=tags)
+
+
+_v40_apply_row = _v4025_apply_row
+
+
+# ---------------------------------------------------------------------
+# 2. Изделия, добавленные вручную
+# ---------------------------------------------------------------------
+def _v4025_manual_items(self):
+    items = getattr(self, "saved_manual_items", None)
+    if not isinstance(items, list):
+        items = []
+        self.saved_manual_items = items
+    return items
+
+
+def _v4025_insert_manual_rows(self, n):
+    """Строки ручных изделий в журнал проекта (вызывается из обновления журнала)."""
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return n
+    for i, rec in enumerate(_v4025_manual_items(self)):
+        rec["calc_enabled"] = False
+        tree.insert("", "end", iid=f"{V4025_MANUAL_PREFIX}{i}", values=(
+            self._journal_spec_position(rec), n, V4025_MANUAL_FILL,
+            str(rec.get("type", "") or ""), str(rec.get("name", "") or ""),
+            str(rec.get("article", "") or ""), str(rec.get("serial", "") or ""),
+            str(rec.get("mark", "") or ""), str(rec.get("series", "") or ""),
+            str(rec.get("size", "") or ""), str(rec.get("quantity", "") or ""),
+            str(rec.get("weight", "") or ""), str(rec.get("sides", "") or ""),
+            V4025_MANUAL_FILL))
+        n += 1
+    return n
+
+
+ScreenDesigner._v4025_insert_manual_rows = _v4025_insert_manual_rows
+
+
+def _v4025_manual_index(iid):
+    value = str(iid or "")
+    if not value.startswith(V4025_MANUAL_PREFIX):
+        return None
+    try:
+        return int(value.split(":", 1)[1])
+    except Exception:
+        return None
+
+
+_v4025_orig_record_for_iid = ScreenDesigner._project_journal_record_for_iid
+
+
+def _v4025_record_for_iid(self, iid):
+    index = _v4025_manual_index(iid)
+    if index is not None:
+        items = _v4025_manual_items(self)
+        return items[index] if 0 <= index < len(items) else None
+    return _v4025_orig_record_for_iid(self, iid)
+
+
+ScreenDesigner._project_journal_record_for_iid = _v4025_record_for_iid
+
+
+def _v4025_refresh_views(self):
+    for name in ("_refresh_project_journal", "_refresh_project_matrix"):
+        try:
+            getattr(self, name)()
+        except Exception:
+            pass
+
+
+def _v4025_manual_dialog(self, record=None):
+    """Окно ввода изделия вручную: все поля — свободный текст."""
+    tree = getattr(self, "project_journal_tree", None)
+    win = tk.Toplevel(self)
+    win.title("Изделие вручную (без расчёта)" if record is None else "Изделие вручную — правка")
+    win.resizable(False, False)
+    try:
+        win.transient(self)
+    except Exception:
+        pass
+    body = ttk.Frame(win, padding=14)
+    body.pack(fill="both", expand=True)
+    variables = {}
+    for index, (key, title) in enumerate(V4025_MANUAL_FIELDS):
+        row, col = divmod(index, 2)
+        ttk.Label(body, text=title).grid(row=row, column=col * 2, sticky="w", padx=(0 if col == 0 else 18, 8), pady=4)
+        var = tk.StringVar(value=str((record or {}).get(key, "") or ""))
+        ttk.Entry(body, textvariable=var, width=34).grid(row=row, column=col * 2 + 1, sticky="we", pady=4)
+        variables[key] = var
+    buttons = ttk.Frame(body)
+    buttons.grid(row=len(V4025_MANUAL_FIELDS) // 2 + 1, column=0, columnspan=4, sticky="e", pady=(12, 0))
+
+    def save():
+        values = {key: var.get().strip() for key, var in variables.items()}
+        if not any(values.values()):
+            messagebox.showwarning("Изделие вручную", "Заполните хотя бы одно поле.", parent=win)
+            return
+        if record is None:
+            items = _v4025_manual_items(self)
+            new = {"manual": True, "calc_enabled": False, "journal_order": 10 ** 6 + len(items)}
+            for key, value in values.items():
+                if value:
+                    new[key] = value
+            items.append(new)
+            target = f"{V4025_MANUAL_PREFIX}{len(items) - 1}"
+        else:
+            for key, value in values.items():
+                if value:
+                    record[key] = value
+                else:
+                    record.pop(key, None)
+            target = None
+        try:
+            self._mark_project_dirty()
+        except Exception:
+            pass
+        try:
+            win.destroy()
+        except Exception:
+            pass
+        _v4025_refresh_views(self)
+        if target and tree is not None:
+            try:
+                if tree.exists(target):
+                    tree.selection_set(target)
+                    tree.focus(target)
+                    tree.see(target)
+            except Exception:
+                pass
+
+    ttk.Button(buttons, text="Добавить" if record is None else "Сохранить", command=save).pack(side="right")
+    ttk.Button(buttons, text="Отмена", command=win.destroy).pack(side="right", padx=(0, 8))
+    win.bind("<Return>", lambda _e: save())
+    win.bind("<Escape>", lambda _e: win.destroy())
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    return win
+
+
+def _v4025_add_manual(self):
+    return _v4025_manual_dialog(self, None)
+
+
+ScreenDesigner._v4025_add_manual = _v4025_add_manual
+
+
+# --- кнопка рядом с «Редактированием» -------------------------------
+_v4025_orig_build_tab = ScreenDesigner._build_project_journal_tab
+
+
+def _v4025_build_project_journal_tab(self, parent):
+    _v4025_orig_build_tab(self, parent)
+    try:
+        top = parent.winfo_children()[0]
+        anchor = None
+        for child in top.winfo_children():
+            if isinstance(child, ttk.Button) and str(child.cget("text")) == "Удалить изделие":
+                anchor = child
+                break
+        button = ttk.Button(top, text="Добавить изделие вручную", command=self._v4025_add_manual)
+        if anchor is not None:
+            button.pack(side="right", padx=(12, 0), before=anchor)
+        else:
+            button.pack(side="right", padx=(12, 0))
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_project_journal_tab = _v4025_build_project_journal_tab
+
+
+# --- двойной щелчок: правка ручного изделия -------------------------
+_v4025_orig_double_click = ScreenDesigner._project_journal_double_click
+
+
+def _v4025_double_click(self, event=None):
+    try:
+        tree = self.project_journal_tree
+        iid = tree.identify_row(event.y) if event is not None else (tree.selection() or [None])[0]
+        index = _v4025_manual_index(iid)
+        if index is not None:
+            column = _v3093_display_column(tree, tree.identify_column(event.x)) if event is not None else ""
+            if column != "comment":
+                tree.selection_set(iid)
+                tree.focus(iid)
+                record = self._project_journal_record_for_iid(iid)
+                if isinstance(record, dict):
+                    _v4025_manual_dialog(self, record)
+                return "break"
+    except Exception:
+        pass
+    return _v4025_orig_double_click(self, event)
+
+
+ScreenDesigner._project_journal_double_click = _v4025_double_click
+
+
+# --- «Расчёт» у ручного изделия не включается ------------------------
+_v4025_orig_calc_click = ScreenDesigner._project_journal_calc_click
+
+
+def _v4025_calc_click(self, event):
+    try:
+        tree = self.project_journal_tree
+        if str(tree.identify_region(event.x, event.y) or "") == "cell":
+            column = _v3093_display_column(tree, tree.identify_column(event.x))
+            iid = tree.identify_row(event.y)
+            if column == "calc" and _v4025_manual_index(iid) is not None:
+                messagebox.showinfo("Журнал проекта",
+                                    "Изделие добавлено вручную и не рассчитывается.")
+                return "break"
+    except Exception:
+        pass
+    return _v4025_orig_calc_click(self, event)
+
+
+ScreenDesigner._project_journal_calc_click = _v4025_calc_click
+
+
+# --- Ctrl + щелчок: у ручного изделия комплектующих нет --------------
+_v4025_orig_ctrl_click = ScreenDesigner._project_journal_ctrl_click
+
+
+def _v4025_ctrl_click(self, event):
+    try:
+        iid = self.project_journal_tree.identify_row(event.y)
+        if _v4025_manual_index(iid) is not None:
+            return "break"
+    except Exception:
+        pass
+    return _v4025_orig_ctrl_click(self, event)
+
+
+ScreenDesigner._project_journal_ctrl_click = _v4025_ctrl_click
+
+
+# --- удаление ----------------------------------------------------------
+_v4025_orig_delete = ScreenDesigner._v3012_delete_journal_product
+
+
+def _v4025_delete(self):
+    tree = getattr(self, "project_journal_tree", None)
+    selection = tree.selection() if tree is not None else ()
+    index = _v4025_manual_index(selection[0]) if selection else None
+    if index is None:
+        return _v4025_orig_delete(self)
+    items = _v4025_manual_items(self)
+    if not 0 <= index < len(items):
+        return None
+    name = str(items[index].get("name") or items[index].get("article") or "Изделие")
+    if not messagebox.askyesno("Удаление изделия",
+                               f"Удалить изделие «{name}», добавленное вручную, из журнала проекта?\n"
+                               "Это действие нельзя отменить.", parent=self):
+        return None
+    del items[index]
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    _v4025_refresh_views(self)
+    return None
+
+
+ScreenDesigner._v3012_delete_journal_product = _v4025_delete
+
+
+# --- сохранение в проекте ---------------------------------------------
+_v4025_orig_payload = ScreenDesigner._project_payload
+
+
+def _v4025_project_payload(self):
+    payload = _v4025_orig_payload(self)
+    payload["manual_items"] = [dict(item) for item in _v4025_manual_items(self)]
+    return payload
+
+
+ScreenDesigner._project_payload = _v4025_project_payload
+ScreenDesigner.saved_manual_items = None
+
+
+
+# =====================================================================
+# V40.26 — окна «Справочник проекта отличается от вашего» и «Проект
+# изменён другим пользователем»:
+#   • сортировка по щелчку на шапке столбца (повторный щелчок — обратный
+#     порядок, стрелка ▲/▼ в шапке; «—» всегда в конце, даты — по времени);
+#   • множественное выделение: Shift + щелчок — диапазон, Cmd/Ctrl +
+#     щелчок — добавить/убрать строку, Cmd/Ctrl + A — всё;
+#   • кнопки «Взять из файла» / «Оставить своё» и правый щелчок
+#     применяют решение сразу ко всем выделенным строкам;
+#   • под таблицей — счётчик выделенных строк.
+# Логика принятия решений не меняется.
+# =====================================================================
+
+def _v4026_sort_key(value):
+    text = str(value or "").strip()
+    if text in ("", "—", "— нет —"):
+        return (2, "")
+    m = re.fullmatch(r"(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?", text)
+    if m:
+        day, month, year, hour, minute = m.groups()
+        return (0, f"{year}{month}{day}{int(hour or 0):02d}{minute or '00'}")
+    try:
+        return (0, f"{float(text.replace(',', '.').replace(' ', '')):020.6f}")
+    except Exception:
+        return (1, text.lower())
+
+
+def _v4026_tree_tools(tree, set_take, take_theirs, take_mine):
+    """Сортировка по шапкам, Shift/Cmd/Ctrl-выделение и меню решения."""
+    columns = list(tree["columns"])
+    titles = {col: str(tree.heading(col, "text") or "") for col in columns}
+    sort_state = {"col": None, "reverse": False}
+    anchor = {"iid": None}
+
+    def sort_by(col):
+        reverse = (not sort_state["reverse"]) if sort_state["col"] == col else False
+        sort_state.update(col=col, reverse=reverse)
+        rows = list(tree.get_children(""))
+        keyed = [(_v4026_sort_key(tree.set(iid, col)), index, iid) for index, iid in enumerate(rows)]
+        blanks = [item for item in keyed if item[0][0] == 2]
+        filled = sorted((item for item in keyed if item[0][0] != 2), key=lambda item: item[0],
+                        reverse=reverse)
+        for position, (_key, _index, iid) in enumerate(filled + blanks):
+            tree.move(iid, "", position)
+        for name in columns:
+            arrow = (" ▼" if reverse else " ▲") if name == col else ""
+            tree.heading(name, text=titles[name] + arrow)
+
+    for col in columns:
+        tree.heading(col, command=lambda c=col: sort_by(c))
+
+    def plain_click(event):
+        row = tree.identify_row(event.y)
+        if row:
+            anchor["iid"] = row
+        return None
+
+    def toggle_click(event):
+        row = tree.identify_row(event.y)
+        if not row:
+            return "break"
+        selected = list(tree.selection())
+        if row in selected:
+            selected.remove(row)
+        else:
+            selected.append(row)
+        tree.selection_set(selected)
+        tree.focus(row)
+        anchor["iid"] = row
+        return "break"
+
+    def range_click(event):
+        row = tree.identify_row(event.y)
+        if not row:
+            return "break"
+        rows = list(tree.get_children(""))
+        start = anchor["iid"] if anchor["iid"] in rows else (tree.focus() or row)
+        if start not in rows:
+            start = row
+        a, b = sorted((rows.index(start), rows.index(row)))
+        tree.selection_set(rows[a:b + 1])
+        tree.focus(row)
+        return "break"
+
+    def select_all(_event=None):
+        tree.selection_set(tree.get_children(""))
+        return "break"
+
+    def menu(event):
+        row = tree.identify_row(event.y)
+        if row and row not in tree.selection():
+            tree.selection_set([row])
+            anchor["iid"] = row
+        count = len(tree.selection())
+        if not count:
+            return "break"
+        popup = tk.Menu(tree, tearoff=0)
+        popup.add_command(label=f"Взять из файла — выделено {count}",
+                          command=lambda: set_take(tree.selection(), take_theirs))
+        popup.add_command(label=f"Оставить своё — выделено {count}",
+                          command=lambda: set_take(tree.selection(), take_mine))
+        popup.add_separator()
+        popup.add_command(label="Выделить всё", command=select_all)
+        try:
+            popup.tk_popup(event.x_root, event.y_root)
+        finally:
+            popup.grab_release()
+        return "break"
+
+    tree.bind("<Button-1>", plain_click, add="+")
+    for sequence, handler in (("<Shift-Button-1>", range_click),
+                              ("<Control-Button-1>", toggle_click),
+                              ("<Command-Button-1>", toggle_click),
+                              ("<Control-a>", select_all), ("<Control-A>", select_all),
+                              ("<Command-a>", select_all), ("<Command-A>", select_all),
+                              ("<Button-3>", menu), ("<Button-2>", menu)):
+        try:
+            tree.bind(sequence, handler)
+        except tk.TclError:
+            pass                       # модификатор Command есть только на macOS
+    return sort_by
+
+
+def _v4026_count_label(bar, tree):
+    """Счётчик выделенных строк под таблицей."""
+    var = tk.StringVar(value="")
+    label = ttk.Label(bar, textvariable=var, foreground="#555555")
+
+    def update(_event=None):
+        count = len(tree.selection())
+        var.set(f"Выделено: {count}" if count else "")
+
+    tree.bind("<<TreeviewSelect>>", update, add="+")
+    return label
+
+
+# =====================================================================
+# V40.26.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -29124,6 +32994,9 @@ def _uitheme_dark_color(widget, color, kind):
                 nl = 0.90 - l * 0.55        # чёрный -> почти белый, серый -> светло-серый
                 ns = s
             out = _uitheme_hex(*_uitheme_colorsys.hls_to_rgb(h, nl, ns))
+        elif l < 0.93:                      # бледный текст (ближе к белому фону) -> ближе к тёмному фону
+            nl = max(0.42, 1.12 - l)
+            out = _uitheme_hex(*_uitheme_colorsys.hls_to_rgb(h, nl, s))
     _uitheme_color_cache[key] = out
     return out
 
@@ -29444,7 +33317,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.04.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.26.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -29457,7 +33330,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.04.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.26.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
