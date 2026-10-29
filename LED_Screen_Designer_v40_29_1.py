@@ -1,4 +1,4 @@
-# V40.26.1 = V40.26 + перенесённые исправления сборки Windows:
+# V40.29.1 = V40.29 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V40.26.1"
+APP_TITLE = "Конструктор LED-экранов V40.29.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -1869,7 +1869,7 @@ MCD_UNIT_WEIGHTS_G = {
     "Мини-ПК Raspberry Pi":100,"Площадка под мини-ПК МЦД":155,
     "Провод питания мини-ПК ПугВ-0,3 синий/чёрный":4,"Провод питания мини-ПК ПугВ-0,3 красный":4,
     "Наконечник питания мини-ПК BLS1":5,"Пластина соединительная СТ3":100,
-    "Площадки под блоки МЦД":174,"DIN-рейка":20,"Уголок алюминиевый 40×20×2 мм":313,
+    "Площадки под блоки МЦД":174,"DIN-рейка":200,"Уголок алюминиевый 40×20×2 мм":313,
     # V30.39: вес уголка 30×20×2 по справочнику — 259 гр/м.п.
     "Уголок алюминиевый 30×20×2 мм":259,
     "Кабель ВВГ-Пнг(А)-LS 3×1,5 мм²":150,"Кабель ШВВП 2×0,75 мм²":30,"Кабель ПВС 3×1,5 мм²":135,
@@ -1949,7 +1949,7 @@ REFERENCE_WEIGHT_CANON = {
     # V30.46: молочный акрил 4 мм — 4,76 кг на 1 м².
     "Молочный Акрил 4 мм": "4760 гр на мКВ",
     "Молочный акрил 4 мм для бэклита": "4760 гр на мКВ",
-    'DIN-рейка': '20',
+    'DIN-рейка': '200 гр/м.п.',   # 20 г = отрезок 10 см
     'Винт М3×6': '1',
     'Винт полусфера М4×30': '3гр',
     'Заклёпка вытяжная алюминиевая 4,8×12 мм': '2,5гр',
@@ -1969,6 +1969,13 @@ REFERENCE_WEIGHT_CANON = {
 for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.0, 'Заклёпка резьбовая М4': 1.2, 'Кабель ШВВП 2×0,75 мм²': 60.0, 'Наконечник 1,5 мм²': 6.0}.items():
     if _k in MCD_UNIT_WEIGHTS_G:
         MCD_UNIT_WEIGHTS_G[_k] = _v
+
+
+# V40.29.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
+for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
+    if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
+        CABINET_WEIGHT_DATA_V19_71[_cab_size]["fixed_grams"] += COMPONENT_RATES[_cab_size]["DIN-рейка"] * (200.0 - 20.0)
 
 # Миграция старых имён комплектующих в пользовательских .ledproj.
 # V30.46: глобальное приведение единиц измерения по решению пользователя:
@@ -2546,13 +2553,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.26.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.29.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.26.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.29.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2590,7 +2597,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.26.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.29.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3823,7 +3830,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.26.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.29.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9882,7 +9889,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.26.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.29.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9895,7 +9902,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.26.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.29.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13939,7 +13946,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.26.1: строка остаётся «статической» (серая заливка), только если
+                # V40.29.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -32855,8 +32862,594 @@ def _v4026_count_label(bar, tree):
     return label
 
 
+
+
 # =====================================================================
-# V40.26.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.27 — перенос правок справочника другого пользователя
+# (проект «Перерва-3», V40.26) без изменения расчётных правил.
+#
+# Новые названия. Расчёт выдаёт их во всех списках: в комплектующих,
+# расходе по изделиям, у поставщиков, в журнале и при печати. Поставщики,
+# веса и раскрой ищутся и по прежнему имени. Количество не меняется.
+#   • LED-модуль P1.25 / P1.53 / P4.0 / P5.0 / P3,07 → «LED-модуль P 1.25 IN» …
+#   • Пенопласт → Пенопласт листовой
+#   • Провод питания мини-ПК ПугВ-0,3 … → Кабель питания мини-ПК ПугВ-0,3 …
+#   • Скотч двухсторонний 3M → Лента клейкая двухсторонняя (20ммх33м) VHB
+#   • Соединитель проводов WAGO 2-полюсный → Клемма СМК 222-422 проходная
+#   • Соединитель проводов WAGO 3-полюсный → Клемма СМК 222-423 проходная
+#   • Торцевой светодиод 50×25 мм, 1,5 Вт →
+#     Светодиодный модуль 1-2835-T1-CW (1,5w, торцевой)
+#   • Монтажная пластина 80×13×2 мм и Пластина соединительная СТ3 →
+#     Монтажная пластина металлическая 80×32×2 мм, вес 25 г/шт
+# Вес: Саморез универсальный 3×10 мм — 1,2 г (если не задан).
+# Строки-дубли с одинаковым итоговым названием в разделе справочника
+# убираются (остаётся первая).
+# =====================================================================
+
+V4027_PLATE = "Монтажная пластина металлическая 80×32×2 мм"
+V4027_PLATE_WEIGHT = "25 гр/шт"
+V4027_SCREW = "Саморез универсальный 3×10 мм"
+V4027_SCREW_WEIGHT = "1,2гр"
+V4027_SCREW_SECTIONS = ("МЦД / 1 сторона / с подсветкой",
+                        "МЦД / круглый / 1 сторона / с подсветкой")
+
+# Исходное расчётное название → итоговое.
+V4027_CALC = {
+    "LED-модуль P1.25 IN": "LED-модуль P 1.25 IN",
+    "LED-модуль P1.25 OD": "LED-модуль P 1.25 OD",
+    "LED-модуль P1.25 ID": "LED-модуль P 1.25 ID",
+    "LED-модуль P1.53 OD": "LED-модуль P 1.53 OD",
+    "LED-модуль P4.0 IN": "LED-модуль P 4.0 IN",
+    "LED-модуль P4.0 OD": "LED-модуль P 4.0 OD",
+    "LED-модуль P4.0 ID": "LED-модуль P 4.0 ID",
+    "LED-модуль P5.0 OD": "LED-модуль P 5.0 OD",
+    "LED-модуль P3,07 OD": "LED-модуль P 3,07 OD",
+    "Пенопласт": "Пенопласт листовой",
+    "Провод питания мини-ПК ПугВ-0,3 красный": "Кабель питания мини-ПК ПугВ-0,3 красный",
+    "Провод питания мини-ПК ПугВ-0,3 синий/чёрный": "Кабель питания мини-ПК ПугВ-0,3 синий/чёрный",
+    "Скотч двухсторонний 3M": "Лента клейкая двухсторонняя (20ммх33м) VHB",
+    "Соединитель проводов WAGO 2-полюсный": "Клемма СМК 222-422 проходная",
+    "Соединитель проводов WAGO 3-полюсный": "Клемма СМК 222-423 проходная",
+    "Торцевой светодиод 50×25 мм, 1,5 Вт": "Светодиодный модуль 1-2835-T1-CW (1,5w, торцевой)",
+    "Монтажная пластина металлическая 80×13×2 мм": V4027_PLATE,
+    "Пластина соединительная СТ3": V4027_PLATE,
+}
+
+# Другие написания тех же позиций (старые переименования, опечатки).
+V4027_VARIANTS = {
+    "Провод питания мини-ПК ПугВ-0,3 синий/черн": "Кабель питания мини-ПК ПугВ-0,3 синий/чёрный",
+    "Кабель питания мини-пк ПугВ-0,3 синий/черн": "Кабель питания мини-ПК ПугВ-0,3 синий/чёрный",
+    "Кабель питания мини-пк ПугВ-0,3 синий/чёрный": "Кабель питания мини-ПК ПугВ-0,3 синий/чёрный",
+    "Кабель питания мини-пк ПугВ-0,3 красный": "Кабель питания мини-ПК ПугВ-0,3 красный",
+    "Скотч двухсторонний 3M 20мм Х 33м": "Лента клейкая двухсторонняя (20ммх33м) VHB",
+    "Соеденительная пластина металлическая 80×13×2 мм": V4027_PLATE,
+    "Соединительная пластина металлическая 80×13×2 мм": V4027_PLATE,
+}
+
+
+def _v4027_build_fix():
+    fix = {}
+    for old, new in list(V4027_CALC.items()) + list(V4027_VARIANTS.items()):
+        fix[_v3083_norm(old)] = new
+    for new in set(V4027_CALC.values()):
+        fix.setdefault(_v3083_norm(new), new)
+    return fix
+
+
+V4027_FIX = _v4027_build_fix()
+V4027_FINALS = sorted(set(V4027_CALC.values()), key=len, reverse=True)
+V4027_FINAL_NORMS = {_v3083_norm(name) for name in V4027_FINALS}
+V4027_FINAL_PAIRS = [(name, _v3083_norm(name)) for name in V4027_FINALS]
+V4027_SEPARATORS = (" ", ",", "—", "-")
+
+
+def _v4027_aliases(final):
+    """Все известные прежние написания позиции (для поиска веса и поставщика)."""
+    target = _v3083_norm(final)
+    names = [old for old, new in V4027_CALC.items() if _v3083_norm(new) == target]
+    names += [old for old, new in V4027_VARIANTS.items() if _v3083_norm(new) == target]
+    return names
+
+
+V4027_FIX_LONGEST = sorted(V4027_FIX.items(), key=lambda item: -len(item[0]))
+
+
+def _v4027_canonical(name):
+    """Итоговое название, если позиция переименована в V40.27; иначе None.
+    Учитывает суффиксы вида «… — R391 мм»."""
+    raw = re.sub(r"\s+", " ", str(name or "")).strip()
+    low = _v3083_norm(raw)
+    direct = V4027_FIX.get(low)
+    if direct:
+        return direct
+    # Уже итоговое название с суффиксом: «Пенопласт листовой …» не трогаем.
+    for final_low in V4027_FINAL_NORMS:
+        if low.startswith(final_low) and low[len(final_low):][:1] in V4027_SEPARATORS:
+            return None
+    for variant, final in V4027_FIX_LONGEST:
+        if low.startswith(variant) and low[len(variant):][:1] in V4027_SEPARATORS:
+            return final + raw[len(variant):]
+    return None
+
+
+# --- карта переименований всегда содержит итоговые названия V40.27
+_v4027_prev_renames = _v3083_renames
+
+
+def _v4027_renames(self):
+    data = _v4027_prev_renames(self)
+    try:
+        signature = (id(data), frozenset(data.items()))
+    except TypeError:
+        signature = None
+    if signature is not None and getattr(self, "_v4027_renames_sig", None) == signature:
+        return data
+    source = _v3083_rename_src(self)
+    for key, value in list(data.items()):
+        fixed = V4027_FIX.get(_v3083_norm(value))
+        if fixed and fixed != value:
+            data[key] = fixed
+    for original, final in V4027_CALC.items():
+        key = _v3083_norm(original)
+        if key not in data:
+            data[key] = final
+            source.setdefault(key, original)
+    try:
+        self._v4027_renames_sig = (id(data), frozenset(data.items()))
+    except TypeError:
+        pass
+    return data
+
+
+_v3083_renames = _v4027_renames
+
+
+# --- повторное переименование уже итогового названия не допускается
+_v4027_prev_rename_name = _v3083_rename_name
+
+
+def _v4027_rename_name(self, name):
+    raw = str(name or "")
+    low = _v3083_norm(raw)
+    for final, fl in V4027_FINAL_PAIRS:
+        if low == fl:
+            return final
+        if low.startswith(fl) and raw[len(final):][:1] in V4027_SEPARATORS:
+            return final + raw[len(final):]
+    result = _v4027_prev_rename_name(self, name)
+    return _v4027_canonical(result) or result
+
+
+_v3083_rename_name = _v4027_rename_name
+ScreenDesigner._v3083_rename_name = _v4027_rename_name
+
+
+# --- поставщик: назначения по любому прежнему названию продолжают действовать
+_v4027_prev_supplier_key = ScreenDesigner._component_supplier_key
+
+
+def _v4027_component_supplier_key(self, name):
+    key = _v4027_prev_supplier_key(self, name)
+    assignments = getattr(self, "project_supplier_assignments", {}) or {}
+    if key in assignments:
+        return key
+    final = _v4027_canonical(name)
+    if not final:
+        return key
+    for alias in [final] + _v4027_aliases(final):
+        candidate = _v3083_orig_supplier_key(self, alias)
+        if candidate in assignments:
+            return candidate
+    return key
+
+
+ScreenDesigner._component_supplier_key = _v4027_component_supplier_key
+
+
+# --- вес: сначала по итоговому названию, затем по прежним
+_v4027_prev_reference_weight = ScreenDesigner._component_reference_weight
+
+
+def _v4027_component_reference_weight(self, component_name):
+    found = _v4027_prev_reference_weight(self, component_name)
+    if found:
+        return found
+    raw = str(component_name or "").split("•", 1)[-1].strip()
+    final = _v4027_canonical(raw)
+    if not final:
+        return found
+    tail = ""
+    if _v3083_norm(raw).startswith(_v3083_norm(final)):
+        tail = raw[len(final):]
+    for alias in [final] + _v4027_aliases(final):
+        for candidate in (alias + tail, alias):
+            if candidate == raw:
+                continue
+            found = _v4027_prev_reference_weight(self, candidate)
+            if found:
+                return found
+            if candidate.endswith(" ID"):
+                found = _v4027_prev_reference_weight(self, candidate[:-3] + " IN")
+                if found:
+                    return found
+    return None
+
+
+ScreenDesigner._component_reference_weight = _v4027_component_reference_weight
+
+
+# --- журнал: количество торцевых LED ищется и по новому названию
+_v4027_prev_journal_value = ScreenDesigner._static_journal_bom_value
+
+
+def _v4027_static_journal_bom_value(self, rows, exact=None, startswith=None):
+    value = _v4027_prev_journal_value(self, rows, exact=exact, startswith=startswith)
+    if value is None and exact is not None:
+        renamed = _v4027_canonical(exact)
+        if renamed and renamed != exact:
+            value = _v4027_prev_journal_value(self, rows, exact=renamed, startswith=startswith)
+    return value
+
+
+ScreenDesigner._static_journal_bom_value = _v4027_static_journal_bom_value
+
+
+# --- справочник: названия, вес пластины и самореза, без дублей
+def _v4027_reference_rows(data):
+    for section, rows in list((data or {}).items()):
+        cleaned, seen = [], {}
+        for row in rows or []:
+            if isinstance(row, tuple):
+                row = list(row)
+            if not isinstance(row, list) or not row:
+                cleaned.append(row)
+                continue
+            name = str(row[0] or "").strip()
+            is_group = all(str(x or "").strip() == "" for x in row[1:5]) if len(row) > 1 else True
+            final = None if is_group else V4027_FIX.get(_v3083_norm(name))
+            if final:
+                row[0] = final
+                key = _v3083_norm(final)
+                if key in seen:
+                    # Дубль той же позиции: остаётся первая строка, пустые
+                    # ячейки которой дополняются из дубля.
+                    kept = seen[key]
+                    while len(kept) < len(row):
+                        kept.append("")
+                    for index in range(1, len(row)):
+                        if str(kept[index] or "").strip() == "" and str(row[index] or "").strip() != "":
+                            kept[index] = row[index]
+                    continue
+                seen[key] = row
+                if key == _v3083_norm(V4027_PLATE):
+                    while len(row) < 5:
+                        row.append("")
+                    row[4] = V4027_PLATE_WEIGHT
+            elif (not is_group and name == V4027_SCREW and section in V4027_SCREW_SECTIONS):
+                while len(row) < 5:
+                    row.append("")
+                if str(row[4] or "").strip() == "":
+                    row[4] = V4027_SCREW_WEIGHT
+            cleaned.append(row)
+        data[section] = cleaned
+    return data
+
+
+_v4027_orig_reference_defaults = ScreenDesigner._reference_defaults
+
+
+def _v4027_reference_defaults(self):
+    data = _v4027_orig_reference_defaults(self)
+    # Внутри загрузки прежние миграции ищут строки по старым названиям,
+    # поэтому переименование выполняется после них, в _v4027_reference_load.
+    if getattr(self, "_v4027_loading", False):
+        return data
+    return _v4027_reference_rows(data)
+
+
+ScreenDesigner._reference_defaults = _v4027_reference_defaults
+
+_v4027_orig_reference_load = ScreenDesigner._reference_load
+
+
+def _v4027_reference_load(self):
+    self._v4027_loading = True
+    try:
+        data = _v4027_orig_reference_load(self)
+    finally:
+        self._v4027_loading = False
+    data = _v4027_reference_rows(data)
+    _v3083_renames(self)
+    return data
+
+
+ScreenDesigner._reference_load = _v4027_reference_load
+
+
+# --- статус, УПД и комментарий, сохранённые под прежним названием,
+#     остаются у переименованной позиции
+def _v4027_store_key(self, name, store):
+    key = self._component_supplier_key(name)
+    if key in store:
+        return key
+    final = _v4027_canonical(name)
+    if final:
+        for alias in [final] + _v4027_aliases(final):
+            candidate = _v3083_orig_supplier_key(self, alias)
+            if candidate in store:
+                return candidate
+    return key
+
+
+def _v4027_v3090_value(self, name, which):
+    status, upd = _v3090_maps(self)
+    store = status if which == "status" else upd
+    return store.get(_v4027_store_key(self, name, store), "")
+
+
+def _v4027_v3090_set_value(self, name, which, value):
+    status, upd = _v3090_maps(self)
+    store = status if which == "status" else upd
+    key = _v4027_store_key(self, name, store)
+    if value:
+        store[key] = value
+    else:
+        store.pop(key, None)
+
+
+def _v4027_v3093_value(self, name):
+    store = _v3093_map(self)
+    return store.get(_v4027_store_key(self, name, store), "")
+
+
+def _v4027_v3093_set_value(self, name, text):
+    store = _v3093_map(self)
+    key = _v4027_store_key(self, name, store)
+    text = re.sub(r"\s+", " ", str(text or "")).strip()[:V3093_MAX_LEN]
+    if text:
+        store[key] = text
+    else:
+        store.pop(key, None)
+    return text
+
+
+_v3090_value = _v4027_v3090_value
+_v3090_set_value = _v4027_v3090_set_value
+_v3093_value = _v4027_v3093_value
+_v3093_set_value = _v4027_v3093_set_value
+ScreenDesigner._v3090_value = _v4027_v3090_value
+ScreenDesigner._v3090_set_value = _v4027_v3090_set_value
+ScreenDesigner._v3093_value = _v4027_v3093_value
+ScreenDesigner._v3093_set_value = _v4027_v3093_set_value
+
+
+
+
+# =====================================================================
+# V40.28 — изделия, добавленные в журнал проекта вручную, в расчёте
+# не участвуют никогда:
+#   • в столбце «Расчёт» у них нет чекбокса — стоит «—»;
+#   • щелчок по столбцу «Расчёт» на такой строке ничего не меняет
+#     (в том числе при включённом «Редактировании»);
+#   • любой расчёт (комплектующие, раскрой, расход по изделиям, закупки)
+#     считает ручное изделие отключённым, даже если в файле проекта
+#     у него оказался флаг расчёта.
+# =====================================================================
+
+V4028_MANUAL_CALC_MARK = "—"
+
+_v4028_prev_calc_enabled = _product_calc_enabled
+
+
+def _v4028_product_calc_enabled(rec):
+    if isinstance(rec, dict) and rec.get("manual"):
+        return False
+    return _v4028_prev_calc_enabled(rec)
+
+
+_product_calc_enabled = _v4028_product_calc_enabled
+
+
+def _v4028_lock_manual_items(self):
+    for rec in _v4025_manual_items(self):
+        if isinstance(rec, dict):
+            rec["manual"] = True
+            rec["calc_enabled"] = False
+
+
+# --- журнал: у ручных строк нет чекбокса
+_v4028_orig_refresh_journal = ScreenDesigner._refresh_project_journal
+
+
+def _v4028_refresh_project_journal(self, *args, **kwargs):
+    _v4028_lock_manual_items(self)
+    result = _v4028_orig_refresh_journal(self, *args, **kwargs)
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is not None:
+        try:
+            for iid in tree.get_children(""):
+                if _v4025_manual_index(iid) is not None:
+                    tree.set(iid, "calc", V4028_MANUAL_CALC_MARK)
+        except Exception:
+            pass
+    return result
+
+
+ScreenDesigner._refresh_project_journal = _v4028_refresh_project_journal
+
+
+# --- щелчок по «Расчёт» у ручной строки ничего не делает
+_v4028_orig_calc_click = ScreenDesigner._project_journal_calc_click
+
+
+def _v4028_calc_click(self, event):
+    try:
+        tree = self.project_journal_tree
+        iid = tree.identify_row(event.y)
+        if _v4025_manual_index(iid) is not None:
+            column = _v3093_display_column(tree, tree.identify_column(event.x))
+            if column == "calc":
+                return "break"
+    except Exception:
+        pass
+    return _v4028_orig_calc_click(self, event)
+
+
+ScreenDesigner._project_journal_calc_click = _v4028_calc_click
+
+
+# --- сохранение проекта: ручные изделия всегда без расчёта
+_v4028_orig_payload = ScreenDesigner._project_payload
+
+
+def _v4028_project_payload(self):
+    _v4028_lock_manual_items(self)
+    payload = _v4028_orig_payload(self)
+    try:
+        items = payload.get("manual_items")
+        if isinstance(items, list):
+            for rec in items:
+                if isinstance(rec, dict):
+                    rec["manual"] = True
+                    rec["calc_enabled"] = False
+    except Exception:
+        pass
+    return payload
+
+
+ScreenDesigner._project_payload = _v4028_project_payload
+
+
+
+
+# ---------------------------------------------------------------------
+# V40.29 — ПАСПОРТНЫЕ ДАННЫЕ ИЗДЕЛИЙ В ФАЙЛЕ ПРОЕКТА (блок из V40.04.2)
+# При сохранении проекта к каждому изделию (static_signs[i], screens[i]) добавляется
+# блок "passport" — значения, которые программа уже считает сама:
+#   weight_kg        — вес ОДНОГО изделия, той же функцией, что столбец «Вес, кг» журнала;
+#   weight_total_kg  — вес с учётом «Кол-во изделий» (как в журнале);
+#   psu              — блоки питания одного изделия [{name, qty, w}];
+#   psu_total_w      — суммарная мощность блоков питания одного изделия, Вт;
+#   led_power_w      — расчётная мощность LED (+20 %), если есть.
+# Утилита заполнения паспортов берёт эти числа, поэтому журнал и паспорт совпадают.
+# Блок только пишется: при открытии проекта не используется и в журнал изменений
+# не попадает (снимок сравнения его игнорирует). Ошибка расчёта не мешает сохранению.
+# ---------------------------------------------------------------------
+_v4004_PASSPORT_KEY = "passport"
+
+
+def _v4004_psu_from_rows(rows):
+    psu, total = [], 0.0
+    for name, unit, qty in rows or []:
+        n = str(name).split("•", 1)[-1].strip()
+        if not (n.lower().startswith("блок питания") or n == "БП"):
+            continue
+        m = re.search(r"(\d+)\s*Вт", n)
+        try:
+            q = float(qty)
+        except (TypeError, ValueError):
+            continue
+        if not m or q <= 0:
+            continue
+        w = int(m.group(1))
+        psu.append({"name": n, "qty": q, "w": w})
+        total += w * q
+    return psu, total
+
+
+def _v4004_led_power(rows):
+    for name, unit, qty in rows or []:
+        if str(name).startswith("Расчётная мощность"):
+            try:
+                return round(float(qty), 2)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _v4004_round(v, nd=2):
+    return None if v is None else round(float(v), nd)
+
+
+def _v4004_static_passport(self, sign):
+    one = {k: v for k, v in dict(sign).items() if k != _v4004_PASSPORT_KEY}
+    total_w = self._static_sign_weight_kg(one)
+    one["quantity"] = "1"
+    unit_w = self._static_sign_weight_kg(one)
+    rows = []
+    if one.get("mode") == MODE_MCD:
+        rows = self._static_mcd_component_rows([one])
+    elif one.get("mode") == MODE_RZD:
+        rows = self._static_rzd_component_rows([one])
+    psu, psu_total = _v4004_psu_from_rows(rows)
+    return {"weight_kg": _v4004_round(unit_w), "weight_total_kg": _v4004_round(total_w),
+            "psu": psu, "psu_total_w": _v4004_round(psu_total, 1),
+            "led_power_w": _v4004_led_power(rows), "calc": APP_TITLE}
+
+
+def _v4004_screen_passport(self, screen):
+    one = dict(screen)
+    one.pop(_v4004_PASSPORT_KEY, None)
+    one["quantity"] = 1
+    unit_w = self._screen_weight_kg(one)
+    rows = []
+    if one.get("mode") == MODE_MCD:
+        rows = self._dynamic_mcd_component_rows_v1972([one])
+    psu, psu_total = _v4004_psu_from_rows(rows)
+    return {"weight_kg": _v4004_round(unit_w), "psu": psu,
+            "psu_total_w": _v4004_round(psu_total, 1) if psu else None, "calc": APP_TITLE}
+
+
+_v4004_orig_payload = ScreenDesigner._project_payload
+
+
+def _v4004_project_payload(self):
+    payload = _v4004_orig_payload(self)
+    try:
+        signs = list(getattr(self, "saved_static_signs", []) or [])
+        out = []
+        for i, rec in enumerate(payload.get("static_signs", []) or []):
+            rec = {k: v for k, v in dict(rec).items() if k != _v4004_PASSPORT_KEY}
+            try:
+                rec[_v4004_PASSPORT_KEY] = _v4004_static_passport(self, signs[i] if i < len(signs) else rec)
+            except Exception as exc:
+                rec[_v4004_PASSPORT_KEY] = {"error": repr(exc)[:200], "calc": APP_TITLE}
+            out.append(rec)
+        payload["static_signs"] = out
+        screens = list(getattr(self, "saved_screens", []) or [])
+        out = []
+        for i, rec in enumerate(payload.get("screens", []) or []):
+            rec = {k: v for k, v in dict(rec).items() if k != _v4004_PASSPORT_KEY}
+            try:
+                rec[_v4004_PASSPORT_KEY] = _v4004_screen_passport(self, screens[i] if i < len(screens) else rec)
+            except Exception as exc:
+                rec[_v4004_PASSPORT_KEY] = {"error": repr(exc)[:200], "calc": APP_TITLE}
+            out.append(rec)
+        payload["screens"] = out
+    except Exception as exc:
+        try:
+            self._print_debug_log(f"v4004 passport: {exc!r}")
+        except Exception:
+            pass
+    return payload
+
+
+ScreenDesigner._project_payload = _v4004_project_payload
+
+# Журнал изменений: паспортный блок — производные данные, их не сравниваем.
+_v4004_orig_snapshot = _v3073_snapshot
+
+
+def _v3073_snapshot(payload):
+    p = dict(payload) if isinstance(payload, dict) else {}
+    for key in ("static_signs", "screens"):
+        p[key] = [{k: v for k, v in dict(r).items() if k != _v4004_PASSPORT_KEY}
+                  if isinstance(r, dict) else r for r in (p.get(key) or [])]
+    return _v4004_orig_snapshot(p)
+
+
+# =====================================================================
+# V40.29.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -33317,7 +33910,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.26.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.29.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -33330,7 +33923,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.26.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.29.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 

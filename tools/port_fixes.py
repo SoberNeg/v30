@@ -107,3 +107,22 @@ new = '''            out = _uitheme_hex(*_uitheme_colorsys.hls_to_rgb(h, nl, ns)
 assert s.count(old) == 1, "dark fg anchor"
 s = s.replace(old, new)
 compile(s, str(out), "exec"); out.write_text(s, encoding="utf-8"); print("pale-text rule: added")
+
+# ---- вес DIN-рейки (решение автора 29.10.2026): 20 г — это отрезок 10 см → 200 г/м.п.
+s = out.read_text(encoding="utf-8")
+if "'DIN-рейка': '20'," in s:
+    s = s.replace("'DIN-рейка': '20',", "'DIN-рейка': '200 гр/м.п.',   # 20 г = отрезок 10 см", 1)
+    assert s.count('"DIN-рейка":20,') == 1
+    s = s.replace('"DIN-рейка":20,', '"DIN-рейка":200,', 1)   # МЦД: количество в м.п. → г/м.п.
+    fix = f'''
+
+# V{ver}.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
+for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
+    if COMPONENT_RATES.get(_cab_size, {{}}).get("DIN-рейка"):
+        CABINET_WEIGHT_DATA_V19_71[_cab_size]["fixed_grams"] += COMPONENT_RATES[_cab_size]["DIN-рейка"] * (200.0 - 20.0)
+'''
+    anchor = "\n# Миграция старых имён комплектующих в пользовательских .ledproj."
+    assert s.count(anchor) == 1
+    s = s.replace(anchor, fix.rstrip() + "\n" + anchor, 1)
+    compile(s, str(out), "exec"); out.write_text(s, encoding="utf-8"); print("DIN weight 200 г/м.п.: applied")
