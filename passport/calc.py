@@ -50,6 +50,17 @@ DEFAULT_RULES = {
         # 40/60/100/150 Вт — наименьшее число блоков, затем наименьшая суммарная мощность;
         # в паспорт идёт сумма мощностей блоков питания
         "LED_на_м2_одностороннего": 60,
+        # V40.24: у прямоугольного одностороннего изделия светодиоды ставятся по сетке
+        # разметки на стенке под алюкобонд, а не по норме на м²
+        "сетка_обрезка_стенки_мм": 52,
+        "сетка_корпус_длина_мм": 70,
+        "сетка_корпус_толщина_мм": 15,
+        "сетка_зазор_мм": 65,
+        "сетка_поле_мм": 32,
+        "сетка_шаг_рядов_мм": 120,
+        "сетка_шаг_рядов_вертикальных_мм": 130,
+        "сетка_добор_мм": 20,
+        "размер_по_норме_мм": [800, 400],
         "шаг_торцевых_LED_мм": 90,
         "короткая_сторона_без_торцевых_LED_мм": 400,
         "шаг_LED_по_окружности_мм": 65,
@@ -107,7 +118,7 @@ DEFAULT_RULES["Статика МЦД круглый"] = {
 }
 
 
-RULES_VERSION = 3
+RULES_VERSION = 4
 OBSOLETE_KEYS = ("мощность_Вт_на_м2_стороны", "мощность_модуля_макс_Вт")   # до V1.9
 
 
@@ -124,6 +135,8 @@ def _migrate(user: dict) -> dict:
             r["таблица"] = {**d.get("таблица", {}), **r["таблица"]}
         for k in OBSOLETE_KEYS:                  # прежняя оценка мощности по площади
             r.pop(k, None)
+        for k, v in d.items():                   # новые правила видны в файле и доступны для правки
+            r.setdefault(k, v)
     return user
 
 
@@ -336,11 +349,48 @@ def variables(item: dict, rules: dict) -> dict:
     return v
 
 
+def grid_row(wall_len, r):
+    """Сколько светодиодов помещается в одном ряду (V40.24): корпуса по 70 мм через 65 мм,
+    от кромки стенки до корпуса не меньше 32 мм; если следующему не хватает ≤ 20 мм,
+    он всё равно ставится, недостающее забирается из крайних зазоров."""
+    led = r["сетка_корпус_длина_мм"]
+    gap = r["сетка_зазор_мм"]
+    edge = r["сетка_поле_мм"]
+    pitch = led + gap
+    avail = wall_len - 2 * edge
+    if avail < led:
+        return 1 if wall_len >= led else 0
+    n = int((avail + gap) // pitch)
+    short = ((n + 1) * led + n * gap) - avail
+    return n + 1 if short <= r["сетка_добор_мм"] else n
+
+
+def grid_leds(W, H, r):
+    """Количество LED по сетке разметки на стенке под алюкобонд (W−52)×(H−52)."""
+    trim = r["сетка_обрезка_стенки_мм"]
+    if W <= trim or H <= trim:
+        return 0
+    vertical = H > W
+    length, breadth = (H, W) if vertical else (W, H)
+    wall_len, wall_breadth = length - trim, breadth - trim
+    pitch = r["сетка_шаг_рядов_вертикальных_мм"] if vertical else r["сетка_шаг_рядов_мм"]
+    span = wall_breadth - 2 * r["сетка_поле_мм"] - r["сетка_корпус_толщина_мм"]
+    rows = int(span // pitch) + 1 if span >= 0 else 1
+    per_row = grid_row(wall_len, r)
+    return rows * per_row
+
+
 def static_leds(W, H, sides, rnd, r):
-    """Количество LED статики МЦД — те же правила, что в Конструкторе (V30.68/V30.69/V20.94)."""
+    """Количество LED статики МЦД — те же правила, что в Конструкторе
+    (V40.24 — сетка разметки, V30.69 — торцевые, V20.94 — круглые)."""
     if sides == 1:
         face = (math.pi * W * W / 4 if rnd else W * H) / 1e6
-        return max(1, math.ceil(face * r["LED_на_м2_одностороннего"] - 1e-9))
+        norm = max(1, math.ceil(face * r["LED_на_м2_одностороннего"] - 1e-9))
+        special = [int(x) for x in (r.get("размер_по_норме_мм") or [])]
+        if rnd or (len(special) == 2 and {int(W), int(H)} == set(special)
+                   and abs(W - special[0]) < 0.5 and abs(H - special[1]) < 0.5):
+            return norm                      # круглое и особый размер — по норме на м²
+        return grid_leds(W, H, r) or norm
     if rnd:                                       # двусторонний круг — LED по окружности
         return math.ceil(math.pi * W / r["шаг_LED_по_окружности_мм"])
     long_, short = max(W, H), min(W, H)

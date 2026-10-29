@@ -25,7 +25,7 @@ import project_import
 from widgets import PALETTES, GradientList, ScrollFrame, install_clipboard
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V2.2.1"
+APP_VERSION = "V2.3"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
