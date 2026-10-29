@@ -199,12 +199,23 @@ def _num(v):
     return float(m.group(0).replace(",", ".")) if m else None
 
 
+ARTICLE_RE = re.compile(r"(?:AS|ASD)-[A-Z0-9][^\s]*(?:\s+\S+)*$")
+
+
+def _article_tail(text):
+    """«Динамическое информационное табло. Двустороннее. Внутреннее. ASD-TAB P2,5 II 1780x580 OD»
+    → «ASD-TAB P2,5 II 1780x580 OD». В Конструкторе поле «Артикул экрана» хранит наименование
+    вместе с артикулом; в паспорте это разные поля."""
+    m = ARTICLE_RE.search(str(text or "").strip())
+    return m.group(0).strip() if m else str(text or "").strip()
+
+
 def _strip_article(name, article):
     """В Конструкторе наименование = «… Односторонний ASD-L 1508x357» — артикул в конце
     дублируется; в паспорте наименование и артикул — отдельные поля."""
     name, article = str(name or "").strip(), str(article or "").strip()
     if article and name.endswith(article):
-        name = name[: -len(article)].rstrip(" .,;")
+        name = name[: -len(article)].rstrip(" ,;")      # точку в конце наименования сохраняем
     return name
 
 
@@ -236,8 +247,13 @@ def load_ledproj(data, path):
               "тираж": int(_num(s.get("quantity")) or 1),
               "шаг": (str(_num(s.get("pixel_pitch")) or "").rstrip("0").rstrip(".") or ""),
               "исполнение": str(s.get("environment") or "Уличное"),
-              "артикул": str(s.get("screen_article") or "").strip(),
+              "артикул": "",
               "_источник": "screens"}
+        full = str(s.get("screen_article") or "").strip()
+        it["артикул"] = str(s.get("module_article") or "").strip() or _article_tail(full)
+        nm = _strip_article(full, it["артикул"])
+        if nm:
+            it["наименование"] = nm
         if _num(s.get("module_total")):                 # LED-модулей на сторону — как в Конструкторе
             it["модулей_на_сторону"] = int(_num(s.get("module_total")))
         serials = [str(x.get("part_number") or "").strip() for x in (s.get("instances") or [])

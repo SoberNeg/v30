@@ -2,7 +2,7 @@
   1. копирует папку passport/ в путь с русскими буквами;
   2. режим garbled: портит русские имена так, как их распаковывает Проводник
      из архива без флага UTF-8 (cp866), — программа должна сама их исправить;
-  3. запускает Запуск_Windows.bat, ждёт окно «Утилита заполнения паспортов … V2.1»,
+  3. запускает Запуск_Windows.bat, ждёт окно «Утилита заполнения паспортов … V2.2»,
      снимает экран, закрывает. Код возврата 0 — окно появилось, ошибок запуска нет."""
 import ctypes, os, shutil, subprocess, sys, time
 from ctypes import wintypes
@@ -10,7 +10,7 @@ from pathlib import Path
 
 mode, out = sys.argv[1], Path(sys.argv[2])
 src = Path(__file__).resolve().parents[1]
-dst = Path(os.environ.get("RUNNER_TEMP", "C:/t")) / f"Тест {mode}" / "Паспорта_прототип_V2.1"
+dst = Path(os.environ.get("RUNNER_TEMP", "C:/t")) / f"Тест {mode}" / "Паспорта_прототип_V2.2"
 if dst.parent.exists():
     shutil.rmtree(dst.parent)
 shutil.copytree(src, dst, ignore=shutil.ignore_patterns("ci", "__pycache__"))
@@ -45,7 +45,7 @@ def titles():
 ok, seen = False, []
 for _ in range(240):                     # до 4 минут: первый запуск ставит пакеты
     seen = titles()
-    if any(t.startswith("Утилита заполнения паспортов") and "V2.1" in t for t in seen):
+    if any(t.startswith("Утилита заполнения паспортов") and "V2.2" in t for t in seen):
         ok = True
         break
     if (dst / "ошибка_запуска.txt").exists():

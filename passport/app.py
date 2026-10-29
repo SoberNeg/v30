@@ -24,7 +24,7 @@ import project_import
 from widgets import PALETTES, GradientList, ScrollFrame, install_clipboard
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V2.1"
+APP_VERSION = "V2.2"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -80,7 +80,7 @@ SETTINGS_FILE = APP_DIR / "настройки.json"
 BLANK_DATE = "«___» ____________ 20___ г."        # паспорт без даты — место для записи от руки
 JOURNAL_FILE = APP_DIR / "Журнал_паспортов.csv"
 JOURNAL_COLUMNS = ["Создан", "Проект", "Префикс", "Тип", "Наименование", "Артикул",
-                   "Серийный номер", "Номер макета", "Тираж", "Гарантия, мес",
+                   "Серийный номер", "Номер макета", "Кол-во", "Гарантия, мес",
                    "Дата продажи", "Печать, подпись и дата", "Файл"]
 
 FIELD_DEFS = {
@@ -314,6 +314,8 @@ def journal_add(row):
             for r in rows:                    # перенос старых записей в новый формат
                 if "Печать и подпись" in r and not r.get("Печать, подпись и дата"):
                     r["Печать, подпись и дата"] = r["Печать и подпись"]
+                if "Тираж" in r and not r.get("Кол-во"):
+                    r["Кол-во"] = r["Тираж"]
                 w.writerow(r)
         w.writerow(row)
 
@@ -391,7 +393,7 @@ class MaketRows:
         row = {"num": num, "qty": qty, "w": []}
         cap = ttk.Label(self.cell, style="Hint.TLabel")
         ent = ttk.Entry(self.cell, textvariable=num, width=12)
-        qcap = ttk.Label(self.cell, text="Тираж:", style="Hint.TLabel")
+        qcap = ttk.Label(self.cell, text="Кол-во:", style="Hint.TLabel")
         spn = ttk.Spinbox(self.cell, from_=1, to=9999, width=4, textvariable=qty)
         plus = ttk.Button(self.cell, text="+", width=2, command=lambda r=row: self.add_after(r))
         minus = ttk.Button(self.cell, text="−", width=2, command=lambda r=row: self.remove(r))
@@ -412,7 +414,7 @@ class MaketRows:
         """«+»: новая строка забирает 1 шт. у этой строки (или у любой, где больше одной)."""
         donor = row if row["qty"].get() > 1 else next((r for r in self.rows if r["qty"].get() > 1), None)
         if donor is None:
-            messagebox.showinfo(APP_NAME, f"Тираж изделия — {self.total} шт.: "
+            messagebox.showinfo(APP_NAME, f"Кол-во изделий — {self.total} шт.: "
                                           f"больше макетов не получится, в каждой строке уже по 1 шт.")
             return
         donor["qty"].set(donor["qty"].get() - 1)
@@ -475,13 +477,13 @@ class MaketRows:
                 r["qty"].set(1)
         n = self.distributed()
         if len(self.rows) == 1:
-            self.hint.configure(text="«+» — ещё один макет: тираж разделится, на каждый "
+            self.hint.configure(text="«+» — ещё один макет: количество разделится, на каждый "
                                      "будет свой паспорт", foreground="")
         elif n == self.total:
             self.hint.configure(text=f"{plural(len(self.rows), 'макет', 'макета', 'макетов')}, "
                                      f"всего {n} шт. — на каждый свой паспорт", foreground="")
         else:
-            self.hint.configure(text=f"распределено {n} из {self.total} шт. — исправьте тираж",
+            self.hint.configure(text=f"распределено {n} из {self.total} шт. — исправьте количество",
                                 foreground=self.err)
         self.on_change()
 
@@ -851,7 +853,7 @@ class App(tk.Tk):
         self.proj_label.pack(side="left", padx=16)
         cols = [("№", "№", 40, "center"), ("префикс", "Префикс", 80, "w"), ("тип", "Тип", 115, "w"),
                 ("_артикул", "Артикул", 240, "w"), ("_размер", "Размер, мм", 118, "center"),
-                ("_сторон", "Сторон", 65, "center"), ("тираж", "Тираж, шт", 92, "center"),
+                ("_сторон", "Сторон", 65, "center"), ("тираж", "Кол-во, шт", 92, "center"),
                 ("_идент", "Макет / Серийный №", 210, "w"), ("_скачан", "Скачан", 95, "center")]
         num = lambda k: (lambda r: calc._float(r.get(k), 0))
         sort_keys = {"№": num("№"), "_сторон": num("_сторон"), "тираж": num("тираж"),
@@ -1167,7 +1169,7 @@ class App(tk.Tk):
         qf.grid(row=r, column=1, sticky="ew", pady=4)
         qf.columnconfigure(0, weight=1)
         ttk.Entry(qf, textvariable=self.project_name).grid(row=0, column=0, sticky="ew")
-        ttk.Label(qf, text="Тираж, шт:").grid(row=0, column=1, padx=(10, 4))
+        ttk.Label(qf, text="Кол-во, шт:").grid(row=0, column=1, padx=(10, 4))
         ttk.Spinbox(qf, from_=1, to=9999, textvariable=self.qty, width=6).grid(row=0, column=2)
         r += 1
         for key in keys:
@@ -1786,8 +1788,8 @@ class App(tk.Tk):
         if mk is not None:
             if not mk.ok():
                 messagebox.showwarning(APP_NAME, f"Распределено {mk.distributed()} шт. из {q}.\n"
-                                                 f"Сумма тиражей по макетам должна совпадать "
-                                                 f"с тиражом изделия.")
+                                                 f"Сумма по макетам должна совпадать "
+                                                 f"с кол-вом изделий.")
                 return
             rows = mk.items()
             nums = [x["номер"] for x in rows]
@@ -1990,7 +1992,7 @@ class App(tk.Tk):
             "Артикул": values.get("АРТИКУЛ", ""),
             "Серийный номер": values.get("СЕРИЙНЫЙ_НОМЕР", ""),
             "Номер макета": values.get("НОМЕР_МАКЕТА", ""),
-            "Тираж": job["тираж"],
+            "Кол-во": job["тираж"],
             "Гарантия, мес": self._get_or("ГАРАНТИЯ"),
             "Дата продажи": self._get_or("ДАТА_ПРОДАЖИ"),
             "Печать, подпись и дата": ("да" + (", дата" if rep.get("даты") else ""))

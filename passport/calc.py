@@ -259,9 +259,14 @@ def title_lines(name: str, article: str, typ: str = "", rules: dict = None,
     return "\n".join(lines)
 
 
+TITLE_SAFETY = 0.97       # запас: Word и LibreOffice считают ширину чуть иначе, чем PIL
+
+
 def title_fit(text: str, width, pt) -> float:
-    """Наибольший кегль ≤ pt, при котором каждая строка титула помещается в поле."""
+    """Наибольший кегль ≤ pt, при котором каждая строка титула помещается в поле
+    (с небольшим запасом, чтобы строка не переносилась в Word)."""
     p = float(pt)
+    width = width * TITLE_SAFETY
     for line in [l for l in str(text).splitlines() if l.strip()]:
         w = _measure_mm(line, pt)
         if w > width:

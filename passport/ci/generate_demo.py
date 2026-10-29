@@ -5,6 +5,7 @@ P = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(P))
 import docx, engine, calc, project_import, book  # noqa: E402
 
+calc.FONT_FILE = str(P / "Шрифты" / "RussianRail_G_Pro_Regular.otf")   # замер титула — как в программе
 rules = calc.load_rules(Path(sys.argv[2]) / "правила.json")
 proj = project_import.load_project(P / "Демо" / "Демо_проект_Одинцово.json")
 out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
@@ -14,7 +15,11 @@ lines = [f"Проект: {proj['проект']}, изделий {len(proj['из�
 ok = True
 for it in proj["изделия"]:
     t = it["тип"]; d = docx.Document(tpl[t]); table = engine.read_tech_table(d)
-    values, rows, v = calc.compute(it, rules, table)
+    values, rows, v = calc.compute(it, rules, table, engine.title_box(d))
+    w_mm, pt = engine.title_box(d)
+    fit = calc.title_fit(values["НАИМЕНОВАНИЕ_ТИТУЛ"], w_mm, pt)
+    if fit < pt:
+        values["НАИМЕНОВАНИЕ_ТИТУЛ"] = {"text": values["НАИМЕНОВАНИЕ_ТИТУЛ"], "pt": fit}
     keys = engine.find_placeholders(d)
     values["ГАРАНТИЯ"] = engine.format_warranty(36)
     values["ДАТА_ПРОДАЖИ"] = engine.format_sale_date(engine.parse_date("21.10.2026"))
