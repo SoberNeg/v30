@@ -193,7 +193,72 @@ def image_placeholders(document) -> list:
     return keys
 
 
+def title_box(document, key="НАИМЕНОВАНИЕ_ТИТУЛ"):
+    """(ширина поля мм, кегль pt) абзаца с меткой титула — поле задаётся отступами
+    абзаца в шаблоне (только тёмно-синяя зона обложки)."""
+    tag = "{{" + key + "}}"
+    for p in document.paragraphs:
+        if tag in p.text:
+            sec = document.sections[0]
+            pf = p.paragraph_format
+            w = (sec.page_width - sec.left_margin - sec.right_margin
+                 - (pf.left_indent or 0) - (pf.right_indent or 0)) / 36000
+            pt = None
+            for r in p._p.iter(W_R):
+                sz = r.find(qn("w:rPr") + "/" + qn("w:sz"))
+                if sz is not None:
+                    pt = int(sz.get(qn("w:val"))) / 2
+                    break
+            return round(w, 1), pt
+    return None, None
+
+
+# Порядок дочерних элементов внутри w:rPr задан схемой OOXML. Word не открывает файл,
+# если порядок нарушен (LibreOffice такое прощает), поэтому новые элементы вставляем
+# на положенное место, а не в конец.
+RPR_ORDER = """ins del moveFrom moveTo rStyle rFonts b bCs i iCs caps smallCaps strike dstrike
+    outline shadow emboss imprint noProof snapToGrid vanish webHidden color spacing w kern
+    position sz szCs highlight u effect bdr shd fitText vertAlign rtl cs em lang
+    eastAsianLayout specVanish oMath rPrChange""".split()
+
+
+def insert_ordered(parent, tag, order=RPR_ORDER):
+    """Создаёт (если нужно) дочерний элемент tag и ставит его по порядку схемы."""
+    el = parent.find(qn(tag))
+    if el is not None:
+        return el
+    name = tag.split(":")[-1]
+    el = parent.makeelement(qn(tag), {})
+    pos = order.index(name) if name in order else len(order)
+    after = None
+    for ch in parent:
+        n = ch.tag.split("}")[-1]
+        if n in order and order.index(n) > pos:
+            after = ch
+            break
+    if after is not None:
+        after.addprevious(el)
+    else:
+        parent.append(el)
+    return el
+
+
+def _set_pt(par, pt):
+    half = str(int(round(pt * 2)))
+    rprs = [r.get_or_add_rPr() for r in par.iter(W_R)]
+    ppr = par.find(qn("w:pPr"))
+    if ppr is not None and ppr.find(qn("w:rPr")) is not None:
+        rprs.append(ppr.find(qn("w:rPr")))
+    for rpr in rprs:
+        for tag in ("w:sz", "w:szCs"):
+            insert_ordered(rpr, tag).set(qn("w:val"), half)
+
+
 def fill_placeholders(document, values: dict) -> dict:
+    """Значение может быть строкой или {"text": …, "pt": кегль} — тогда у абзацев
+    метки меняется кегль (титул, ужатый под поле)."""
+    sizes = {k: v["pt"] for k, v in values.items() if isinstance(v, dict) and v.get("pt")}
+    values = {k: (v["text"] if isinstance(v, dict) else v) for k, v in values.items()}
     """Подставляет значения. Возвращает {ключ: число замен}."""
     counts = {k: 0 for k in values}
     for _, root in _xml_parts(document):
@@ -208,12 +273,17 @@ def fill_placeholders(document, values: dict) -> dict:
                 lines = str(values[m0.group(1)]).split("\n")
                 proto = copy.deepcopy(p)
                 replace_in_paragraph(p, m0.group(0), lines[0])
+                made = [p]
                 last = p
                 for line in lines[1:]:
                     np_ = copy.deepcopy(proto)
                     replace_in_paragraph(np_, m0.group(0), line)
                     last.addnext(np_)
                     last = np_
+                    made.append(np_)
+                if m0.group(1) in sizes:
+                    for par in made:
+                        _set_pt(par, sizes[m0.group(1)])
                 counts[m0.group(1)] += 1
                 continue
             for m in list(PLACEHOLDER_RE.finditer(txt)):
@@ -476,6 +546,15 @@ STAMP_DEFAULTS = {
     "сдвиг_подписи_по_вертикали_мм": 3.0,
 }
 STAMP_RE = re.compile(r"\[\[([^\[\]]+)\]\]")
+DATE_DEFAULTS = {
+    "дата_высота_цифр_мм": 4.5,         # высота цифр рукописной даты
+    "дата_наклон_знака_град": 4.0,      # ± у каждой цифры
+    "дата_размер_знака_проц": 6.0,      # ± размер каждой цифры
+    "дата_сдвиг_знака_мм": 0.4,         # ± по вертикали у каждой цифры
+    "дата_поворот_град": 3.0,           # ± у всей даты
+    "дата_сдвиг_мм": 2.0,               # максимальный сдвиг всей даты
+}
+DATE_SIGNERS = {"ДАТА_ДУДИН": "ПОДПИСЬ_ДУДИН", "ДАТА_ЗАЛИВАКИН": "ПОДПИСЬ_ЗАЛИВАКИН"}
 
 
 def _ink_image(path, angle, tmpdir):
@@ -484,13 +563,20 @@ def _ink_image(path, angle, tmpdir):
     im = Image.open(path).convert("RGBA")
     a = im.getchannel("A")
     if a.getextrema()[0] == 255:                 # фон непрозрачный (белый) — делаем прозрачным
-        import numpy as np
-        arr = np.asarray(im).astype(float)
-        ink = 1 - arr[..., :3].min(axis=2) / 255.0
-        alpha = np.clip(ink * 1.6, 0, 1)
-        rgb = np.where(alpha[..., None] > 0,
-                       255 - (255 - arr[..., :3]) / np.maximum(alpha[..., None], 1e-3), 255)
-        im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype("uint8"), "RGBA")
+        try:
+            import numpy as np
+            arr = np.asarray(im).astype(float)
+            ink = 1 - arr[..., :3].min(axis=2) / 255.0
+            alpha = np.clip(ink * 1.6, 0, 1)
+            rgb = np.where(alpha[..., None] > 0,
+                           255 - (255 - arr[..., :3]) / np.maximum(alpha[..., None], 1e-3), 255)
+            im = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), alpha * 255]).astype("uint8"),
+                                 "RGBA")
+        except ImportError:                      # без numpy: прозрачность по «чернилам»
+            from PIL import ImageChops
+            r, g, b = im.convert("RGB").split()
+            ink = ImageChops.invert(ImageChops.darker(r, ImageChops.darker(g, b)))
+            im.putalpha(ink.point(lambda v: min(255, int(v * 1.6))))
         a = im.getchannel("A")
     bbox = a.point(lambda v: 255 if v > 40 else 0).getbbox()
     if bbox:
@@ -515,7 +601,7 @@ def apply_stamps(document, enabled, library, settings=None, rng=None):
     placed = []
     for dp in list(document.element.iter(qn("wp:docPr"))):
         m = STAMP_RE.fullmatch((dp.get("descr") or "").strip())
-        if not m:
+        if not m or m.group(1).startswith("ДАТА_"):        # даты — apply_dates
             continue
         key = m.group(1)
         run = _drawing_run(dp)
@@ -532,7 +618,8 @@ def apply_stamps(document, enabled, library, settings=None, rng=None):
         center_x = int(ph.text) + cx0 / 2
         center_y = int(pv.text) + cy0 / 2
         angle = rng.uniform(-cfg["поворот_град"], cfg["поворот_град"])
-        png, wpx, hpx, w0, h0 = _ink_image(rng.choice(files), angle, tmpdir)
+        src = rng.choice(files)
+        png, wpx, hpx, w0, h0 = _ink_image(src, angle, tmpdir)
         if key.startswith("ПЕЧАТЬ"):
             px_per_mm = (w0 + h0) / 2 / cfg["печать_диаметр_мм"]
             r = cfg["сдвиг_мм"] * math.sqrt(rng.random())
@@ -554,6 +641,178 @@ def apply_stamps(document, enabled, library, settings=None, rng=None):
                 e.set("cy", str(cy))
         ph.text = str(int(center_x - cx / 2 + dx * 36000))
         pv.text = str(int(center_y - cy / 2 + dy * 36000))
+        dp.set("descr", key.replace("_", " ").capitalize())
+        placed.append((key, round(angle, 1), round(dx, 1), round(dy, 1), str(src)))
+    return placed
+
+
+# ===================================================================== рукописная дата
+def ink_color(path):
+    """Цвет чернил подписи: средний цвет самой тёмной трети непрозрачных пикселей."""
+    from PIL import Image
+    im = Image.open(path).convert("RGBA")
+    im.thumbnail((400, 400))
+    a = im.getchannel("A")
+    opaque_bg = a.getextrema()[0] == 255
+    px = []
+    for (r, g, b, al) in im.getdata():
+        if opaque_bg:
+            if min(r, g, b) < 200:
+                px.append((r, g, b))
+        elif al > 200:
+            px.append((r, g, b))
+    if not px:
+        return (40, 40, 140)
+    px.sort(key=sum)
+    core = px[: max(1, len(px) // 3)]
+    return tuple(sum(c[i] for c in core) // len(core) for i in range(3))
+
+
+def handwrite_png(text, ink, cfg, rng, tmpdir, font_path=None, digits_dir=None, dpi=600):
+    """Дата «от руки»: каждая цифра и точка — отдельно, со своим наклоном, размером,
+    сдвигом и нажимом; вся дата — с небольшим поворотом. → (png, ширина мм, высота мм)."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    k = dpi / 25.4                                   # px на мм
+    H = cfg["дата_высота_цифр_мм"] * k
+    font = None
+    if digits_dir and not all((Path(digits_dir) / f"{i}.png").exists() for i in range(10)):
+        digits_dir = None
+    if font_path and Path(font_path).exists():
+        font = ImageFont.truetype(str(font_path), 100)
+        try:
+            font.set_variation_by_axes([460])        # Caveat: чуть плотнее, как шариковая ручка
+        except Exception:
+            pass
+        x0, y0, x1, y1 = font.getbbox("0", anchor="ls")
+        font = ImageFont.truetype(str(font_path), max(8, int(round(100 * H / max(1, y1 - y0) * 1.0))))
+        try:
+            font.set_variation_by_axes([460])
+        except Exception:
+            pass
+
+    def glyph(ch):
+        """→ (маска L, сдвиг базовой линии от низа маски в px)."""
+        own = None
+        if digits_dir:
+            name = "точка" if ch == "." else ch
+            for ext in (".png", ".PNG"):
+                f = Path(digits_dir) / (name + ext)
+                if f.exists():
+                    own = f
+                    break
+        if own:
+            im = Image.open(own).convert("RGBA")
+            a = im.getchannel("A")
+            if a.getextrema()[0] == 255:             # белый фон → маска по «чернилам»
+                from PIL import ImageOps
+                a = ImageOps.invert(im.convert("L")).point(lambda v: min(255, int(v * 1.6)))
+            bbox = a.point(lambda v: 255 if v > 40 else 0).getbbox()
+            a = a.crop(bbox) if bbox else a
+            target = H * (0.18 if ch == "." else 1.0)
+            sc = target / max(1, a.height)
+            a = a.resize((max(1, int(a.width * sc)), max(1, int(a.height * sc))), Image.LANCZOS)
+            return a, 0
+        if font is None:                             # свои цифры без точки — точку рисуем
+            r = max(2, int(H * 0.09))
+            dot = Image.new("L", (2 * r + 2, 2 * r + 2), 0)
+            ImageDraw.Draw(dot).ellipse((1, 1, 2 * r, 2 * r), fill=255)
+            return dot, 0
+        size = int(H * 2.2)
+        im = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(im).text((size // 4, int(size * 0.7)), ch, font=font, fill=255, anchor="ls")
+        bbox = im.getbbox()
+        if not bbox:
+            return Image.new("L", (int(H * 0.3), 1), 0), 0
+        base = int(size * 0.7)
+        crop = im.crop((bbox[0], bbox[1], bbox[2], max(bbox[3], base)))
+        return crop, max(0, crop.height - (base - bbox[1]))
+
+    pieces = []
+    for ch in text:
+        if ch == " ":
+            pieces.append((None, int(H * 0.35), 0, 0))
+            continue
+        m, desc = glyph(ch)
+        s = 1 + rng.uniform(-1, 1) * cfg["дата_размер_знака_проц"] / 100
+        m = m.resize((max(1, int(m.width * s)), max(1, int(m.height * s))), Image.LANCZOS)
+        pad = int(H * 0.15)
+        big = Image.new("L", (m.width + 2 * pad, m.height + 2 * pad), 0)
+        big.paste(m, (pad, pad))
+        big = big.rotate(rng.uniform(-1, 1) * cfg["дата_наклон_знака_град"], resample=Image.BICUBIC)
+        press = rng.uniform(0.84, 1.0)                # неравномерный нажим
+        big = big.point(lambda v, p=press: int(v * p))
+        dy = rng.uniform(-1, 1) * cfg["дата_сдвиг_знака_мм"] * k
+        pieces.append((big, pad, int(desc * s) + pad, dy))
+    asc = int(H * 1.6)
+    width = int(sum((p[0].width - 2 * p[1]) if p[0] else p[1] for p in pieces) * 1.25 + H * 2)
+    canvas = Image.new("L", (width, asc * 2), 0)
+    x, base_y = int(H * 0.5), asc
+    for big, pad, below, dy in pieces:
+        if big is None:
+            x += pad
+            continue
+        top = int(base_y - (big.height - below) + dy)
+        canvas.paste(big, (x - pad, top), big)
+        x += big.width - 2 * pad + int(H * rng.uniform(0.04, 0.14))
+    canvas = canvas.filter(ImageFilter.GaussianBlur(0.6))
+    angle = rng.uniform(-1, 1) * cfg["дата_поворот_град"]
+    canvas = canvas.rotate(angle, resample=Image.BICUBIC, expand=True)
+    bbox = canvas.getbbox() or (0, 0, 1, 1)
+    canvas = canvas.crop(bbox)
+    jitter = [max(0, min(255, c + rng.randint(-6, 6))) for c in ink]
+    rgba = Image.new("RGBA", canvas.size, tuple(jitter) + (255,))
+    rgba.putalpha(canvas)
+    out = Path(tmpdir) / f"date_{abs(hash((text, angle, x)))}.png"
+    rgba.save(out, dpi=(dpi, dpi))
+    return str(out), canvas.width / k, canvas.height / k, angle
+
+
+def apply_dates(document, enabled, date_text, inks, settings=None, rng=None, font_path=None,
+                digits_dirs=None):
+    """Места [[ДАТА_ДУДИН]] и [[ДАТА_ЗАЛИВАКИН]]: дата «от руки» цветом соответствующей подписи.
+    Выключено, нет даты или нет цвета — место удаляется. inks = {ключ места: (r, g, b)}."""
+    import math
+    import random
+    import tempfile
+    cfg = dict(DATE_DEFAULTS, **{k: v for k, v in (settings or {}).items() if k in DATE_DEFAULTS})
+    rng = rng or random.SystemRandom()
+    tmpdir = tempfile.mkdtemp(prefix="pasp_date_")
+    placed = []
+    for dp in list(document.element.iter(qn("wp:docPr"))):
+        m = STAMP_RE.fullmatch((dp.get("descr") or "").strip())
+        if not m or not m.group(1).startswith("ДАТА_"):
+            continue
+        key = m.group(1)
+        run = _drawing_run(dp)
+        ink = (inks or {}).get(key)
+        digits = (digits_dirs or {}).get(key)
+        has_hand = bool(digits) or bool(font_path and Path(font_path).exists())
+        if not enabled or not date_text or not ink or not has_hand:
+            if run is not None and run.getparent() is not None:
+                run.getparent().remove(run)
+            continue
+        holder = dp.getparent()
+        ext = holder.find(qn("wp:extent"))
+        ph = holder.find(qn("wp:positionH") + "/" + qn("wp:posOffset"))
+        pv = holder.find(qn("wp:positionV") + "/" + qn("wp:posOffset"))
+        cx0, cy0 = int(ext.get("cx")), int(ext.get("cy"))
+        center_x = int(ph.text) + cx0 / 2
+        bottom = int(pv.text) + cy0
+        png, w_mm, h_mm, angle = handwrite_png(date_text, ink, cfg, rng, tmpdir, font_path, digits)
+        r = cfg["дата_сдвиг_мм"] * math.sqrt(rng.random())
+        t = rng.uniform(0, 2 * math.pi)
+        dx, dy = r * math.cos(t), r * math.sin(t) * 0.5        # по вертикали — вдвое меньше
+        cx, cy = int(w_mm * 36000), int(h_mm * 36000)
+        rid, _ = document.part.get_or_add_image(str(png))
+        next(holder.iter(qn("a:blip"))).set(qn("r:embed"), rid)
+        ext.set("cx", str(cx))
+        ext.set("cy", str(cy))
+        for e in holder.iter(qn("a:ext")):
+            if e.get("cx") is not None:
+                e.set("cx", str(cx))
+                e.set("cy", str(cy))
+        ph.text = str(int(center_x - cx / 2 + dx * 36000))
+        pv.text = str(int(bottom - cy + dy * 36000))
         dp.set("descr", key.replace("_", " ").capitalize())
         placed.append((key, round(angle, 1), round(dx, 1), round(dy, 1)))
     return placed
@@ -587,6 +846,19 @@ def generate(template_path, out_path, values: dict, table_rows=None, images=None
     st = stamps or {}
     report["печати"] = apply_stamps(document, st.get("включено", False), st.get("файлы"),
                                     st.get("настройки"))
+    # рукописная дата — цветом той подписи, что поставлена в этот документ
+    used = {p[0]: p[4] for p in report["печати"] if len(p) > 4}
+    inks = {}
+    for place, signer in DATE_SIGNERS.items():
+        src = used.get(signer) or next(iter((st.get("файлы") or {}).get(signer) or []), None)
+        if src:
+            try:
+                inks[place] = ink_color(src)
+            except Exception:
+                pass
+    report["даты"] = apply_dates(document, st.get("включено", False) and st.get("дата", True),
+                                 st.get("дата_текст", ""), inks, st.get("настройки"),
+                                 font_path=st.get("шрифт_даты"), digits_dirs=st.get("цифры"))
     left = [k for k in find_placeholders(document)]
     report["остались незаполненными"] = left
     document.save(out_path)

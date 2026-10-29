@@ -4,6 +4,10 @@ from pathlib import Path
 P = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(P))
 import docx, engine, calc, project_import, book  # noqa: E402
+try:
+    import pdf_maket  # V2.x: макеты в PDF
+except Exception:
+    pdf_maket = None
 
 rules = calc.load_rules(Path(sys.argv[2]) / "правила.json")
 proj = project_import.load_project(P / "Демо" / "Демо_проект_Одинцово.json")
@@ -22,7 +26,13 @@ for it in proj["изделия"]:
         values.setdefault("СЕРИЙНЫЙ_НОМЕР", "21102026010")
     imgs = {}
     if it.get("номер_макета") and "ИЗОБРАЖЕНИЕ_МАКЕТА" in keys:
-        imgs["ИЗОБРАЖЕНИЕ_МАКЕТА"] = [str(f) for f in sorted((P / "Демо" / "Макеты").glob(it["номер_макета"] + "*.png"))][:it["сторон"]]
+        mk = P / "Демо" / "Макеты"
+        pdf = mk / (it["номер_макета"] + ".pdf")
+        if pdf_maket is not None and pdf.exists():          # PDF-макет → PNG через pypdfium2
+            imgs["ИЗОБРАЖЕНИЕ_МАКЕТА"] = [str(pdf_maket.render_png(pdf_maket.make_spec(str(pdf), 1), out / "pdf"))]
+            lines.append(f'PDF-макет {pdf.name}: отрисован → {Path(imgs["ИЗОБРАЖЕНИЕ_МАКЕТА"][0]).name}')
+        else:
+            imgs["ИЗОБРАЖЕНИЕ_МАКЕТА"] = [str(f) for f in sorted(mk.glob(it["номер_макета"] + "*.png"))][:it["сторон"]]
     fn = out / f'{it["префикс"]}.docx'
     rep = engine.generate(tpl[t], fn, values, [r[:2] for r in rows] if table else None, imgs, {"включено": False})
     good = not rep["остались незаполненными"] and rep["таблица"] and all(rep["изображения"].values())

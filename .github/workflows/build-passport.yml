@@ -14,7 +14,7 @@ jobs:
     runs-on: windows-latest
     env:
       PYTHONIOENCODING: utf-8
-      NAME: Passport_Filler_V1_5
+      NAME: Passport_Filler_V2_3
     defaults:
       run:
         shell: pwsh
@@ -46,6 +46,9 @@ jobs:
             --name "$env:NAME" `
             --collect-data docx `
             --collect-submodules pypdf `
+            --collect-all pypdfium2 `
+            --collect-all pypdfium2_raw `
+            --hidden-import openpyxl `
             --hidden-import PIL.ImageTk `
             --hidden-import PIL._tkinter_finder `
             --hidden-import win32com.client `
@@ -59,7 +62,7 @@ jobs:
         run: |
           $d = "dist\$env:NAME"
           Copy-Item -Recurse -Force "Шаблоны", "Демо", "Шрифты", "Печати и подписи", "ПРОЧТИ.txt" $d
-          Get-ChildItem -Recurse $d -Include *.ttf,*.otf,*.ttc,Печать*.png,Подпись*.png | Remove-Item -Force
+          Get-ChildItem -Recurse $d -Include RussianRail*,GOST*,Печать*.png,Подпись*.png | Remove-Item -Force
           Get-ChildItem $d | ForEach-Object { Write-Output $_.Name }
 
       - name: Pack
@@ -68,8 +71,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Passport_Filler_V1_5_Windows
-          path: Passport_Filler_V1_5_Windows.zip
+          name: Passport_Filler_V2_3_Windows
+          path: Passport_Filler_V2_3_Windows.zip
 
       - name: Smoke test (exe opens with demo project) + screenshot
         working-directory: passport
@@ -91,7 +94,7 @@ jobs:
           $t = $titles -join ' | '
           Write-Output "Visible windows: $t"
           Write-Output "::notice title=Passport windows::$t"
-          if (-not ($titles -like "Утилита заполнения паспортов*V1.5*")) { throw "main window not visible" }
+          if (-not ($titles -like "Утилита заполнения паспортов*V2.3*")) { throw "main window not visible" }
 
       - name: Publish screenshot to branch ci-screenshots
         if: always()

@@ -31,7 +31,9 @@ def find_renderers():
     if sys.platform.startswith("win"):
         try:
             import win32com.client  # noqa: F401
-            out.append("word")
+            import winreg
+            winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Word.Application\CLSID"))
+            out.append("word")                     # Word действительно установлен
         except Exception:
             pass
     if sys.platform == "darwin" and Path("/Applications/Microsoft Word.app").exists():
@@ -221,3 +223,23 @@ def prepare_for_print(docx_path, renderer=None, log=print):
     total = len(texts)
     return {"pdf": pdf, "страниц": total, "пустых": k, "оглавление": toc_fixed,
             "кратно": total % MULTIPLE == 0, "сборщик": "MS Word" if r.startswith("word") else "LibreOffice"}
+
+
+def refresh_toc(docx_path, renderer=None, keep_pdf=False) -> int:
+    """Только пересчёт номеров страниц в «Содержании» (без добивки страниц).
+    Возвращает число исправленных пунктов; PDF оставляется, если keep_pdf."""
+    docx_path = Path(docx_path)
+    renderers = [renderer] if renderer else find_renderers()
+    if not renderers:
+        raise RuntimeError("Для пересчёта оглавления нужен MS Word или LibreOffice.")
+    r = renderers[0]
+    pdf = render_pdf(docx_path, r)
+    document = docx.Document(str(docx_path))
+    n = update_toc(document, pdf_pages_text(pdf), page_offset(document))
+    if n:
+        document.save(str(docx_path))
+        if keep_pdf:
+            pdf = render_pdf(docx_path, r)
+    if not keep_pdf and pdf.exists():
+        pdf.unlink()
+    return n
