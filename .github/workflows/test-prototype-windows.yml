@@ -45,6 +45,16 @@ jobs:
           $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
           Write-Output "::notice title=Engine test::$m"
           if ($code -ne 0) { throw "engine test failed" }
+      - name: Word open test (файлы должны открываться в самом Word)
+        if: always()
+        run: |
+          python -m pip install -q pywin32
+          $out = python passport/ci/word_open_test.py "$env:RUNNER_TEMP/demo_out" 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          Write-Output $out
+          $m = $out.Replace('%','%25').Replace("`r",'').Replace("`n",'%0A')
+          Write-Output "::notice title=Word open test::$m"
+          if ($code -ne 0) { throw "word open test failed" }
       - name: Feature tests (sort, makets, file names, no date, handwritten date, PDF crop, clipboard)
         if: always()
         run: |

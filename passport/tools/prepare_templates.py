@@ -805,12 +805,8 @@ def _run_size(par, pt):
         if rPr is None:
             rPr = r.makeelement(qn("w:rPr"), {})
             r.insert(0, rPr)
-        for tag in ("w:sz", "w:szCs"):
-            e = rPr.find(qn(tag))
-            if e is None:
-                e = rPr.makeelement(qn(tag), {})
-                rPr.append(e)
-            e.set(qn("w:val"), str(int(pt * 2)))
+        for tag in ("w:sz", "w:szCs"):    # порядок внутри rPr важен для Word
+            engine.insert_ordered(rPr, tag).set(qn("w:val"), str(int(pt * 2)))
 
 
 def cover_like(path, reference):
@@ -910,7 +906,10 @@ def keep_block_together(document, heading, stop_re=r"^\d+\.\d+\."):
             pPr = el.makeelement(qn("w:pPr"), {})
             el.insert(0, pPr)
         if pPr.find(qn("w:keepNext")) is None:
-            pPr.append(pPr.makeelement(qn("w:keepNext"), {}))
+            # порядок элементов внутри w:pPr важен: keepNext идёт сразу за pStyle,
+            # иначе Word откажется открывать файл (LibreOffice такое прощает)
+            at = 1 if pPr.find(qn("w:pStyle")) is not None else 0
+            pPr.insert(at, pPr.makeelement(qn("w:keepNext"), {}))
     return j - i
 
 
@@ -926,9 +925,14 @@ def picture_wrap(document, text_anchor, mode="wrapSquare", side="left"):
         for ch in list(a):
             if ch.tag.startswith(WP + "wrap"):
                 a.remove(ch)
-        w = etree.SubElement(a, WP + mode)
+        w = a.makeelement(WP + mode, {})
         if mode == "wrapSquare":
             w.set("wrapText", side)
+        docPr = a.find(WP + "docPr")      # обтекание стоит строго перед docPr
+        if docPr is not None:
+            docPr.addprevious(w)
+        else:
+            a.append(w)
         a.set("distL", "114300")
         a.set("distR", "114300")
         a.set("behindDoc", "0")
@@ -1002,3 +1006,37 @@ def fit_cover_heading(path, margin_mm=3.0):
     d.save(path)
     return {"надпись": (round(x0, 1), round(x1, 1)), "поле": (round(L, 1), round(R, 1)),
             "поправка": "по центру поля"}
+
+
+def normalize_order(path):
+    """Порядок дочерних элементов внутри w:pPr, w:rPr и wp:anchor — строго по схеме OOXML.
+    Word не открывает файл с нарушенным порядком (LibreOffice открывает), а в образцах
+    после конвертации из .doc порядок местами нарушен."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import check_docx as chk
+    d = docx.Document(path)
+    fixed = 0
+    for root in (d.element, *[p.element for p in d.part.package.parts if hasattr(p, "element")]):
+        pass
+    for parent_tag, order in chk.ORDER.items():
+        slot = chk.SLOT.get(parent_tag, {})
+        for el in d.element.iter(parent_tag):
+            kids = list(el)
+            keys, prev = [], -1.0
+            for ch in kids:
+                name = ch.tag.split("}")[-1]
+                if name in slot:
+                    prev = float(slot[name])
+                elif name in order:
+                    prev = float(order.index(name))
+                else:
+                    prev = prev + 0.001          # чужие элементы остаются на своём месте
+                keys.append(prev)
+            new = [c for _, c in sorted(zip(keys, kids), key=lambda kc: kc[0])]
+            if new != kids:
+                for c in new:
+                    el.append(c)
+                fixed += 1
+    d.save(path)
+    return fixed

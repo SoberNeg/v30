@@ -213,6 +213,36 @@ def title_box(document, key="НАИМЕНОВАНИЕ_ТИТУЛ"):
     return None, None
 
 
+# Порядок дочерних элементов внутри w:rPr задан схемой OOXML. Word не открывает файл,
+# если порядок нарушен (LibreOffice такое прощает), поэтому новые элементы вставляем
+# на положенное место, а не в конец.
+RPR_ORDER = """ins del moveFrom moveTo rStyle rFonts b bCs i iCs caps smallCaps strike dstrike
+    outline shadow emboss imprint noProof snapToGrid vanish webHidden color spacing w kern
+    position sz szCs highlight u effect bdr shd fitText vertAlign rtl cs em lang
+    eastAsianLayout specVanish oMath rPrChange""".split()
+
+
+def insert_ordered(parent, tag, order=RPR_ORDER):
+    """Создаёт (если нужно) дочерний элемент tag и ставит его по порядку схемы."""
+    el = parent.find(qn(tag))
+    if el is not None:
+        return el
+    name = tag.split(":")[-1]
+    el = parent.makeelement(qn(tag), {})
+    pos = order.index(name) if name in order else len(order)
+    after = None
+    for ch in parent:
+        n = ch.tag.split("}")[-1]
+        if n in order and order.index(n) > pos:
+            after = ch
+            break
+    if after is not None:
+        after.addprevious(el)
+    else:
+        parent.append(el)
+    return el
+
+
 def _set_pt(par, pt):
     half = str(int(round(pt * 2)))
     rprs = [r.get_or_add_rPr() for r in par.iter(W_R)]
@@ -221,11 +251,7 @@ def _set_pt(par, pt):
         rprs.append(ppr.find(qn("w:rPr")))
     for rpr in rprs:
         for tag in ("w:sz", "w:szCs"):
-            el = rpr.find(qn(tag))
-            if el is None:
-                el = rpr.makeelement(qn(tag), {})
-                rpr.append(el)
-            el.set(qn("w:val"), half)
+            insert_ordered(rpr, tag).set(qn("w:val"), half)
 
 
 def fill_placeholders(document, values: dict) -> dict:

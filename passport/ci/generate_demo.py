@@ -4,6 +4,8 @@ from pathlib import Path
 P = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(P))
 import docx, engine, calc, project_import, book  # noqa: E402
+sys.path.insert(0, str(P / "tools"))
+import check_docx  # noqa: E402
 
 calc.FONT_FILE = str(P / "Шрифты" / "RussianRail_G_Pro_Regular.otf")   # замер титула — как в программе
 rules = calc.load_rules(Path(sys.argv[2]) / "правила.json")
@@ -32,7 +34,10 @@ for it in proj["изделия"]:
     rep = engine.generate(tpl[t], fn, values, [r[:2] for r in rows] if table else None, imgs, {"включено": False})
     good = not rep["остались незаполненными"] and rep["таблица"] and all(rep["изображения"].values())
     ok &= bool(good)
-    lines.append(f'{"OK " if good else "ERR"} {it["префикс"]} {t} | {values["АРТИКУЛ"]} | строк {len(rows)} | '
-                 f'макет {rep["изображения"] or "-"} | метки без значения {rep["остались незаполненными"] or "нет"} | {fn.stat().st_size} б')
+    xml = check_docx.check(fn)                 # Word не откроет файл с нарушенным порядком XML
+    ok &= not xml
+    lines.append(f'{"OK " if good and not xml else "ERR"} {it["префикс"]} {t} | {values["АРТИКУЛ"]} | строк {len(rows)} | '
+                 f'макет {rep["изображения"] or "-"} | метки без значения {rep["остались незаполненными"] or "нет"} | {fn.stat().st_size} б'
+                 + (f' | ПОРЯДОК XML: {len(xml)} ошибок — {xml[0][:120]}' if xml else ''))
 print("\n".join(lines))
 sys.exit(0 if ok else 1)

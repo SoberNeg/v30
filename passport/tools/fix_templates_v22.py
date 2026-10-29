@@ -44,6 +44,8 @@ def main(folder):
     for f in [dyn] + others:
         zone = pt.fit_cover_zone(f)
         print(f"{f.name}: поле наименования {zone[0]:.1f}–{zone[1]:.1f} мм")
+    for f in [dyn] + others:                 # Word открывает файл только при верном порядке XML
+        print(f"{f.name}: порядок XML — исправлено блоков {pt.normalize_order(f)}")
 
 
 if __name__ == "__main__":
