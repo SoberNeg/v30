@@ -20,6 +20,7 @@ import calc
 import engine
 import fonts
 import pdf_maket
+import docx_check
 import project_import
 from widgets import PALETTES, GradientList, ScrollFrame, install_clipboard
 
@@ -1936,6 +1937,10 @@ class App(tk.Tk):
             self.status.set("Ошибка")
             return None
         notes = []
+        xml = docx_check.check(out)      # Word не открывает файл с нарушенным порядком XML
+        if xml:
+            notes.append("Порядок элементов в файле нарушен — Word может не открыть его "
+                         f"({len(xml)}): {xml[0].split(': ', 1)[-1][:120]}")
         if rep["остались незаполненными"]:
             notes.append("Остались метки без значения: " + ", ".join(rep["остались незаполненными"]))
         if rep["таблица"] is False:

@@ -14,7 +14,12 @@ if not files:
     print("нет файлов для проверки:", folder)
     sys.exit(1)
 
-word = win32com.client.DispatchEx("Word.Application")
+try:
+    word = win32com.client.DispatchEx("Word.Application")
+except Exception as e:                          # noqa: BLE001
+    print("Word на этой машине не установлен — проверка пропущена:", e)
+    print("РЕЗУЛЬТАТ: ПРОПУЩЕНО — нет Word")
+    sys.exit(0)
 word.Visible = False
 word.DisplayAlerts = 0
 bad = []

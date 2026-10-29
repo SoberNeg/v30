@@ -1,6 +1,6 @@
 """Проверка порядка элементов в .docx — Word открывает файл, только если дочерние
 элементы идут в порядке схемы OOXML (LibreOffice это прощает).
-Запуск:  python3 tools/check_docx.py файл.docx [ещё файлы]
+Запуск:  python3 docx_check.py файл.docx [ещё файлы]
 """
 import sys
 import zipfile

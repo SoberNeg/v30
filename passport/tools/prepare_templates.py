@@ -1012,13 +1012,9 @@ def normalize_order(path):
     """Порядок дочерних элементов внутри w:pPr, w:rPr и wp:anchor — строго по схеме OOXML.
     Word не открывает файл с нарушенным порядком (LibreOffice открывает), а в образцах
     после конвертации из .doc порядок местами нарушен."""
-    import sys as _sys
-    _sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import check_docx as chk
+    import docx_check as chk
     d = docx.Document(path)
     fixed = 0
-    for root in (d.element, *[p.element for p in d.part.package.parts if hasattr(p, "element")]):
-        pass
     for parent_tag, order in chk.ORDER.items():
         slot = chk.SLOT.get(parent_tag, {})
         for el in d.element.iter(parent_tag):
