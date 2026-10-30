@@ -1,4 +1,4 @@
-# V40.29.1 = V40.29 + перенесённые исправления сборки Windows:
+# V40.37.1 = V40.37 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-APP_TITLE = "Конструктор LED-экранов V40.29.1"
+APP_TITLE = "Конструктор LED-экранов V40.37.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -1971,7 +1971,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.29.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.37.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2553,13 +2553,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.29.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.37.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.29.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.37.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2597,7 +2597,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.29.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.37.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3830,7 +3830,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.29.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.37.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -4549,7 +4549,7 @@ class ScreenDesigner(BaseTk):
         # V20.75: подсказка быстрого просмотра комплектующих.
         ctrl_hint=ttk.Label(
             parent,
-            text="Двойной клик — открыть изделие; F2 — изменить «Поз.» спецификации; Ctrl + клик — предпросмотр комплектующих.",
+            text="Двойной клик — открыть изделие; F2 — изменить «Поз.» спецификации; Shift / Ctrl / Cmd + клик — выделение строк; Alt / Option + клик — предпросмотр комплектующих.",
             foreground="#666666",
             justify="left"
         )
@@ -9889,7 +9889,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.29.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.37.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9902,7 +9902,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.29.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.37.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13946,7 +13946,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.29.1: строка остаётся «статической» (серая заливка), только если
+                # V40.37.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -33448,8 +33448,1917 @@ def _v3073_snapshot(payload):
     return _v4004_orig_snapshot(p)
 
 
+
+
 # =====================================================================
-# V40.29.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.30 — вкладка «Комплектующие → Чертежи DXF» вместо «Карты раскроя».
+#
+#   • Стенка алюкобонда с разметкой светодиодов (МЦД статика, 1 сторона,
+#     с подсветкой): один DXF на каждый размер стенки (W − 52) × (H − 52).
+#     Одинаковые стенки разных изделий — один файл, количество суммируется.
+#   • Прижимная планка МПК 8мм: раскрой листа 3000 × 2000, один DXF на лист.
+#     Планка убрана из вкладки «Раскрой» вместе с кнопкой «Чертёж DXF».
+#   • Справа — предпросмотр всех стенок, каждая показана вертикально
+#     (длинная сторона по вертикали). Файл DXF — в натуральной ориентации:
+#     начало координат в левом нижнем углу стенки (база Б), ось Y вверх.
+#   • Карта раскроя скрыта (не удалена): её расчёты по-прежнему доступны
+#     печати и другим функциям.
+# Расчёты не меняются: разметка берётся из того же плана, что журнал.
+# =====================================================================
+
+V4030_TAB_TITLE = "Чертежи DXF"
+V4030_CORNER_R = 49.0
+V4030_BULGE_90 = math.tan(math.radians(90.0) / 4.0)
+V4030_LAYERS = (("CONTOUR", 7), ("AXIS", 5), ("ROWS", 3), ("LED", 3), ("MARK", 1),
+                ("DIM", 4), ("TEXT", 7))
+V4030_STATE_NONE = "Не сохранён"
+
+
+def _v4030_num(value):
+    value = float(value)
+    if abs(value - round(value)) < 1e-6:
+        return str(int(round(value)))
+    return f"{value:.1f}".replace(".", ",")
+
+
+def _v4030_file_num(value):
+    return _v4030_num(value).replace(",", ".")
+
+
+# ---------------------------------------------------------------------
+# Данные
+# ---------------------------------------------------------------------
+def _v4030_qty(sign):
+    raw = str((sign or {}).get("quantity", "") or "").strip()
+    try:
+        return max(1, int(raw)) if raw else 1
+    except Exception:
+        return 1
+
+
+def _v4030_project(self):
+    try:
+        name = self.project_name_var.get().strip()
+    except Exception:
+        name = ""
+    return self._safe_filename_part(name or getattr(self, "project_name", "") or "Проект")
+
+
+def _v4030_walls(self):
+    """([стенки], [пояснения]) — стенки односторонней статики МЦД с подсветкой."""
+    groups, notes = {}, []
+    for sign in _v3055_calc_signs(self):
+        if sign.get("mode") != MODE_MCD or int(sign.get("sides", 1) or 1) != 1:
+            continue
+        if str(sign.get("face_type", "С подсветкой")) != "С подсветкой":
+            continue
+        article = str(sign.get("article", "") or sign.get("name", "") or "Указатель").strip()
+        qty = _v4030_qty(sign)
+        try:
+            w = float(sign.get("width", 0) or 0)
+            h = float(sign.get("height", 0) or 0)
+        except Exception:
+            continue
+        if sign.get("round"):
+            notes.append(f"{article} ({qty} шт.) — круглое изделие: разметка по сетке не строится, "
+                         "файл не формируется.")
+            continue
+        if not _v4018_allowed(sign, MODE_MCD, 1, w, h):
+            notes.append(f"{article} ({qty} шт.) — светодиоды по норме, разметки стенки нет, "
+                         "файл не формируется.")
+            continue
+        plan = _v4018_plan(w, h)
+        if not plan or not plan.get("rows"):
+            continue
+        entry = groups.setdefault((w, h), {"w": w, "h": h, "plan": plan, "articles": [], "qty": 0})
+        if article not in entry["articles"]:
+            entry["articles"].append(article)
+        entry["qty"] += qty
+    project = _v4030_project(self)
+    walls = []
+    for entry in groups.values():
+        ww, hh = entry["w"] - V4018_WALL_TRIM, entry["h"] - V4018_WALL_TRIM
+        plan = entry["plan"]
+        rows = plan["rows"]
+        entry.update(
+            ww=ww, hh=hh, total=plan["total"],
+            grid=f"{len(rows)} × {rows[0]['n']}" + (" верт." if plan["vertical"] else ""),
+            file=f"{project}_Алюкобонд_{_v4030_file_num(ww)}x{_v4030_file_num(hh)}_LED{plan['total']}.dxf",
+            kind="wall")
+        walls.append(entry)
+    walls.sort(key=lambda e: (e["ww"] * e["hh"], e["ww"]))
+    return walls, notes
+
+
+def _v4030_plank_sheets(self):
+    """Листы раскроя планки МПК: [{'rows': полосы, 'file', 'index', 'count', ...}]."""
+    lengths, products = [], 0
+    for sign in _v3055_calc_signs(self):
+        if not _v4008_applies(sign):
+            continue
+        try:
+            w = float(sign.get("width", 0) or 0)
+            h = float(sign.get("height", 0) or 0)
+        except Exception:
+            continue
+        if w <= 0 or h <= 0:
+            continue
+        parts = _v4008_plank_parts(w, h, int(sign.get("sides", 1) or 1))
+        if not parts:
+            continue
+        products += 1
+        qty = _v4030_qty(sign)
+        for part in parts:
+            length = part[0] if isinstance(part, (list, tuple)) else part
+            lengths += [int(round(float(length)))] * qty
+    if not lengths:
+        return []
+    rows = _v4009_pack(lengths)
+    per_sheet = max(1, int(V4011_STRIPS))
+    count = max(1, math.ceil(len(rows) / per_sheet))
+    project = _v4030_project(self)
+    sheets = []
+    for index in range(count):
+        chunk = rows[index * per_sheet:(index + 1) * per_sheet]
+        meters = sum(sum(row) for row in chunk) / 1000.0
+        sheets.append({"rows": chunk, "index": index + 1, "count": count, "strips": len(chunk),
+                       "meters": meters, "products": products, "kind": "plank",
+                       "file": f"{project}_МПК8_лист_{index + 1}_из_{count}.dxf"})
+    return sheets
+
+
+# ---------------------------------------------------------------------
+# Геометрия стенки (натуральная ориентация, мм, ось Y вверх)
+# ---------------------------------------------------------------------
+def _v4030_geometry(entry):
+    W, H = float(entry["ww"]), float(entry["hh"])
+    plan = entry["plan"]
+    vertical = bool(plan["vertical"])
+    half = V4024_LED_T / 2.0
+    rows, leds, marks = [], [], []
+    for row in plan["rows"]:
+        pos = float(row["pos"])
+        if vertical:
+            rows.append(((pos, 0.0), (pos, H)))
+            for s in row["starts"]:
+                leds.append((pos - half, s, pos + half, s + V4024_LED_L))
+                marks.append(((pos - 2 * half, s), (pos + 2 * half, s)))
+        else:
+            rows.append(((0.0, pos), (W, pos)))
+            for s in row["starts"]:
+                leds.append((s, pos - half, s + V4024_LED_L, pos + half))
+                marks.append(((s, pos - 2 * half), (s, pos + 2 * half)))
+    axis = ((W / 2.0, 0.0), (W / 2.0, H)) if vertical else ((0.0, H / 2.0), (W, H / 2.0))
+    return {"W": W, "H": H, "vertical": vertical, "rows": rows, "leds": leds,
+            "marks": marks, "axis": axis}
+
+
+# ---------------------------------------------------------------------
+# DXF стенки (ASCII R12, как у раскроя планки)
+# ---------------------------------------------------------------------
+def _v4030_header(width, height):
+    body = [_v4012_pair(0, "SECTION"), _v4012_pair(2, "HEADER"),
+            _v4012_pair(9, "$INSUNITS"), _v4012_pair(70, 4),
+            _v4012_pair(9, "$EXTMIN"), _v4012_pair(10, "-200.0"), _v4012_pair(20, "-200.0"),
+            _v4012_pair(9, "$EXTMAX"), _v4012_pair(10, f"{width + 100:.1f}"),
+            _v4012_pair(20, f"{height + 150:.1f}"), _v4012_pair(0, "ENDSEC"),
+            _v4012_pair(0, "SECTION"), _v4012_pair(2, "TABLES"),
+            _v4012_pair(0, "TABLE"), _v4012_pair(2, "LAYER"), _v4012_pair(70, len(V4030_LAYERS))]
+    for name, color in V4030_LAYERS:
+        body += [_v4012_pair(0, "LAYER"), _v4012_pair(2, name), _v4012_pair(70, 0),
+                 _v4012_pair(62, color), _v4012_pair(6, "CONTINUOUS")]
+    body += [_v4012_pair(0, "ENDTAB"), _v4012_pair(0, "ENDSEC"),
+             _v4012_pair(0, "SECTION"), _v4012_pair(2, "ENTITIES")]
+    return body
+
+
+def _v4030_line(layer, a, b):
+    return "".join((_v4012_pair(0, "LINE"), _v4012_pair(8, layer),
+                    _v4012_pair(10, f"{a[0]:.3f}"), _v4012_pair(20, f"{a[1]:.3f}"),
+                    _v4012_pair(11, f"{b[0]:.3f}"), _v4012_pair(21, f"{b[1]:.3f}")))
+
+
+def _v4030_rounded_rect(layer, width, height, radius):
+    """Замкнутый контур со скруглёнными углами: POLYLINE с дугами (bulge)."""
+    r = max(0.0, min(float(radius), width / 2.0, height / 2.0))
+    pts = [(r, 0.0, 0.0), (width - r, 0.0, V4030_BULGE_90), (width, r, 0.0),
+           (width, height - r, V4030_BULGE_90), (width - r, height, 0.0),
+           (r, height, V4030_BULGE_90), (0.0, height - r, 0.0), (0.0, r, V4030_BULGE_90)]
+    out = [_v4012_pair(0, "POLYLINE"), _v4012_pair(8, layer), _v4012_pair(66, 1),
+           _v4012_pair(70, 1)]
+    for x, y, bulge in pts:
+        out += [_v4012_pair(0, "VERTEX"), _v4012_pair(8, layer),
+                _v4012_pair(10, f"{x:.3f}"), _v4012_pair(20, f"{y:.3f}")]
+        if bulge:
+            out.append(_v4012_pair(42, f"{bulge:.8f}"))
+    out += [_v4012_pair(0, "SEQEND"), _v4012_pair(8, layer)]
+    return "".join(out)
+
+
+def _v4030_dim(body, a, b, offset, text, horizontal=True):
+    """Простой размер: выносные, размерная линия с засечками, текст."""
+    th = 18.0
+    if horizontal:
+        y = offset
+        body.append(_v4030_line("DIM", (a[0], a[1]), (a[0], y)))
+        body.append(_v4030_line("DIM", (b[0], b[1]), (b[0], y)))
+        body.append(_v4030_line("DIM", (a[0], y), (b[0], y)))
+        for x in (a[0], b[0]):
+            body.append(_v4030_line("DIM", (x - 6, y - 6), (x + 6, y + 6)))
+        width = len(text) * th * 0.6
+        body.append(_v4012_text("DIM", (a[0] + b[0]) / 2.0 - width / 2.0, y + 6, th, text))
+    else:
+        x = offset
+        body.append(_v4030_line("DIM", (a[0], a[1]), (x, a[1])))
+        body.append(_v4030_line("DIM", (b[0], b[1]), (x, b[1])))
+        body.append(_v4030_line("DIM", (x, a[1]), (x, b[1])))
+        for y in (a[1], b[1]):
+            body.append(_v4030_line("DIM", (x - 6, y - 6), (x + 6, y + 6)))
+        width = len(text) * th * 0.6
+        body.append(_v4012_text("DIM", x - width - 8, (a[1] + b[1]) / 2.0 - th / 2.0, th, text))
+
+
+def _v4030_wall_dxf(entry, project=""):
+    geo = _v4030_geometry(entry)
+    W, H = geo["W"], geo["H"]
+    plan = entry["plan"]
+    body = _v4030_header(W, H)
+    body.append(_v4030_rounded_rect("CONTOUR", W, H, V4030_CORNER_R))
+    body.append(_v4030_line("AXIS", *geo["axis"]))
+    for a, b in geo["rows"]:
+        body.append(_v4030_line("ROWS", a, b))
+    for x1, y1, x2, y2 in geo["leds"]:
+        body.append(_v4012_rect("LED", x1, y1, x2, y2))
+    for a, b in geo["marks"]:
+        body.append(_v4030_line("MARK", a, b))
+
+    # Размеры: габарит, поля и шаги первого ряда, положение рядов.
+    _v4030_dim(body, (0.0, 0.0), (W, 0.0), -120.0, _v4030_num(W), True)
+    _v4030_dim(body, (0.0, 0.0), (0.0, H), -120.0, _v4030_num(H), False)
+    rows = plan["rows"]
+    starts = list(rows[0]["starts"])
+    length = plan["wall_len"]
+    spans = [(0.0, starts[0])]
+    if len(starts) > 1:
+        spans.append((starts[0], starts[1]))
+    middle = len(starts) // 2
+    if len(starts) > 3 and abs((starts[middle] - starts[middle - 1]) - (starts[1] - starts[0])) > 1e-6:
+        spans.append((starts[middle - 1], starts[middle]))
+    spans.append((starts[-1] + V4024_LED_L, length))
+    positions = [float(r["pos"]) for r in rows]
+    cross = sorted(set([0.0] + positions + [plan["wall_breadth"]]))
+    if geo["vertical"]:
+        x_row = positions[0]
+        for a, b in spans:
+            _v4030_dim(body, (x_row, a), (x_row, b), -60.0, _v4030_num(b - a), False)
+        for a, b in zip(cross, cross[1:]):
+            _v4030_dim(body, (a, H), (b, H), H + 60.0, _v4030_num(b - a), True)
+    else:
+        y_row = positions[0]
+        for a, b in spans:
+            _v4030_dim(body, (a, y_row), (b, y_row), -60.0, _v4030_num(b - a), True)
+        for a, b in zip(cross, cross[1:]):
+            _v4030_dim(body, (W, a), (W, b), W + 60.0 + 100.0, _v4030_num(b - a), False)
+    body.append(_v4012_text("TEXT", 0.0, H + 110.0, 24.0,
+                            f"WALL {_v4030_file_num(W)} x {_v4030_file_num(H)} mm, R"
+                            f"{_v4030_num(V4030_CORNER_R)} / LED {plan['total']} "
+                            f"({len(rows)} x {rows[0]['n']}) / qty {entry.get('qty', 1)}"))
+    body += [_v4012_pair(0, "ENDSEC"), _v4012_pair(0, "EOF")]
+    return "".join(body)
+
+
+def _v4030_plank_dxf(sheet, project):
+    return _v4012_sheet_dxf(sheet["rows"], sheet["index"], sheet["count"], project)
+
+
+# ---------------------------------------------------------------------
+# Вкладка
+# ---------------------------------------------------------------------
+def _v4030_default_folder(self):
+    path = getattr(self, "current_project_path", None)
+    project = _v4030_project(self)
+    if path:
+        return str(Path(path).parent / f"DXF {project}")
+    return str(Path.home() / "Desktop" / f"DXF {project}")
+
+
+def _v4030_folder(self):
+    folder = getattr(self, "_v4030_folder_path", None)
+    return folder or _v4030_default_folder(self)
+
+
+def _v4030_state(self, filename):
+    try:
+        path = Path(_v4030_folder(self)) / filename
+        if path.exists():
+            stamp = datetime.fromtimestamp(path.stat().st_mtime).strftime("%d.%m %H:%M")
+            return f"Сохранён {stamp}"
+    except Exception:
+        pass
+    return V4030_STATE_NONE
+
+
+def _v4030_build_tab(self, parent):
+    parent.columnconfigure(0, weight=1)
+    parent.rowconfigure(1, weight=1)
+    self._v4030_folder_path = None
+    self._v4030_selected_file = None
+    self._v4030_unchecked = set()
+    self._v4030_walls_data = []
+    self._v4030_sheets_data = []
+    self._v4030_card_boxes = {}
+
+    bar = ttk.Frame(parent)
+    bar.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+    ttk.Label(bar, text=V4030_TAB_TITLE, font=("Arial", 13, "bold")).pack(side="left")
+    self._v4030_folder_var = tk.StringVar(value=_v4030_folder(self))
+    ttk.Button(bar, text="Открыть папку", command=self._v4030_open_folder).pack(side="right")
+    ttk.Button(bar, text="Сохранить все", command=lambda: self._v4030_save(all_files=True)).pack(
+        side="right", padx=(0, 6))
+    self._v4030_save_button = ttk.Button(bar, text="Сохранить отмеченные",
+                                         command=lambda: self._v4030_save(all_files=False))
+    self._v4030_save_button.pack(side="right", padx=(0, 6))
+    ttk.Button(bar, text="Обновить", command=self._v4030_refresh).pack(side="right", padx=(0, 14))
+    ttk.Button(bar, text="Выбрать…", command=self._v4030_choose_folder).pack(side="right", padx=(0, 6))
+    ttk.Entry(bar, textvariable=self._v4030_folder_var, width=46, state="readonly").pack(
+        side="right", padx=(0, 6))
+    ttk.Label(bar, text="Папка:").pack(side="right", padx=(0, 4))
+
+    paned = ttk.Panedwindow(parent, orient="horizontal")
+    paned.grid(row=1, column=0, sticky="nsew")
+    left = ttk.Frame(paned)
+    right = ttk.Frame(paned)
+    paned.add(left, weight=3)
+    paned.add(right, weight=2)
+    left.columnconfigure(0, weight=1)
+
+    # --- стенки
+    head = ttk.Frame(left)
+    head.grid(row=0, column=0, sticky="ew", pady=(2, 2))
+    ttk.Label(head, text="Стенка алюкобонда с разметкой светодиодов",
+              font=("Arial", 11, "bold")).pack(side="left")
+    ttk.Label(head, text="  МЦД статика · 1 сторона · с подсветкой · один файл на каждый размер стенки",
+              foreground="#8a8a8a").pack(side="left")
+    wall_box = ttk.Frame(left)
+    wall_box.grid(row=1, column=0, sticky="nsew")
+    wall_box.columnconfigure(0, weight=1)
+    left.rowconfigure(1, weight=3)
+    columns = ("chk", "file", "size", "items", "qty", "led", "grid", "state")
+    tree = ttk.Treeview(wall_box, columns=columns, show="headings", height=10, selectmode="browse")
+    for col, title, width, anchor in (("chk", "✓", 34, "center"), ("file", "Файл DXF", 300, "w"),
+                                      ("size", "Стенка, мм", 100, "center"),
+                                      ("items", "Изделия", 210, "w"), ("qty", "Стенок", 64, "center"),
+                                      ("led", "LED на стенку", 96, "center"),
+                                      ("grid", "Ряды × LED", 96, "center"),
+                                      ("state", "Состояние", 140, "center")):
+        tree.heading(col, text=title)
+        tree.column(col, width=width, minwidth=30, anchor=anchor, stretch=col in ("file", "items"))
+    scroll = ttk.Scrollbar(wall_box, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=scroll.set)
+    tree.grid(row=0, column=0, sticky="nsew")
+    scroll.grid(row=0, column=1, sticky="ns")
+    wall_box.rowconfigure(0, weight=1)
+    self._v4030_wall_tree = tree
+    self._v4030_notes_var = tk.StringVar(value="")
+    ttk.Label(left, textvariable=self._v4030_notes_var, foreground="#8a8a8a",
+              justify="left").grid(row=2, column=0, sticky="w", pady=(2, 8))
+
+    # --- планка МПК
+    head2 = ttk.Frame(left)
+    head2.grid(row=3, column=0, sticky="ew", pady=(4, 2))
+    ttk.Label(head2, text="Прижимная планка МПК 8мм — раскрой листа 3000 × 2000",
+              font=("Arial", 11, "bold")).pack(side="left")
+    self._v4030_plank_hint = tk.StringVar(value="")
+    ttk.Label(head2, textvariable=self._v4030_plank_hint, foreground="#8a8a8a").pack(side="left")
+    plank_box = ttk.Frame(left)
+    plank_box.grid(row=4, column=0, sticky="nsew")
+    plank_box.columnconfigure(0, weight=1)
+    left.rowconfigure(4, weight=1)
+    columns2 = ("chk", "file", "sheet", "strips", "meters", "items", "state")
+    tree2 = ttk.Treeview(plank_box, columns=columns2, show="headings", height=3, selectmode="browse")
+    for col, title, width, anchor in (("chk", "✓", 34, "center"), ("file", "Файл DXF", 300, "w"),
+                                      ("sheet", "Лист", 100, "center"), ("strips", "Полос", 64, "center"),
+                                      ("meters", "Планок, м.п.", 96, "center"),
+                                      ("items", "Изделия", 210, "w"),
+                                      ("state", "Состояние", 140, "center")):
+        tree2.heading(col, text=title)
+        tree2.column(col, width=width, minwidth=30, anchor=anchor, stretch=col in ("file", "items"))
+    tree2.grid(row=0, column=0, sticky="nsew")
+    plank_box.rowconfigure(0, weight=1)
+    self._v4030_plank_tree = tree2
+
+    legend = ("Что внутри файла стенки: масштаб 1:1, мм; начало координат — левый нижний угол "
+              "стенки (база Б), ось Y вверх; стенка в натуральной ориентации.\n"
+              "Слои: CONTOUR — габарит стенки со скруглением R49 · AXIS — ось изделия · ROWS — линии "
+              "рядов · LED — корпуса 70 × 15 · MARK — метка торца · DIM — размеры · TEXT — подпись.\n"
+              "Имя файла: объект_Алюкобонд_ширина x высота стенки_количество LED. Одинаковые стенки — "
+              "один файл.")
+    ttk.Label(left, text=legend, foreground="#8a8a8a", justify="left", wraplength=900).grid(
+        row=5, column=0, sticky="w", pady=(10, 0))
+    self._v4030_status_var = tk.StringVar(value="")
+    ttk.Label(left, textvariable=self._v4030_status_var, foreground="#8a8a8a").grid(
+        row=6, column=0, sticky="w", pady=(8, 0))
+
+    # --- предпросмотр всех стенок
+    right.columnconfigure(0, weight=1)
+    right.rowconfigure(1, weight=1)
+    ttk.Label(right, text="Предпросмотр стенок (вертикально)",
+              font=("Arial", 11, "bold")).grid(row=0, column=0, sticky="w", padx=(8, 0), pady=(2, 4))
+    try:
+        bg = ttk.Style().lookup("TFrame", "background") or "#ececec"
+    except Exception:
+        bg = "#ececec"
+    canvas = tk.Canvas(right, highlightthickness=0, background=bg)
+    vbar = ttk.Scrollbar(right, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=vbar.set)
+    canvas.grid(row=1, column=0, sticky="nsew", padx=(8, 0))
+    vbar.grid(row=1, column=1, sticky="ns")
+    actions = ttk.Frame(right)
+    actions.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(8, 0), pady=(6, 0))
+    ttk.Button(actions, text="Сохранить выбранный DXF",
+               command=self._v4030_save_selected).pack(side="left")
+    self._v4030_canvas = canvas
+
+    tree.bind("<ButtonRelease-1>", lambda e: self._v4030_tree_click(e, tree, "wall"), add="+")
+    tree2.bind("<ButtonRelease-1>", lambda e: self._v4030_tree_click(e, tree2, "plank"), add="+")
+    tree.bind("<<TreeviewSelect>>", lambda e: self._v4030_select_wall(), add="+")
+    canvas.bind("<Configure>", lambda e: self._v4030_draw_previews(), add="+")
+    canvas.bind("<Button-1>", self._v4030_canvas_click, add="+")
+    for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        canvas.bind(seq, self._v4030_canvas_wheel, add="+")
+    self._v4030_unchecked = set()
+    self._v4030_refresh()
+
+
+def _v4030_canvas_wheel(self, event):
+    canvas = getattr(self, "_v4030_canvas", None)
+    if canvas is None:
+        return None
+    if getattr(event, "num", None) == 4:
+        step = -1
+    elif getattr(event, "num", None) == 5:
+        step = 1
+    else:
+        delta = int(getattr(event, "delta", 0) or 0)
+        step = -1 if delta > 0 else 1
+    canvas.yview_scroll(step * 2, "units")
+    return "break"
+
+
+def _v4030_refresh(self):
+    tree = getattr(self, "_v4030_wall_tree", None)
+    if tree is None:
+        return
+    try:
+        if not getattr(self, "_v4030_folder_path", None):
+            self._v4030_folder_var.set(_v4030_default_folder(self))
+    except Exception:
+        pass
+    walls, notes = _v4030_walls(self)
+    sheets = _v4030_plank_sheets(self)
+    self._v4030_walls_data = walls
+    self._v4030_sheets_data = sheets
+    unchecked = getattr(self, "_v4030_unchecked", set())
+    selected = getattr(self, "_v4030_selected_file", None)
+    tree.delete(*tree.get_children())
+    for entry in walls:
+        tree.insert("", "end", iid=entry["file"], values=(
+            "☐" if entry["file"] in unchecked else "☑", entry["file"],
+            f"{_v4030_num(entry['ww'])} × {_v4030_num(entry['hh'])}", ", ".join(entry["articles"]),
+            entry["qty"], entry["total"], entry["grid"], _v4030_state(self, entry["file"])))
+    if not walls:
+        notes = ["В проекте нет односторонней статики МЦД с подсветкой и включённым расчётом."] + notes
+    self._v4030_notes_var.set("\n".join(notes))
+    tree2 = self._v4030_plank_tree
+    tree2.delete(*tree2.get_children())
+    for sheet in sheets:
+        tree2.insert("", "end", iid=sheet["file"], values=(
+            "☐" if sheet["file"] in unchecked else "☑", sheet["file"], "3000 × 2000", sheet["strips"],
+            _v4030_num(round(sheet["meters"], 1)), f"{sheet['products']} изд. (МЦД 1 и 2 стороны)",
+            _v4030_state(self, sheet["file"])))
+    self._v4030_plank_hint.set(
+        f"  фреза {_v4030_num(V4011_MILL)} мм · планка {_v4030_num(V4011_PLANK_H)} мм · "
+        f"до {int(V4011_STRIPS)} полос на листе" if sheets else "  в проекте нет изделий с планкой МПК")
+    if selected in {e["file"] for e in walls}:
+        tree.selection_set(selected)
+    elif walls:
+        self._v4030_selected_file = walls[0]["file"]
+        tree.selection_set(walls[0]["file"])
+    else:
+        self._v4030_selected_file = None
+    self._v4030_update_status()
+    self._v4030_draw_previews()
+
+
+def _v4030_all_files(self):
+    return ([("wall", e) for e in getattr(self, "_v4030_walls_data", [])]
+            + [("plank", s) for s in getattr(self, "_v4030_sheets_data", [])])
+
+
+def _v4030_update_status(self):
+    files = _v4030_all_files(self)
+    unchecked = getattr(self, "_v4030_unchecked", set())
+    checked = sum(1 for _k, item in files if item["file"] not in unchecked)
+    walls = getattr(self, "_v4030_walls_data", [])
+    sheets = getattr(self, "_v4030_sheets_data", [])
+    try:
+        self._v4030_save_button.configure(text=f"Сохранить отмеченные ({checked})")
+        self._v4030_status_var.set(
+            f"Файлов: {len(files)} · отмечено {checked} · стенок {sum(e['qty'] for e in walls)} · "
+            f"листов МПК {len(sheets)}")
+    except Exception:
+        pass
+
+
+def _v4030_tree_click(self, event, tree, kind):
+    try:
+        if str(tree.identify_region(event.x, event.y) or "") != "cell":
+            return None
+        if _v3093_display_column(tree, tree.identify_column(event.x)) != "chk":
+            return None
+        iid = tree.identify_row(event.y)
+    except Exception:
+        return None
+    if not iid:
+        return None
+    unchecked = self._v4030_unchecked
+    if iid in unchecked:
+        unchecked.discard(iid)
+        tree.set(iid, "chk", "☑")
+    else:
+        unchecked.add(iid)
+        tree.set(iid, "chk", "☐")
+    self._v4030_update_status()
+    return "break"
+
+
+def _v4030_select_wall(self):
+    tree = getattr(self, "_v4030_wall_tree", None)
+    if tree is None:
+        return
+    selection = tree.selection()
+    if selection and selection[0] != getattr(self, "_v4030_selected_file", None):
+        self._v4030_selected_file = selection[0]
+        self._v4030_draw_previews(scroll_to_selected=True)
+
+
+def _v4030_canvas_click(self, event):
+    canvas = self._v4030_canvas
+    x, y = canvas.canvasx(event.x), canvas.canvasy(event.y)
+    for file, (x1, y1, x2, y2) in (getattr(self, "_v4030_card_boxes", {}) or {}).items():
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            self._v4030_selected_file = file
+            try:
+                self._v4030_wall_tree.selection_set(file)
+                self._v4030_wall_tree.see(file)
+            except Exception:
+                pass
+            self._v4030_draw_previews()
+            return "break"
+    return None
+
+
+def _v4030_portrait(geo):
+    """Поворот в вертикальную ориентацию: база Б (левая кромка) — внизу."""
+    W, H = geo["W"], geo["H"]
+    if H >= W:
+        return W, H, (lambda x, y: (x, y))
+    return H, W, (lambda x, y: (H - y, x))
+
+
+def _v4030_draw_previews(self, scroll_to_selected=False):
+    canvas = getattr(self, "_v4030_canvas", None)
+    if canvas is None:
+        return
+    canvas.delete("all")
+    walls = getattr(self, "_v4030_walls_data", []) or []
+    self._v4030_card_boxes = {}
+    width = max(240, int(canvas.winfo_width() or 0))
+    try:
+        bg = str(canvas.cget("background"))
+        r, g, b = (v / 257 for v in canvas.winfo_rgb(bg))
+        dark = (0.299 * r + 0.587 * g + 0.114 * b) < 128
+    except Exception:
+        dark = False
+    ink = "#e6e6e6" if dark else "#202020"
+    soft = "#9a9a9a" if dark else "#6a6a6a"
+    sel = "#3d6fb6"
+    if not walls:
+        canvas.create_text(12, 20, anchor="nw", fill=soft,
+                           text="Нет стенок для предпросмотра.")
+        canvas.configure(scrollregion=(0, 0, width, 60))
+        return
+    card_w, card_h, gap = 190, 330, 12
+    cols = max(1, (width - gap) // (card_w + gap))
+    selected_box = None
+    for index, entry in enumerate(walls):
+        col, row = index % cols, index // cols
+        x0 = gap + col * (card_w + gap)
+        y0 = gap + row * (card_h + gap)
+        is_sel = entry["file"] == getattr(self, "_v4030_selected_file", None)
+        canvas.create_rectangle(x0, y0, x0 + card_w, y0 + card_h,
+                                outline=sel if is_sel else soft, width=3 if is_sel else 1)
+        geo = _v4030_geometry(entry)
+        pw, ph, tr = _v4030_portrait(geo)
+        area_w, area_h = card_w - 30, card_h - 92
+        scale = min(area_w / pw, area_h / ph)
+        ox = x0 + (card_w - pw * scale) / 2.0
+        oy = y0 + 14 + area_h - (area_h - ph * scale) / 2.0
+
+        def P(x, y, tr=tr, ox=ox, oy=oy, scale=scale):
+            u, v = tr(x, y)
+            return ox + u * scale, oy - v * scale
+
+        rad = max(2.0, V4030_CORNER_R * scale)
+        xa, yb = ox, oy
+        xb, ya = ox + pw * scale, oy - ph * scale
+        canvas.create_rectangle(xa + rad, ya, xb - rad, yb, fill="#e8ebf0", outline="")
+        canvas.create_rectangle(xa, ya + rad, xb, yb - rad, fill="#e8ebf0", outline="")
+        for cx, cy, start in ((xa, ya, 90), (xb - 2 * rad, ya, 0), (xa, yb - 2 * rad, 180),
+                              (xb - 2 * rad, yb - 2 * rad, 270)):
+            canvas.create_arc(cx, cy, cx + 2 * rad, cy + 2 * rad, start=start, extent=90,
+                              fill="#e8ebf0", outline="", style="pieslice")
+            canvas.create_arc(cx, cy, cx + 2 * rad, cy + 2 * rad, start=start, extent=90,
+                              outline="#5a6372", style="arc")
+        canvas.create_line(xa + rad, ya, xb - rad, ya, fill="#5a6372")
+        canvas.create_line(xa + rad, yb, xb - rad, yb, fill="#5a6372")
+        canvas.create_line(xa, ya + rad, xa, yb - rad, fill="#5a6372")
+        canvas.create_line(xb, ya + rad, xb, yb - rad, fill="#5a6372")
+        (ax1, ay1), (ax2, ay2) = geo["axis"]
+        canvas.create_line(*P(ax1, ay1), *P(ax2, ay2), fill="#2c3e66", dash=(6, 3, 2, 3))
+        for a, b in geo["rows"]:
+            canvas.create_line(*P(*a), *P(*b), fill="#4f9a57", dash=(3, 3))
+        for x1, y1, x2, y2 in geo["leds"]:
+            p1, p2 = P(x1, y1), P(x2, y2)
+            canvas.create_rectangle(min(p1[0], p2[0]), min(p1[1], p2[1]),
+                                    max(p1[0], p2[0]), max(p1[1], p2[1]),
+                                    fill="white", outline="#2e7d32")
+        for a, b in geo["marks"]:
+            canvas.create_line(*P(*a), *P(*b), fill="#d62728", width=2)
+        text_y = y0 + card_h - 70
+        canvas.create_text(x0 + card_w / 2, text_y, anchor="n", fill=ink, font=("Arial", 10, "bold"),
+                           text=f"{_v4030_num(entry['ww'])} × {_v4030_num(entry['hh'])} мм")
+        canvas.create_text(x0 + card_w / 2, text_y + 18, anchor="n", fill=soft, font=("Arial", 9),
+                           text=f"{entry['qty']} шт. · LED {entry['total']} ({entry['grid'].replace(' верт.', '')})")
+        names = ", ".join(entry["articles"])
+        if len(names) > 30:
+            names = names[:29] + "…"
+        canvas.create_text(x0 + card_w / 2, text_y + 36, anchor="n", fill=soft, font=("Arial", 9),
+                           text=names)
+        box = (x0, y0, x0 + card_w, y0 + card_h)
+        self._v4030_card_boxes[entry["file"]] = box
+        if is_sel:
+            selected_box = box
+    rows = (len(walls) + cols - 1) // cols
+    total_h = gap + rows * (card_h + gap)
+    canvas.configure(scrollregion=(0, 0, width, total_h))
+    if scroll_to_selected and selected_box is not None and total_h > 0:
+        try:
+            canvas.yview_moveto(max(0.0, (selected_box[1] - gap) / total_h))
+        except Exception:
+            pass
+
+
+def _v4030_choose_folder(self):
+    folder = filedialog.askdirectory(parent=self, title="Папка для чертежей DXF",
+                                     initialdir=str(Path(_v4030_folder(self)).parent))
+    if not folder:
+        return
+    self._v4030_folder_path = folder
+    self._v4030_folder_var.set(folder)
+    self._v4030_refresh()
+
+
+def _v4030_open_folder(self):
+    folder = Path(_v4030_folder(self))
+    if not folder.exists():
+        messagebox.showinfo(V4030_TAB_TITLE, f"Папка ещё не создана:\n{folder}\n\n"
+                                             "Она появится при первом сохранении чертежей.")
+        return
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(folder)])
+        elif os.name == "nt":
+            os.startfile(str(folder))
+        else:
+            subprocess.Popen(["xdg-open", str(folder)])
+    except Exception as exc:
+        messagebox.showerror(V4030_TAB_TITLE, f"Не удалось открыть папку:\n{exc}")
+
+
+def _v4030_write(self, items):
+    folder = Path(_v4030_folder(self))
+    project = _v4030_project(self)
+    written = []
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        for kind, item in items:
+            text = _v4030_wall_dxf(item, project) if kind == "wall" else _v4030_plank_dxf(item, project)
+            _atomic_write_text(folder / item["file"], text)
+            written.append(item["file"])
+    except Exception as exc:
+        import traceback
+        try:
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+        messagebox.showerror(V4030_TAB_TITLE, f"Не удалось сохранить чертёж:\n{exc}")
+    self._v4030_refresh()
+    if written:
+        shown = written[:12] + ([f"… и ещё {len(written) - 12}"] if len(written) > 12 else [])
+        messagebox.showinfo(V4030_TAB_TITLE, f"Сохранено файлов: {len(written)}\nПапка: {folder}\n\n"
+                            + "\n".join(shown))
+    return written
+
+
+def _v4030_save(self, all_files=False):
+    self._v4030_refresh()
+    unchecked = getattr(self, "_v4030_unchecked", set())
+    items = [(kind, item) for kind, item in _v4030_all_files(self)
+             if all_files or item["file"] not in unchecked]
+    if not items:
+        messagebox.showwarning(V4030_TAB_TITLE, "Нет отмеченных чертежей для сохранения.")
+        return
+    _v4030_write(self, items)
+
+
+def _v4030_save_selected(self):
+    file = getattr(self, "_v4030_selected_file", None)
+    item = next((e for e in getattr(self, "_v4030_walls_data", []) or [] if e["file"] == file), None)
+    if item is None:
+        messagebox.showwarning(V4030_TAB_TITLE, "Выберите стенку в списке или в предпросмотре.")
+        return
+    _v4030_write(self, [("wall", item)])
+
+
+for _name, _fn in (("_v4030_build_tab", _v4030_build_tab), ("_v4030_refresh", _v4030_refresh),
+                   ("_v4030_update_status", _v4030_update_status),
+                   ("_v4030_tree_click", _v4030_tree_click),
+                   ("_v4030_select_wall", _v4030_select_wall),
+                   ("_v4030_canvas_click", _v4030_canvas_click),
+                   ("_v4030_canvas_wheel", _v4030_canvas_wheel),
+                   ("_v4030_draw_previews", _v4030_draw_previews),
+                   ("_v4030_choose_folder", _v4030_choose_folder),
+                   ("_v4030_open_folder", _v4030_open_folder), ("_v4030_save", _v4030_save),
+                   ("_v4030_save_selected", _v4030_save_selected)):
+    setattr(ScreenDesigner, _name, _fn)
+
+
+# --- «Карта раскроя» скрывается, на её месте — «Чертежи DXF»
+_v4030_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4030_build_ui(self):
+    _v4030_orig_build_ui(self)
+    views = getattr(self, "components_views", None)
+    if views is None:
+        return
+    try:
+        position = 1
+        for index, tab_id in enumerate(views.tabs()):
+            if str(views.tab(tab_id, "text")) == "Карта раскроя":
+                position = index
+                views.hide(tab_id)
+                break
+        page = ttk.Frame(views, padding=6)
+        views.insert(position, page, text=V4030_TAB_TITLE)
+        self._v4030_page = page
+        self._v4030_build_tab(page)
+
+        def on_change(_event=None):
+            try:
+                if views.select() == str(page):
+                    self._v4030_refresh()
+            except Exception:
+                pass
+
+        views.bind("<<NotebookTabChanged>>", on_change, add="+")
+    except Exception:
+        import traceback
+        try:
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+
+
+ScreenDesigner._build_ui = _v4030_build_ui
+
+
+# --- «Раскрой»: без прижимной планки МПК и без кнопки «Чертёж DXF»
+TRIAL_MATERIALS[:] = [row for row in TRIAL_MATERIALS if row[0] != V4008_KEY]
+
+_v4030_orig_build_cut_tab = ScreenDesigner._trial_build_cut_tab
+
+
+def _v4030_trial_build_cut_tab(self, parent):
+    _v4030_orig_build_cut_tab(self, parent)
+
+    def walk(widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from walk(child)
+
+    try:
+        for child in list(walk(parent)):
+            if isinstance(child, ttk.Button) and str(child.cget("text")) == "Чертёж DXF":
+                child.destroy()
+    except Exception:
+        pass
+
+
+ScreenDesigner._trial_build_cut_tab = _v4030_trial_build_cut_tab
+
+
+
+
+# =====================================================================
+# V40.31 — разметка стенки алюкобонда в DXF и в предпросмотре — сеткой:
+#   • слой GRID (сплошные линии): линии рядов от кромки до кромки и
+#     поперечные линии в точках установки светодиодов; по поперечной
+#     линии ставится торец корпуса (база Б), корпус 70 мм идёт в сторону
+#     дальней кромки;
+#   • корпуса светодиодов, ось изделия и метки торцов не рисуются;
+#   • слой CONTOUR — контур стенки с точным скруглением R49: замкнутая
+#     полилиния, дуги 90° заданы bulge = tan(22,5°), координаты точные;
+#   • слой DIM — цепочка от кромки до каждой поперечной линии,
+#     положение рядов и габарит.
+# =====================================================================
+
+V4030_LAYERS = (("CONTOUR", 7), ("GRID", 1), ("DIM", 4), ("TEXT", 7))
+V4031_LEGEND = (
+    "Что внутри файла стенки: масштаб 1:1, мм; начало координат — левый нижний угол стенки "
+    "(база Б), ось Y вверх; стенка в натуральной ориентации.\n"
+    "Слои: CONTOUR — контур стенки со скруглением R49 · GRID — сетка разметки сплошными "
+    "линиями: линии рядов и поперечные линии в точках установки светодиодов (по линии ставится "
+    "торец корпуса, корпус 70 мм — в сторону дальней кромки) · DIM — размеры · TEXT — подпись.\n"
+    "Имя файла: объект_Алюкобонд_ширина x высота стенки_количество LED. Одинаковые стенки — "
+    "один файл.")
+
+
+def _v4031_fmt(value):
+    """Координата без лишнего округления (точные значения сохраняются)."""
+    text = f"{float(value):.6f}".rstrip("0").rstrip(".")
+    return text if text not in ("", "-0") else "0"
+
+
+def _v4031_rounded_rect(layer, width, height, radius):
+    """Замкнутый контур со скруглёнными углами: POLYLINE, дуги 90° через bulge."""
+    width, height = float(width), float(height)
+    r = max(0.0, min(float(radius), width / 2.0, height / 2.0))
+    bulge = math.tan(math.pi / 8.0)            # 90° дуга, против часовой стрелки
+    pts = [(r, 0.0, 0.0), (width - r, 0.0, bulge), (width, r, 0.0),
+           (width, height - r, bulge), (width - r, height, 0.0),
+           (r, height, bulge), (0.0, height - r, 0.0), (0.0, r, bulge)]
+    out = [_v4012_pair(0, "POLYLINE"), _v4012_pair(8, layer), _v4012_pair(66, 1),
+           _v4012_pair(70, 1)]
+    for x, y, b in pts:
+        out += [_v4012_pair(0, "VERTEX"), _v4012_pair(8, layer),
+                _v4012_pair(10, _v4031_fmt(x)), _v4012_pair(20, _v4031_fmt(y))]
+        if b:
+            out.append(_v4012_pair(42, f"{b:.15f}"))
+    out += [_v4012_pair(0, "SEQEND"), _v4012_pair(8, layer)]
+    return "".join(out)
+
+
+_v4030_rounded_rect = _v4031_rounded_rect
+
+
+def _v4031_line(layer, a, b):
+    return "".join((_v4012_pair(0, "LINE"), _v4012_pair(8, layer),
+                    _v4012_pair(10, _v4031_fmt(a[0])), _v4012_pair(20, _v4031_fmt(a[1])),
+                    _v4012_pair(11, _v4031_fmt(b[0])), _v4012_pair(21, _v4031_fmt(b[1]))))
+
+
+def _v4031_grid(entry):
+    """Сетка стенки в натуральной ориентации: (W, H, вертикально, линии, ряды, точки)."""
+    W, H = float(entry["ww"]), float(entry["hh"])
+    plan = entry["plan"]
+    vertical = bool(plan["vertical"])
+    positions = [float(r["pos"]) for r in plan["rows"]]
+    starts = [float(s) for s in plan["rows"][0]["starts"]] if plan["rows"] else []
+    lines = []
+    if vertical:
+        lines += [((x, 0.0), (x, H)) for x in positions]
+        lines += [((0.0, s), (W, s)) for s in starts]
+    else:
+        lines += [((0.0, y), (W, y)) for y in positions]
+        lines += [((s, 0.0), (s, H)) for s in starts]
+    return W, H, vertical, lines, positions, starts
+
+
+def _v4031_wall_dxf(entry, project=""):
+    W, H, vertical, lines, positions, starts = _v4031_grid(entry)
+    plan = entry["plan"]
+    body = _v4030_header(W, H)
+    body.append(_v4031_rounded_rect("CONTOUR", W, H, V4030_CORNER_R))
+    for a, b in lines:
+        body.append(_v4031_line("GRID", a, b))
+
+    _v4030_dim(body, (0.0, 0.0), (W, 0.0), -120.0, _v4030_num(W), True)
+    _v4030_dim(body, (0.0, 0.0), (0.0, H), -120.0, _v4030_num(H), False)
+    chain = [0.0] + starts + [float(plan["wall_len"])]
+    cross = [0.0] + positions + [float(plan["wall_breadth"])]
+    if vertical:
+        for a, b in zip(chain, chain[1:]):
+            _v4030_dim(body, (0.0, a), (0.0, b), -60.0, _v4030_num(b - a), False)
+        for a, b in zip(cross, cross[1:]):
+            _v4030_dim(body, (a, H), (b, H), H + 60.0, _v4030_num(b - a), True)
+    else:
+        for a, b in zip(chain, chain[1:]):
+            _v4030_dim(body, (a, 0.0), (b, 0.0), -60.0, _v4030_num(b - a), True)
+        for a, b in zip(cross, cross[1:]):
+            _v4030_dim(body, (W, a), (W, b), W + 160.0, _v4030_num(b - a), False)
+    rows = plan["rows"]
+    body.append(_v4012_text("TEXT", 0.0, H + 110.0, 24.0,
+                            f"WALL {_v4030_file_num(W)} x {_v4030_file_num(H)} mm, R"
+                            f"{_v4030_num(V4030_CORNER_R)} / GRID {len(rows)} x {len(starts)} = "
+                            f"{plan['total']} LED / qty {entry.get('qty', 1)}"))
+    body += [_v4012_pair(0, "ENDSEC"), _v4012_pair(0, "EOF")]
+    return "".join(body)
+
+
+_v4030_wall_dxf = _v4031_wall_dxf
+
+
+# --- предпросмотр: та же сетка, стенка вертикально
+def _v4031_draw_previews(self, scroll_to_selected=False):
+    canvas = getattr(self, "_v4030_canvas", None)
+    if canvas is None:
+        return
+    canvas.delete("all")
+    walls = getattr(self, "_v4030_walls_data", []) or []
+    self._v4030_card_boxes = {}
+    width = max(240, int(canvas.winfo_width() or 0))
+    try:
+        r, g, b = (v / 257 for v in canvas.winfo_rgb(str(canvas.cget("background"))))
+        dark = (0.299 * r + 0.587 * g + 0.114 * b) < 128
+    except Exception:
+        dark = False
+    ink = "#e6e6e6" if dark else "#202020"
+    soft = "#9a9a9a" if dark else "#6a6a6a"
+    sel = "#3d6fb6"
+    wall_fill, wall_line, grid_line = "#eef0f4", "#3c4350", "#d62728"
+    if not walls:
+        canvas.create_text(12, 20, anchor="nw", fill=soft, text="Нет стенок для предпросмотра.")
+        canvas.configure(scrollregion=(0, 0, width, 60))
+        return
+    card_w, card_h, gap = 190, 330, 12
+    cols = max(1, (width - gap) // (card_w + gap))
+    selected_box = None
+    for index, entry in enumerate(walls):
+        col, row = index % cols, index // cols
+        x0 = gap + col * (card_w + gap)
+        y0 = gap + row * (card_h + gap)
+        is_sel = entry["file"] == getattr(self, "_v4030_selected_file", None)
+        canvas.create_rectangle(x0, y0, x0 + card_w, y0 + card_h,
+                                outline=sel if is_sel else soft, width=3 if is_sel else 1)
+        W, H, _vertical, lines, _pos, _starts = _v4031_grid(entry)
+        if H >= W:
+            pw, ph = W, H
+            tr = (lambda x, y: (x, y))
+        else:
+            pw, ph = H, W
+            tr = (lambda x, y, H=H: (H - y, x))       # база Б (левая кромка) — внизу
+        area_w, area_h = card_w - 30, card_h - 92
+        scale = min(area_w / pw, area_h / ph)
+        ox = x0 + (card_w - pw * scale) / 2.0
+        oy = y0 + 14 + area_h - (area_h - ph * scale) / 2.0
+
+        def P(x, y, tr=tr, ox=ox, oy=oy, scale=scale):
+            u, v = tr(x, y)
+            return ox + u * scale, oy - v * scale
+
+        rad = V4030_CORNER_R * scale
+        xa, yb = ox, oy
+        xb, ya = ox + pw * scale, oy - ph * scale
+        canvas.create_rectangle(xa + rad, ya, xb - rad, yb, fill=wall_fill, outline="")
+        canvas.create_rectangle(xa, ya + rad, xb, yb - rad, fill=wall_fill, outline="")
+        corners = ((xa, ya, 90), (xb - 2 * rad, ya, 0), (xa, yb - 2 * rad, 180),
+                   (xb - 2 * rad, yb - 2 * rad, 270))
+        for cx, cy, start in corners:
+            canvas.create_arc(cx, cy, cx + 2 * rad, cy + 2 * rad, start=start, extent=90,
+                              fill=wall_fill, outline="", style="pieslice")
+        for a, b in lines:
+            canvas.create_line(*P(*a), *P(*b), fill=grid_line)
+        for cx, cy, start in corners:
+            canvas.create_arc(cx, cy, cx + 2 * rad, cy + 2 * rad, start=start, extent=90,
+                              outline=wall_line, width=2, style="arc")
+        canvas.create_line(xa + rad, ya, xb - rad, ya, fill=wall_line, width=2)
+        canvas.create_line(xa + rad, yb, xb - rad, yb, fill=wall_line, width=2)
+        canvas.create_line(xa, ya + rad, xa, yb - rad, fill=wall_line, width=2)
+        canvas.create_line(xb, ya + rad, xb, yb - rad, fill=wall_line, width=2)
+        text_y = y0 + card_h - 70
+        canvas.create_text(x0 + card_w / 2, text_y, anchor="n", fill=ink, font=("Arial", 10, "bold"),
+                           text=f"{_v4030_num(entry['ww'])} × {_v4030_num(entry['hh'])} мм")
+        canvas.create_text(x0 + card_w / 2, text_y + 18, anchor="n", fill=soft, font=("Arial", 9),
+                           text=f"{entry['qty']} шт. · LED {entry['total']} "
+                                f"({entry['grid'].replace(' верт.', '')})")
+        names = ", ".join(entry["articles"])
+        if len(names) > 30:
+            names = names[:29] + "…"
+        canvas.create_text(x0 + card_w / 2, text_y + 36, anchor="n", fill=soft, font=("Arial", 9),
+                           text=names)
+        box = (x0, y0, x0 + card_w, y0 + card_h)
+        self._v4030_card_boxes[entry["file"]] = box
+        if is_sel:
+            selected_box = box
+    rows_count = (len(walls) + cols - 1) // cols
+    total_h = gap + rows_count * (card_h + gap)
+    canvas.configure(scrollregion=(0, 0, width, total_h))
+    if scroll_to_selected and selected_box is not None and total_h > 0:
+        try:
+            canvas.yview_moveto(max(0.0, (selected_box[1] - gap) / total_h))
+        except Exception:
+            pass
+
+
+_v4030_draw_previews = _v4031_draw_previews
+ScreenDesigner._v4030_draw_previews = _v4031_draw_previews
+
+
+# --- пояснение под таблицами
+_v4031_orig_build_tab = ScreenDesigner._v4030_build_tab
+
+
+def _v4031_build_tab(self, parent):
+    _v4031_orig_build_tab(self, parent)
+
+    def walk(widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from walk(child)
+
+    try:
+        for child in list(walk(parent)):
+            if isinstance(child, ttk.Label) and str(child.cget("text")).startswith("Что внутри файла стенки"):
+                child.configure(text=V4031_LEGEND)
+    except Exception:
+        pass
+
+
+ScreenDesigner._v4030_build_tab = _v4031_build_tab
+
+
+
+
+# =====================================================================
+# V40.32
+# 1. «Счета» → список файлов: правый щелчок по строке файла —
+#    статус «Распознано — проверить» ↔ «Проверено».
+#    «Проверено»: строка файла окрашивается как «Распознано» (зелёный,
+#    значок ✓), у распознанных строк этого файла в блоке данных снимается
+#    заливка (предупреждение, ошибка, подсветка выбранного файла).
+#    Отметка хранится в счёте (inv["checked"]) и сохраняется в проекте.
+# 2. «Журнал проекта» → список изделий: простой щелчок строку не
+#    выделяет. Выделение — только с клавишами:
+#       Shift + щелчок        — диапазон;
+#       Ctrl/Cmd + щелчок     — добавить или убрать строку;
+#       Ctrl/Cmd + A          — все строки; Esc — снять выделение.
+#    Предпросмотр комплектующих изделия, который был на Ctrl + щелчок,
+#    перенесён на Alt/Option + щелчок.
+#    Двойной щелчок, перетаскивание, «Расчёт» и правый щелчок — как раньше.
+# =====================================================================
+
+V4032_CHECKED = "Проверено"
+V4032_REVIEW = "Распознано — проверить"
+
+
+# ---------------------------------------------------------------------
+# 1. Счета: статус «Проверено»
+# ---------------------------------------------------------------------
+_v4032_orig_update_status = ScreenDesigner._invoice_update_status
+
+
+def _v4032_invoice_update_status(self, inv, positions):
+    status = _v4032_orig_update_status(self, inv, positions)
+    if isinstance(inv, dict) and inv.get("checked") and status in (V4032_REVIEW, "Распознано", V4032_CHECKED):
+        return V4032_CHECKED
+    return status
+
+
+ScreenDesigner._invoice_update_status = _v4032_invoice_update_status
+
+
+def _v4032_checked_ids(self):
+    ids = set()
+    for inv in getattr(self, "invoices", []) or []:
+        if isinstance(inv, dict) and inv.get("checked") and str(inv.get("status", "")) == V4032_CHECKED:
+            sid = str(inv.get("source_file_id", "") or "")
+            if not sid:
+                try:
+                    sid = source_file_id_for_path(str(inv.get("path", "") or inv.get("file", "")))
+                except Exception:
+                    sid = ""
+            if sid:
+                ids.add(sid)
+    return ids
+
+
+_v4032_orig_files_box = ScreenDesigner._refresh_invoice_files_box
+
+
+def _v4032_refresh_invoice_files_box(self):
+    _v4032_orig_files_box(self)
+    box = getattr(self, "invoice_files_box", None)
+    if box is None:
+        return
+    try:
+        for iid in box.get_children(""):
+            values = list(box.item(iid, "values") or ())
+            if len(values) < 2 or str(values[1]) != V4032_CHECKED:
+                continue
+            first = str(values[0])
+            if first[:2] in ("• ", "⚠ "):
+                values[0] = "✓ " + first[2:]
+            box.item(iid, values=values, tags=("recognized",))
+    except Exception:
+        pass
+
+
+ScreenDesigner._refresh_invoice_files_box = _v4032_refresh_invoice_files_box
+
+
+_v4032_orig_invoice_table = ScreenDesigner._refresh_invoice_table
+
+
+def _v4032_refresh_invoice_table(self):
+    _v4032_orig_invoice_table(self)
+    tree = getattr(self, "invoice_tree", None)
+    if tree is None:
+        return
+    checked = _v4032_checked_ids(self)
+    if not checked:
+        return
+    remove = {"row_warning", "row_error", "source_selected"}
+    try:
+        for idx, row in enumerate(getattr(self, "invoice_rows", []) or []):
+            if getattr(row, "is_manual_added", False):
+                continue
+            if str(getattr(row, "source_file_id", "") or "") not in checked:
+                continue
+            iid = f"r{idx}"
+            if not tree.exists(iid):
+                continue
+            tags = [t for t in (tree.item(iid, "tags") or ()) if t not in remove]
+            tree.item(iid, tags=tuple(tags))
+    except Exception:
+        pass
+
+
+ScreenDesigner._refresh_invoice_table = _v4032_refresh_invoice_table
+
+
+def _v4032_file_index(box, iid):
+    try:
+        return int(str(iid).lstrip("f"))
+    except Exception:
+        return None
+
+
+def _v4032_set_checked(self, path, checked):
+    inv = self._invoice_record_for_path(path)
+    if not isinstance(inv, dict):
+        return
+    if checked:
+        inv["checked"] = True
+        inv["status"] = V4032_CHECKED
+    else:
+        inv.pop("checked", None)
+        inv["status"] = _v4032_orig_update_status(self, inv, inv.get("positions", []) or [])
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    for name in ("_refresh_invoice_files_box", "_refresh_invoice_table"):
+        try:
+            getattr(self, name)()
+        except Exception:
+            pass
+
+
+def _v4032_files_menu(self, event):
+    box = getattr(self, "invoice_files_box", None)
+    if box is None:
+        return None
+    iid = box.identify_row(event.y)
+    if not iid:
+        return None
+    index = _v4032_file_index(box, iid)
+    files = list(getattr(self, "invoice_files", []) or [])
+    if index is None or not (0 <= index < len(files)):
+        return None
+    try:
+        box.selection_set(iid)
+        box.focus(iid)
+    except Exception:
+        pass
+    path = files[index]
+    status = self._invoice_file_status(path)
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Статус файла", state="disabled")
+    menu.add_command(label=f"    {V4032_CHECKED}",
+                     state="normal" if status == V4032_REVIEW else "disabled",
+                     command=lambda: _v4032_set_checked(self, path, True))
+    menu.add_command(label=f"    {V4032_REVIEW}",
+                     state="normal" if status == V4032_CHECKED else "disabled",
+                     command=lambda: _v4032_set_checked(self, path, False))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+ScreenDesigner._v4032_files_menu = _v4032_files_menu
+
+
+# ---------------------------------------------------------------------
+# 2. Журнал проекта: выделение только с Shift / Ctrl / Cmd
+# ---------------------------------------------------------------------
+def _v4032_modifier_held(event):
+    state = int(getattr(event, "state", 0) or 0)
+    if state & 0x0001 or state & 0x0004 or state & 0x0008:   # Shift, Control, Alt/Command
+        return True
+    if sys.platform == "darwin" and state & 0x0010:            # Option
+        return True
+    return False
+
+
+def _v4032_journal_plain_press(self, event):
+    """Простой щелчок: строку не выделяем, только запоминаем как опорную."""
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    try:
+        region = str(tree.identify_region(event.x, event.y) or "")
+        if region == "heading" or region == "separator":
+            return None                     # сортировка и ширина колонок — как раньше
+        iid = tree.identify_row(event.y)
+        if iid:
+            self._v4032_anchor = iid
+            element = str(tree.identify_element(event.x, event.y) or "")
+            if element.endswith("indicator") or element.endswith("disclosure"):
+                opened = not bool(tree.item(iid, "open"))
+                tree.item(iid, open=opened)
+                tree.focus(iid)
+                tree.event_generate("<<TreeviewOpen>>" if opened else "<<TreeviewClose>>")
+        elif region == "nothing":
+            tree.selection_set(())
+        tree.focus_set()
+    except Exception:
+        pass
+    return "break"
+
+
+def _v4032_journal_toggle(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    iid = tree.identify_row(event.y)
+    if not iid:
+        return "break"
+    selection = list(tree.selection())
+    if iid in selection:
+        selection.remove(iid)
+    else:
+        selection.append(iid)
+    tree.selection_set(selection)
+    try:
+        tree.focus(iid)
+    except Exception:
+        pass
+    self._v4032_anchor = iid
+    return "break"
+
+
+def _v4032_visible_rows(tree, parent=""):
+    out = []
+    for iid in tree.get_children(parent):
+        out.append(iid)
+        try:
+            if tree.item(iid, "open"):
+                out += _v4032_visible_rows(tree, iid)
+        except Exception:
+            pass
+    return out
+
+
+def _v4032_journal_range(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    iid = tree.identify_row(event.y)
+    if not iid:
+        return "break"
+    rows = _v4032_visible_rows(tree)
+    anchor = getattr(self, "_v4032_anchor", None)
+    if anchor not in rows:
+        current = [r for r in tree.selection() if r in rows]
+        anchor = current[0] if current else iid
+    a, b = sorted((rows.index(anchor), rows.index(iid)))
+    tree.selection_set(rows[a:b + 1])
+    try:
+        tree.focus(iid)
+    except Exception:
+        pass
+    return "break"
+
+
+def _v4032_journal_select_all(self, _event=None):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is not None:
+        tree.selection_set(tree.get_children(""))
+    return "break"
+
+
+def _v4032_journal_clear(self, _event=None):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is not None:
+        tree.selection_set(())
+    return "break"
+
+
+_v4032_orig_calc_click = ScreenDesigner._project_journal_calc_click
+
+
+def _v4032_calc_click(self, event):
+    # Щелчок с клавишей (выделение, предпросмотр) не переключает «Расчёт».
+    if _v4032_modifier_held(event):
+        return None
+    return _v4032_orig_calc_click(self, event)
+
+
+ScreenDesigner._project_journal_calc_click = _v4032_calc_click
+
+
+def _v4032_journal_preview(self, event):
+    return self._project_journal_ctrl_click(event)
+
+
+_v4032_orig_build_journal = ScreenDesigner._build_project_journal_tab
+
+
+def _v4032_build_project_journal_tab(self, parent):
+    _v4032_orig_build_journal(self, parent)
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    try:
+        tree.configure(selectmode="extended")
+        # Простой щелчок: дописываем в конец цепочки <ButtonPress-1>
+        # (перетаскивание строки срабатывает раньше), затем «break» —
+        # стандартное выделение Treeview не выполняется.
+        tree.bind("<ButtonPress-1>", lambda e: _v4032_journal_plain_press(self, e), add="+")
+        bindings = [("<Shift-ButtonPress-1>", lambda e: _v4032_journal_range(self, e)),
+                    ("<Control-ButtonPress-1>", lambda e: _v4032_journal_toggle(self, e)),
+                    ("<Command-ButtonPress-1>", lambda e: _v4032_journal_toggle(self, e)),
+                    ("<Alt-ButtonPress-1>", lambda e: _v4032_journal_preview(self, e)),
+                    ("<Option-ButtonPress-1>", lambda e: _v4032_journal_preview(self, e)),
+                    ("<Control-a>", lambda e: _v4032_journal_select_all(self, e)),
+                    ("<Control-A>", lambda e: _v4032_journal_select_all(self, e)),
+                    ("<Command-a>", lambda e: _v4032_journal_select_all(self, e)),
+                    ("<Command-A>", lambda e: _v4032_journal_select_all(self, e)),
+                    ("<Escape>", lambda e: _v4032_journal_clear(self, e))]
+        for sequence in ("<Control-Button-1>", "<Command-Button-1>"):
+            try:
+                tree.unbind(sequence)        # прежние обработчики (предпросмотр / V30.98)
+            except tk.TclError:
+                pass
+        for sequence, handler in bindings:
+            try:
+                tree.bind(sequence, handler)
+            except tk.TclError:
+                pass                         # Command/Option есть только на macOS
+    except Exception:
+        import traceback
+        try:
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+
+
+ScreenDesigner._build_project_journal_tab = _v4032_build_project_journal_tab
+
+
+# ---------------------------------------------------------------------
+# Подключение меню файлов счетов
+# ---------------------------------------------------------------------
+_v4032_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4032_build_ui(self):
+    _v4032_orig_build_ui(self)
+    box = getattr(self, "invoice_files_box", None)
+    if box is None:
+        return
+    try:
+        for sequence in ("<Button-3>", "<Button-2>"):
+            box.bind(sequence, lambda e: _v4032_files_menu(self, e), add="+")
+        if sys.platform == "darwin":
+            box.bind("<Control-Button-1>", lambda e: _v4032_files_menu(self, e), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v4032_build_ui
+
+
+
+
+# =====================================================================
+# V40.33 — журнал проекта, простой щелчок по строке изделия:
+#   • щелчок по невыделенной строке — выделяется только она
+#     (выделение переходит с других строк);
+#   • повторный щелчок по единственной выделенной строке — выделение
+#     снимается.
+# Shift / Ctrl / Cmd + щелчок, Ctrl/Cmd + A, Esc, щелчок по пустому
+# месту, Alt/Option + щелчок (предпросмотр) — как в V40.32.
+# =====================================================================
+
+_v4033_prev_plain_press = _v4032_journal_plain_press
+
+
+def _v4033_journal_plain_press(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    try:
+        region = str(tree.identify_region(event.x, event.y) or "")
+        iid = tree.identify_row(event.y) if region in ("cell", "tree") else ""
+        element = str(tree.identify_element(event.x, event.y) or "") if iid else ""
+    except Exception:
+        return _v4033_prev_plain_press(self, event)
+    if not iid or element.endswith("indicator") or element.endswith("disclosure"):
+        # Заголовки, границы колонок, пустое место и стрелка раскрытия — как в V40.32.
+        return _v4033_prev_plain_press(self, event)
+    try:
+        if list(tree.selection()) == [iid]:
+            tree.selection_set(())
+        else:
+            tree.selection_set((iid,))
+            tree.focus(iid)
+        self._v4032_anchor = iid
+        tree.focus_set()
+    except Exception:
+        pass
+    return "break"
+
+
+_v4032_journal_plain_press = _v4033_journal_plain_press
+
+
+
+
+# =====================================================================
+# V40.34 — «Счета», список файлов: у файла со статусом «Проверено»
+# значок «глаз» 👁 (прошла визуальная проверка) вместо ✓.
+# Цвет строки — как у «Распознано».
+# =====================================================================
+
+V4034_EYE = "\U0001F441"
+
+_v4034_prev_files_box = ScreenDesigner._refresh_invoice_files_box
+
+
+def _v4034_refresh_invoice_files_box(self):
+    _v4034_prev_files_box(self)
+    box = getattr(self, "invoice_files_box", None)
+    if box is None:
+        return
+    try:
+        for iid in box.get_children(""):
+            values = list(box.item(iid, "values") or ())
+            if len(values) < 2 or str(values[1]) != V4032_CHECKED:
+                continue
+            first = str(values[0])
+            for prefix in ("✓ ", "• ", "⚠ "):
+                if first.startswith(prefix):
+                    first = first[len(prefix):]
+                    break
+            values[0] = f"{V4034_EYE} {first}"
+            box.item(iid, values=values)
+    except Exception:
+        pass
+
+
+ScreenDesigner._refresh_invoice_files_box = _v4034_refresh_invoice_files_box
+
+
+
+
+# =====================================================================
+# V40.35 — журнал проекта: правый щелчок по статическому указателю →
+# «Переопределить как добавленное вручную…».
+#   • Нужно подтверждение во всплывающем окне.
+#   • Указатель удаляется из «Сохранённых указателей» вкладки
+#     «Статические указатели» и из всех расчётов.
+#   • В журнале он остаётся строкой «Вручную» с теми же значениями
+#     (поз., тип, наименование, артикул, габарит, кол-во, вес, стороны),
+#     с тем же состоянием, комментарием и местом в списке.
+#   • Вернуть в расчёт нельзя: у ручного изделия нет галочки «Расчёт».
+# Действует на выделенные строки (или строку под курсором).
+# =====================================================================
+
+V4035_MENU_LABEL = "Переопределить как добавленное вручную…"
+V4035_TITLE = "Переопределение изделия"
+V4035_COPY = (("type", "type"), ("name", "name"), ("article", "article"), ("serial", "serial"),
+              ("mark", "mark"), ("series", "series"), ("size", "size"), ("qty", "quantity"),
+              ("weight", "weight"), ("sides", "sides"))
+
+
+def _v4035_static_rows(self, rows):
+    out = []
+    for iid in rows or []:
+        if not str(iid).startswith("static:"):
+            continue
+        try:
+            index = int(str(iid).split(":", 1)[1])
+        except Exception:
+            continue
+        signs = getattr(self, "saved_static_signs", []) or []
+        if 0 <= index < len(signs):
+            out.append((iid, index))
+    return out
+
+
+def _v4035_manual_record(self, tree, iid, sign):
+    columns = list(tree["columns"])
+    values = list(tree.item(iid, "values") or ())
+    record = {"manual": True, "calc_enabled": False, "converted_from": "Статические указатели",
+              "converted_at": datetime.now().strftime("%d.%m.%Y %H:%M")}
+    for column, key in V4035_COPY:
+        try:
+            value = str(values[columns.index(column)] or "").strip()
+        except (ValueError, IndexError):
+            value = ""
+        if value and value != "—":
+            record[key] = value
+    spec = str(sign.get("spec_position", "") or "").strip()
+    if spec:
+        record["spec_position"] = spec
+    for key in (V40_STATE_FIELD, V40_COMMENT_FIELD, "journal_order"):
+        if key in sign and sign.get(key) not in (None, "", {}):
+            record[key] = sign[key] if not isinstance(sign[key], dict) else dict(sign[key])
+    return record
+
+
+def _v4035_convert(self, rows):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    targets = _v4035_static_rows(self, rows)
+    if not targets:
+        return
+    signs = self.saved_static_signs
+    names = []
+    for _iid, index in targets:
+        sign = signs[index]
+        names.append(str(sign.get("article") or sign.get("name") or f"Указатель {index + 1}"))
+    listing = "\n".join(f"   • {name}" for name in names[:12])
+    if len(names) > 12:
+        listing += f"\n   … и ещё {len(names) - 12}"
+    question = (f"Переопределить как добавленное вручную ({len(names)} шт.):\n{listing}\n\n"
+                "Изделие будет удалено из списка «Сохранённые указатели» и из всех расчётов "
+                "(комплектующие, раскрой, чертежи DXF, закупки).\n"
+                "В журнале проекта оно останется строкой «Вручную» с текущими значениями.\n\n"
+                "Вернуть изделие к расчёту будет нельзя. Продолжить?")
+    if not messagebox.askyesno(V4035_TITLE, question, icon="warning", default="no", parent=self):
+        return
+    items = _v4025_manual_items(self)
+    new_records = []
+    for iid, index in targets:
+        new_records.append(_v4035_manual_record(self, tree, iid, signs[index]))
+    for _iid, index in sorted(targets, key=lambda t: t[1], reverse=True):
+        del signs[index]
+    items.extend(new_records)
+    self._active_static_index = None
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    for name in ("_refresh_static_saved_tree", "_refresh_project_journal",
+                 "_refresh_components_screen_selector", "_refresh_components_table",
+                 "_refresh_stock_screen_selector", "_refresh_procurement_table", "_trial_refresh",
+                 "_refresh_project_matrix", "_update_static_product_buttons", "_v4030_refresh"):
+        try:
+            getattr(self, name)()
+        except Exception:
+            pass
+    self._usage_stale = True
+    try:
+        first = len(items) - len(new_records)
+        selected = [f"{V4025_MANUAL_PREFIX}{first + k}" for k in range(len(new_records))]
+        tree.selection_set([iid for iid in selected if tree.exists(iid)])
+        if selected and tree.exists(selected[0]):
+            tree.see(selected[0])
+    except Exception:
+        pass
+
+
+def _v4035_menu(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    rows = _v40_rows(self, event)
+    if not rows:
+        return None
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Состояние изделия", state="disabled")
+    for state in _v40_places(self):
+        menu.add_command(label=f"    {state} — всё количество",
+                         command=lambda s=state: _v40_assign_all(self, s))
+    menu.add_command(label="    Снять состояние", command=lambda: _v40_clear(self))
+    menu.add_separator()
+    menu.add_command(label="Разбить по количеству…", command=lambda: _v40_split_window(self))
+    menu.add_separator()
+    menu.add_command(label="Комментарий…",
+                     command=lambda i=rows[0]: _v40_edit_comment(self, i))
+    menu.add_separator()
+    statics = _v4035_static_rows(self, rows)
+    menu.add_command(label=V4035_MENU_LABEL, state="normal" if statics else "disabled",
+                     command=lambda r=list(rows): _v4035_convert(self, r))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+_v40_menu = _v4035_menu
+ScreenDesigner._v40_journal_menu = _v4035_menu
+ScreenDesigner._v4035_convert = _v4035_convert
+
+
+
+
+# =====================================================================
+# V40.36 — вес динамического МЦД после переименований V40.27.
+# Расчётные строки выводятся новыми названиями («LED-модуль P 1.25 ID»,
+# «Кабель питания мини-ПК…», «Лента клейкая… VHB», «Монтажная пластина
+# 80×32×2 мм»), а таблицы весов знали только прежние — эти позиции
+# весили 0. Теперь вес ищется по новому названию, затем по исходному.
+#   • Монтажная пластина 80×32×2 мм — 25 г/шт (как в справочнике).
+#   • Праймер — количество уже в граммах, вес = количество.
+# Самопроверка «Проверить веса» использует то же сопоставление.
+# =====================================================================
+
+MCD_UNIT_WEIGHTS_G.update({
+    "Кабель питания мини-ПК ПугВ-0,3 синий/чёрный": 4,
+    "Кабель питания мини-ПК ПугВ-0,3 красный": 4,
+    V4027_PLATE: 25,
+    "Лента клейкая двухсторонняя (20ммх33м) VHB": 18,
+    "Праймер": 1.0,                      # граммы × 1 г
+})
+
+V4036_MODULE_G = {"LED-модуль P 2.5 IN": 414, "LED-модуль P 2.5 ID": 414, "LED-модуль P 2.5 OD": 416,
+                  "LED-модуль P1.53 OD": 433, "LED-модуль P1.25 IN": 433, "LED-модуль P1.25 ID": 433,
+                  "LED-модуль P1.25 OD": 433, "LED-модуль P4.0 IN": 340, "LED-модуль P4.0 ID": 340,
+                  "LED-модуль P4.0 OD": 430, "LED-модуль P5.0 OD": 429, "LED-модуль P3,07 OD": 425}
+
+
+def _v4036_names(self, name):
+    """Новое название и исходное (для таблиц весов)."""
+    raw = str(name or "").strip()
+    out = [raw]
+    try:
+        original = str(self._v3083_original_name(raw) or "").strip()
+    except Exception:
+        original = raw
+    if original and original not in out:
+        out.append(original)
+    return out
+
+
+def _v4036_same_module(self, name, module):
+    module_names = set(_v4036_names(self, module))
+    try:
+        module_names.add(self._v3083_rename_name(module))
+    except Exception:
+        pass
+    return any(n in module_names for n in _v4036_names(self, name))
+
+
+_v4036_orig_screen_weight = ScreenDesigner._screen_weight_kg
+
+
+def _v4036_screen_weight_kg(self, screen):
+    if screen.get("mode", MODE_RZD) != MODE_MCD:
+        return _v4036_orig_screen_weight(self, screen)
+    one = dict(screen)
+    one["quantity"] = 1
+    rows = self._dynamic_mcd_component_rows_v1972([one])
+    module = self._selected_led_module_name(one)
+    module_weight = None
+    for candidate in _v4036_names(self, module):
+        if candidate in V4036_MODULE_G:
+            module_weight = V4036_MODULE_G[candidate]
+            break
+    width = float(one.get("width", 0) or 0)
+    height = float(one.get("height", 0) or 0)
+    total = 0.0
+    for name, _unit, qty in rows:
+        q = float(qty) if isinstance(qty, (int, float)) else 0.0
+        names = _v4036_names(self, name)
+        key = names[-1]
+        if module_weight is not None and _v4036_same_module(self, name, module):
+            total += q * module_weight
+        elif key.startswith("Профиль 175мм"):
+            total += (2 * (width + height) / 1000.0) * 3880
+        elif key.startswith("Профиль Гефест"):
+            total += q * (height / 1000.0) * 400
+        elif key.startswith("Оргстекло 8 мм"):
+            total += max(0, width - 18) / 1000 * max(0, height - 18) / 1000 * 9520 * q
+        elif key.startswith(("Алюкобонд 3 мм", "Алюкобонд 4 мм")):
+            total += max(0, width - 52) / 1000 * max(0, height - 52) / 1000 * 7600 * q
+        else:
+            for candidate in names:
+                if candidate in MCD_UNIT_WEIGHTS_G:
+                    total += q * MCD_UNIT_WEIGHTS_G[candidate]
+                    break
+    return total / 1000.0 if total else None
+
+
+ScreenDesigner._screen_weight_kg = _v4036_screen_weight_kg
+
+
+def _v4036_weight_coverage_issues(self):
+    issues, seen = [], set()
+    for screen in list(getattr(self, "saved_screens", []) or []):
+        if screen.get("mode") != MODE_MCD:
+            continue
+        one = dict(screen)
+        one["quantity"] = 1
+        try:
+            rows = self._dynamic_mcd_component_rows_v1972([one])
+            module = self._selected_led_module_name(one)
+        except Exception:
+            continue
+        for name, unit, _qty in rows:
+            key = str(name).strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            names = _v4036_names(self, key)
+            if _v4036_same_module(self, key, module):
+                continue
+            if any(n.startswith(MCD_WEIGHT_FORMULA_PREFIXES) for n in names):
+                continue
+            if any(n in MCD_UNIT_WEIGHTS_G for n in names):
+                continue
+            if any(n in MCD_WEIGHT_EXCLUDED_PACKAGING for n in names):
+                continue
+            ref = self._component_reference_weight(key)
+            if ref not in (None, "", 0):
+                issues.append((key, unit, ref))
+    return issues
+
+
+ScreenDesigner._weight_coverage_issues = _v4036_weight_coverage_issues
+
+
+
+
+# =====================================================================
+# V40.37 — журнал проекта, правый щелчок: галочка
+# «Выводить в калькуляцию (наименование и кол-во)».
+#   • Действует для изделий, добавленных вручную (они в расчёте не
+#     участвуют и раньше в «Калькуляцию» не попадали).
+#   • Отмеченное изделие появляется колонкой в шапке «Калькуляции»
+#     (на экране, в печати и в XLSX) — только наименование и
+#     количество; ячейки распределения пустые, норм и расчётов нет.
+#   • Колонка стоит на месте изделия в порядке журнала.
+#   • Отметка хранится в изделии (calc_header) и сохраняется в проекте.
+# =====================================================================
+
+V4037_FIELD = "calc_header"
+V4037_MENU_LABEL = "Выводить в калькуляцию (наименование и кол-во)"
+
+
+def _v4037_manual_rows(rows):
+    out = []
+    for iid in rows or []:
+        index = _v4025_manual_index(iid)
+        if index is not None:
+            out.append((iid, index))
+    return out
+
+
+def _v4037_qty(value):
+    text = str(value or "").strip()
+    try:
+        number = float(text.replace(",", ".").replace(" ", ""))
+        return int(number) if abs(number - round(number)) < 1e-9 else number
+    except Exception:
+        return text
+
+
+def _v4037_order(self, key):
+    first = str(key or "").split("+", 1)[0]
+    kind, _, index = first.partition(":")
+    try:
+        index = int(index)
+    except Exception:
+        return 10 ** 9
+    if kind == "dynamic":
+        pool = getattr(self, "saved_screens", []) or []
+    elif kind == "static":
+        pool = getattr(self, "saved_static_signs", []) or []
+    elif kind == "manual":
+        pool = _v4025_manual_items(self)
+    else:
+        return 10 ** 9
+    if not 0 <= index < len(pool):
+        return 10 ** 9
+    try:
+        return float(pool[index].get("journal_order"))
+    except Exception:
+        return 10 ** 9
+
+
+_v4037_orig_matrix_products = ScreenDesigner._project_matrix_products
+
+
+def _v4037_project_matrix_products(self):
+    products = list(_v4037_orig_matrix_products(self))
+    extra = []
+    for index, record in enumerate(_v4025_manual_items(self)):
+        if not (isinstance(record, dict) and record.get(V4037_FIELD)):
+            continue
+        name = str(record.get("name") or record.get("article") or f"Изделие {index + 1}").strip()
+        extra.append((f"{V4025_MANUAL_PREFIX}{index}", name, _v4037_qty(record.get("quantity", ""))))
+    if not extra:
+        return products
+    merged = [(_v4037_order(self, key), position, (key, name, qty))
+              for position, (key, name, qty) in enumerate(products + extra)]
+    merged.sort(key=lambda item: (item[0], item[1]))
+    return [item[2] for item in merged]
+
+
+ScreenDesigner._project_matrix_products = _v4037_project_matrix_products
+
+
+def _v4037_set(self, rows, value):
+    items = _v4025_manual_items(self)
+    for _iid, index in _v4037_manual_rows(rows):
+        if 0 <= index < len(items):
+            if value:
+                items[index][V4037_FIELD] = True
+            else:
+                items[index].pop(V4037_FIELD, None)
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    try:
+        self._refresh_project_matrix()
+    except Exception:
+        pass
+
+
+def _v4037_menu(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    rows = _v40_rows(self, event)
+    if not rows:
+        return None
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Состояние изделия", state="disabled")
+    for state in _v40_places(self):
+        menu.add_command(label=f"    {state} — всё количество",
+                         command=lambda s=state: _v40_assign_all(self, s))
+    menu.add_command(label="    Снять состояние", command=lambda: _v40_clear(self))
+    menu.add_separator()
+    menu.add_command(label="Разбить по количеству…", command=lambda: _v40_split_window(self))
+    menu.add_separator()
+    menu.add_command(label="Комментарий…",
+                     command=lambda i=rows[0]: _v40_edit_comment(self, i))
+    menu.add_separator()
+    manual = _v4037_manual_rows(rows)
+    items = _v4025_manual_items(self)
+    checked = bool(manual) and all(
+        0 <= index < len(items) and items[index].get(V4037_FIELD) for _iid, index in manual)
+    var = tk.BooleanVar(master=menu, value=checked)
+    menu._v4037_var = var
+    menu.add_checkbutton(label=V4037_MENU_LABEL, variable=var, onvalue=True, offvalue=False,
+                         state="normal" if manual else "disabled",
+                         command=lambda r=list(rows): _v4037_set(self, r, bool(var.get())))
+    statics = _v4035_static_rows(self, rows)
+    menu.add_command(label=V4035_MENU_LABEL, state="normal" if statics else "disabled",
+                     command=lambda r=list(rows): _v4035_convert(self, r))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+_v40_menu = _v4037_menu
+ScreenDesigner._v40_journal_menu = _v4037_menu
+
+
+# =====================================================================
+# V40.37.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -33910,7 +35819,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.29.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.37.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -33923,7 +35832,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.29.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.37.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 

@@ -1,10 +1,12 @@
-# LED Screen Designer V40.29.1
+# LED Screen Designer V40.37.1
 
-Файл: `LED_Screen_Designer_v40_29_1.py`
+Файл: `LED_Screen_Designer_v40_37_1.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v40_29_1_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v40_37_1_Windows.zip` в разделе Artifacts.
+
+V40.37.1 = V40.37 (автор) + те же исправления и вес DIN-рейки.
 
 V40.29.1 = V40.29 (автор) + те же исправления; вес DIN-рейки 200 г/м.п.
 
