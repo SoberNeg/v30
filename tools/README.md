@@ -22,3 +22,4 @@
 и README, коммит → сборка `build-windows.yml` (smoke-тест: главное окно + «Выбор проекта»),
 вручную `ui-screenshots.yml` с `inputs[src]=<файл>` → скриншоты/отчёт в ветке `ci-screenshots`.
 5. Вес DIN-рейки 200 г/м.п. (решение автора 29.10.2026): справочник, MCD_UNIT_WEIGHTS_G и fixed_grams кабинетов РЖД (+18 г); применяется, только если в исходнике ещё «20».
+6. Windows: Tk «Command»/«Option» = Mod1/Mod2, Mod1 на Windows = NumLock → привязки <Command-…>/<Option-…> на Windows не регистрируются, проверки state & 0x0008 → _TK_CMD_MASK (0 на Windows); Alt на Windows = 0x20000 в _v4032_modifier_held. Автотест journal_click проверяет щелчки с state=0x8.
