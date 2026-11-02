@@ -126,3 +126,57 @@ for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     assert s.count(anchor) == 1
     s = s.replace(anchor, fix.rstrip() + "\n" + anchor, 1)
     compile(s, str(out), "exec"); out.write_text(s, encoding="utf-8"); print("DIN weight 200 г/м.п.: applied")
+
+# ---- Windows: модификаторы Command/Option в Tk = Mod1/Mod2 на всех платформах.
+#      На Windows Mod1 — это включённый NumLock: обычный щелчок срабатывал как Cmd-щелчок
+#      (строки журнала добавлялись к выделению), проверки state & 0x0008 считали NumLock клавишей.
+s = out.read_text(encoding="utf-8")
+anchor = "from tkinter import ttk, filedialog, messagebox, simpledialog\n"
+assert s.count(anchor) >= 1 and s.index("import sys") < s.index(anchor), "imports anchor"
+block = f'''{anchor}
+# V{ver}.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
+# есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
+_TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
+if sys.platform != "darwin":
+    import re as _mac_re
+    _MAC_ONLY_SEQ = _mac_re.compile(r"<(?:[A-Za-z0-9]+-)*(?:Command|Option)-")
+
+    def _mac_only(seq):
+        return isinstance(seq, str) and bool(_MAC_ONLY_SEQ.search(seq))
+
+    _tk_orig_bind = tk.Misc.bind
+    _tk_orig_bind_all = tk.Misc.bind_all
+    _tk_orig_bind_class = tk.Misc.bind_class
+
+    def _tk_bind(self, sequence=None, func=None, add=None):
+        if func is not None and _mac_only(sequence):
+            return ""
+        return _tk_orig_bind(self, sequence, func, add)
+
+    def _tk_bind_all(self, sequence=None, func=None, add=None):
+        if func is not None and _mac_only(sequence):
+            return ""
+        return _tk_orig_bind_all(self, sequence, func, add)
+
+    def _tk_bind_class(self, className, sequence=None, func=None, add=None):
+        if func is not None and _mac_only(sequence):
+            return ""
+        return _tk_orig_bind_class(self, className, sequence, func, add)
+
+    tk.Misc.bind = _tk_bind
+    tk.Misc.bind_all = _tk_bind_all
+    tk.Misc.bind_class = _tk_bind_class
+'''
+s = s.replace(anchor, block, 1)
+import re as _re
+n0 = len(_re.findall(r"&\s*0x0*8\b", s))
+s = _re.sub(r"&\s*0x0008\b", "& _TK_CMD_MASK", s)
+s = _re.sub(r"&\s*0x8\b", "& _TK_CMD_MASK", s)
+print(f"Windows NumLock fix: bind wrapper added, state&0x8 checks replaced: {n0}")
+compile(s, str(out), "exec"); out.write_text(s, encoding="utf-8")
+s = out.read_text(encoding="utf-8")
+old = "    if state & 0x0001 or state & 0x0004 or state & _TK_CMD_MASK:   # Shift, Control, Alt/Command\n        return True\n"
+if old in s:
+    s = s.replace(old, old + "    if sys.platform.startswith(\"win\") and state & 0x20000:     # Alt на Windows\n        return True\n", 1)
+    compile(s, str(out), "exec"); out.write_text(s, encoding="utf-8"); print("Windows Alt in _v4032_modifier_held: added")

@@ -108,6 +108,37 @@ def add_items():
     report["screens"] = len(getattr(app, "saved_screens", []))
 
 
+def journal_click_test():
+    """Щелчки по строкам журнала: обычные и с флагом NumLock (state=0x8 на Windows).
+    Ожидается: после щелчка по второй строке выделена только она."""
+    tree = getattr(app, "project_journal_tree", None)
+    if tree is None:
+        report["journal_click"] = "нет журнала"
+        return
+    app.update()
+    rows, stack = [], list(tree.get_children(""))
+    while stack:
+        iid = stack.pop(0)
+        if tree.bbox(iid):
+            rows.append(iid)
+        if tree.item(iid, "open"):
+            stack[0:0] = list(tree.get_children(iid))
+    res = {}
+    for label, state in (("plain", 0), ("numlock", 0x8)):
+        tree.selection_set(())
+        seq = []
+        for iid in rows[:2]:
+            x, y, w, h = tree.bbox(iid)
+            cx, cy = tree.winfo_width() // 2, y + h // 2      # середина строки, не галочка «Расчёт»
+            tree.event_generate("<ButtonPress-1>", x=cx, y=cy, state=state)
+            tree.event_generate("<ButtonRelease-1>", x=cx, y=cy, state=state)
+            app.update()
+            seq.append(list(tree.selection()))
+        res[label] = {"rows": rows[:2], "after_each": seq,
+                      "ok": len(rows) >= 2 and seq[-1] == [rows[1]]}
+    report["journal_click"] = res
+
+
 def components_report(label):
     tree = app.components_tree
     rows = []
@@ -133,6 +164,7 @@ def part2():
     shot("03_static", app)
     step(lambda: tab("Журнал проекта"), "tab journal")
     shot("04_journal", app)
+    step(journal_click_test, "journal click test")
     step(lambda: tab("Комплектующие"), "tab components")
     step(lambda: (app.component_scope_var.set("Весь проект"), app._refresh_components_table()), "scope whole")
     step(lambda: components_report("whole"), "report whole")
