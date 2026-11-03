@@ -3,6 +3,7 @@ PyMuPDF
 numpy
 openpyxl
 xlrd
+reportlab
 tkinterdnd2
 paddleocr
 paddlepaddle

@@ -1,4 +1,4 @@
-# V40.40.1 = V40.40 + перенесённые исправления сборки Windows:
+# V40.42.1 = V40.42 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# V40.40.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# V40.42.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
 # NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
 # есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
 _TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
@@ -92,7 +92,7 @@ if sys.platform != "darwin":
     tk.Misc.bind_all = _tk_bind_all
     tk.Misc.bind_class = _tk_bind_class
 
-APP_TITLE = "Конструктор LED-экранов V40.40.1"
+APP_TITLE = "Конструктор LED-экранов V40.42.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2005,7 +2005,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.40.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.42.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2587,13 +2587,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.40.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.42.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.40.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.42.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2631,7 +2631,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.40.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.42.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3864,7 +3864,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.40.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.42.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9923,7 +9923,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.40.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.42.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9936,7 +9936,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.40.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.42.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13092,19 +13092,19 @@ class ScreenDesigner(BaseTk):
             if i==1:
                 lines,f=wrap(val,mw)
                 for n,line in enumerate(lines):d.text((thirds[i]+15,y+76+n*42),line,font=f,fill="black")
-            else:d.text((thirds[i]+15,y+86),str(val),font=fit(val,mw,36),fill="black")
+            else:_v4042_cell_text(self,d,thirds[i]+15,y+86,str(val),mw,h-70,36)  # V40.42
         y+=h+16; h=132; grad(L,y,R,y+h)
         summary_mode=sign.get("mode",MODE_MCD)
         summary_profile=("60×20×2 мм" if summary_mode==MODE_RZD else sign.get("profile","75 мм"))
         summary_type=("Статический РЖД" if summary_mode==MODE_RZD else "Статический МЦД")
-        fields=[("Номер макета",sign.get("layout_no","")),("Габарит",f"{sign.get('width',0)} × {sign.get('height',0)} мм"),
+        fields=[("Номер макета",_v4042_layout_no(sign)),("Габарит",f"{sign.get('width',0)} × {sign.get('height',0)} мм"),
                 ("Сторон",sign.get("sides",1)),("Профиль",summary_profile),
                 ("Исполнение",sign.get("face_type","С подсветкой")),("Тип",summary_type)]
         cw=(R-L)//6
         for i,(lab,val) in enumerate(fields):
             x=L+i*cw
             if i:d.line((x,y,x,y+h),fill="black",width=2)
-            d.text((x+10,y+12),lab,font=small,fill="black"); d.text((x+10,y+72),str(val),font=fit(val,cw-20,30),fill="black")
+            d.text((x+10,y+12),lab,font=small,fill="black"); _v4042_cell_text(self,d,x+10,y+72,str(val),cw-20,h-66,30)  # V40.42
         y+=h+16; map_h=960; d.rectangle((L,y,R,y+map_h),outline="black",width=2); d.text((L+18,y+14),"КАРТА УКАЗАТЕЛЯ",font=bold,fill="black")
         w=int(sign.get("width",0)); hh=int(sign.get("height",0))
         mode=sign.get("mode",MODE_MCD)
@@ -13175,6 +13175,7 @@ class ScreenDesigner(BaseTk):
             elif mode==MODE_MCD:
                 rr=min(90*sc,(x2-x1)/2,(y2-y1)/2)
                 d.rounded_rectangle((x1,y1,x2,y2),radius=rr,fill=(210,235,215),outline=(20,93,37),width=9)
+                _v4041_print_radius(self,d,x1,y1,x2,y2,rr,mirrored)  # V40.41: R75
                 if w>2999 or hh>2999:
                     xm=(x1+x2)/2; ym=(y1+y2)/2
                     split_line(xm,y1,xm,y2); split_line(x1,ym,x2,ym)
@@ -13323,9 +13324,9 @@ class ScreenDesigner(BaseTk):
             vals+=self._v3077_cut_rows(sign)   # V30.77: готовые детали после раскроя
             vals+=[("Кол-во светодиодов",led_qty),
                   ("Блок питания",psu_text),
-                  ("Оргстекло",glass_text),
-                  ("Алюкобонд",alucobond_text),
-                  ("Номер макета",sign.get("layout_no",""))]
+                  (_v4042_data_label(self,"Оргстекло",sign),glass_text),
+                  (_v4042_data_label(self,"Алюкобонд",sign),alucobond_text),
+                  ("Номер макета",_v4042_layout_no(sign))]
         else:
             # РЖД: раскрой профилей + производственные данные по аналогии с МЦД.
             p_horiz = max(0, w)
@@ -13358,7 +13359,7 @@ class ScreenDesigner(BaseTk):
             if sides == 1 and face_type in ("С подсветкой","Без подсветки"):
                 vals.append(("Алюкобонд 4 мм",aluc_text))
             vals += [("Исполнение",sign.get("face_type","")),
-                     ("Номер макета",sign.get("layout_no",""))]
+                     ("Номер макета",_v4042_layout_no(sign))]
         # Данные указателя поджимаем в верхнюю половину правого блока.
         data_top=y+66
         data_bottom=right_mid-12
@@ -13980,7 +13981,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.40.1: строка остаётся «статической» (серая заливка), только если
+                # V40.42.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -15070,7 +15071,7 @@ class ScreenDesigner(BaseTk):
                                 ((x2-2*r,y2-2*r,x2,y2),270),((x1,y2-2*r,x1+2*r,y2),180)):
                 c.create_arc(*box_,start=start_,extent=90,style="arc",outline="#145d25",width=5)
             # Радиус также зеркалим визуально: сторона 2 подписана слева снизу.
-            c.create_text(x1+6 if mirrored else x2-6,y2-6,text="R90",anchor="sw" if mirrored else "se",fill="#8a3b3b",font=("Arial",8,"bold"))
+            c.create_text(x1+6 if mirrored else x2-6,y2-6,text=_v4041_radius_text(),anchor="sw" if mirrored else "se",fill="#8a3b3b",font=("Arial",8,"bold"))  # V40.41: R75
             self._draw_mcd_case_split(c,x1,y1,x2,y2,w,h,tags="selection")
 
         def draw_side(x1,side_no,mirrored=False):
@@ -36099,7 +36100,7 @@ def _v4040_selective_print(self):
         if col == "print":
             return (0, int(not item["print"]))
         if col == "all":
-            return (0, 2 if item["qty"] <= 1 else int(not item["all"]))
+            return (1, []) if item["qty"] <= 1 else (0, int(not item["all"]))  # V40.42: «—» в конце
         value = tree.set(key, col)
         if str(value).strip() in ("", "—"):
             return (1, [])
@@ -36200,6 +36201,7 @@ def _v4040_selective_print(self):
     ttk.Button(bottom, text="Печать", command=do_print).pack(side="right")
     ttk.Button(bottom, text="Отмена", command=win.destroy).pack(side="right", padx=(0, 8))
     win.bind("<Escape>", lambda _e: win.destroy())
+    _v4042_selective_fit(win, tree, columns, titles)  # V40.42: «Артикул» по тексту
     win.after(50, place_heads)
     try:
         win.grab_set()
@@ -36212,8 +36214,2719 @@ _v4039_selective_print = _v4040_selective_print
 ScreenDesigner._v4039_selective_print = _v4040_selective_print
 
 
+
+
 # =====================================================================
-# V40.40.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.41 — статика МЦД: подпись радиуса корпуса R75 (радиус по
+# П-образному профилю корпуса) на координатном поле вкладки
+# «Статические указатели» и на «КАРТЕ УКАЗАТЕЛЯ» в печати журнала
+# изделия — у одно- и двусторонних прямоугольных изделий.
+# Меняется только текст подписи; геометрия скругления на рисунке
+# прежняя. Круглые изделия и параллелограмм 800 × 400 не меняются.
+# =====================================================================
+
+V4041_MCD_CASE_R = 75.0
+V4041_LABEL = (138, 59, 59)
+
+
+def _v4041_radius_text():
+    return f"R{V4041_MCD_CASE_R:g}"
+
+
+def _v4041_print_radius(self, d, x1, y1, x2, y2, rr, mirrored=False):
+    """Подпись радиуса в нижнем углу контура (у стороны 2 — зеркально, слева)."""
+    try:
+        font = self._font_for_print(24, True)
+        inset = rr * 0.3 + 16
+        if mirrored:
+            d.text((x1 + inset, y2 - inset), _v4041_radius_text(), font=font, fill=V4041_LABEL, anchor="lb")
+        else:
+            d.text((x2 - inset, y2 - inset), _v4041_radius_text(), font=font, fill=V4041_LABEL, anchor="rb")
+    except Exception:
+        pass
+
+
+
+
+
+# =====================================================================
+# V40.42 — журнал проекта, справочник, печать, окна, чертежи DXF.
+#   1. Журнал проекта → «Изделия»: поле поиска (подчёркивание найденных
+#      строк, Ctrl/Cmd+F, Enter/F3, Shift+Enter/Shift+F3, Esc) и строка
+#      «Всего в журнале: наименований N • изделий M».
+#   3. Поля ввода: Ctrl+←/→, Ctrl+Shift+←/→, Ctrl+Delete, Ctrl+BackSpace
+#      (на macOS — и Ctrl, и Option); Shift+↑/↓ в журнале проекта.
+#   4. Сортировка журнала по всем столбцам: числа как числа, пустые
+#      и «—» всегда в конце, «Расчёт»: включён → выключен → «—».
+#   5. «Комментарий…» для нескольких выбранных строк — дописывается.
+#   6. Все всплывающие окна — строго по центру рабочей области экрана.
+#   7. Подгруппа позиции («Крепёж и метизы» и т. д.) — из справочника,
+#      ключевые слова — только резерв. Подписи «ДАННЫЕ УКАЗАТЕЛЯ» —
+#      текущие названия из справочника.
+#   8. «Номер макета» не может повторять наименование; длинный текст
+#      в шапке журнала изделия вписывается в ячейку.
+#   9. «Выборочная печать»: «Артикул» по ширине текста, окно по ширине
+#      столбцов, «—» при сортировке всегда в конце.
+#  10. «Перемычка — шпилька М10» — в подгруппе «Крепёж и метизы».
+#  11. «Чертежи DXF»: векторный PDF-предпросмотр стенок и листов МПК.
+# Количества, веса, раскрой и DXF не меняются.
+# =====================================================================
+
+V4042_GROUPS = ("Электроника", "Металлические комплектующие", "Электрика",
+                "Крепёж и метизы", "Герметики, клеи и прочее")
+V4042_FASTENERS = "Крепёж и метизы"
+V4042_METAL = "Металлические комплектующие"
+V4042_SEALANTS = "Герметики, клеи и прочее"
+V4042_STUD = "Перемычка — шпилька М10"
+# Позиции, которые прежние миграции дописали в конец раздела — то есть
+# в последнюю подгруппу «Герметики, клеи и прочее». Их место — металл.
+V4042_MISPLACED = ("Профиль 120мм П-/Г-элементы корпуса МЦД", "Алюкобонд 3 мм")
+V4042_SEPARATORS = (" ", ",", "—", "-", "·", "(")
+
+
+def _v4042_attr(obj, name, default=None):
+    """Собственный атрибут объекта (без __getattr__ корневого окна Tk)."""
+    try:
+        return vars(obj).get(name, default)
+    except TypeError:
+        return getattr(obj, name, default)
+
+
+def _v4042_norm(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip().casefold().replace("ё", "е")
+
+
+def _v4042_is_header(row):
+    if not isinstance(row, (list, tuple)) or not row:
+        return False
+    name = str(row[0] or "").strip()
+    if not name:
+        return False
+    return all(str(row[i] if len(row) > i else "").strip() == "" for i in (1, 2, 3))
+
+
+# ---------------------------------------------------------------------
+# 10. Перенос позиций между подгруппами раздела справочника
+# ---------------------------------------------------------------------
+def _v4042_move_row(rows, name, target):
+    """Переносит строку name в конец подгруппы target. True — если перенесена."""
+    key = _v4042_norm(name)
+    index = None
+    group = ""
+    for i, row in enumerate(rows):
+        if _v4042_is_header(row):
+            group = str(row[0]).strip()
+            continue
+        if isinstance(row, (list, tuple)) and row and _v4042_norm(row[0]) == key:
+            index = i
+            break
+    if index is None or _v4042_norm(group) == _v4042_norm(target):
+        return False
+    start = next((i for i, row in enumerate(rows)
+                  if _v4042_is_header(row) and _v4042_norm(row[0]) == _v4042_norm(target)), None)
+    if start is None:
+        return False
+    row = rows.pop(index)
+    if index < start:
+        start -= 1
+    end = start + 1
+    while end < len(rows) and not _v4042_is_header(rows[end]):
+        end += 1
+    rows.insert(end, row)
+    return True
+
+
+def _v4042_group_of(rows, name):
+    key = _v4042_norm(name)
+    group = ""
+    for row in rows:
+        if _v4042_is_header(row):
+            group = str(row[0]).strip()
+        elif isinstance(row, (list, tuple)) and row and _v4042_norm(row[0]) == key:
+            return group
+    return None
+
+
+def _v4042_reference_fix(data):
+    """Миграция справочника: шпилька — в «Крепёж и метизы»; позиции,
+    дописанные прежними миграциями в «Герметики…», — в «Металлические»."""
+    if not isinstance(data, dict):
+        return data
+    for section, rows in data.items():
+        if not isinstance(rows, list):
+            continue
+        if _v4042_group_of(rows, V4042_STUD) not in (None, V4042_FASTENERS):
+            _v4042_move_row(rows, V4042_STUD, V4042_FASTENERS)
+        for name in V4042_MISPLACED:
+            if _v4042_group_of(rows, name) == V4042_SEALANTS:
+                _v4042_move_row(rows, name, V4042_METAL)
+    return data
+
+
+_v4042_orig_reference_defaults = ScreenDesigner._reference_defaults
+
+
+def _v4042_reference_defaults(self):
+    data = _v4042_orig_reference_defaults(self)
+    if getattr(self, "_v4027_loading", False):
+        return data
+    return _v4042_reference_fix(data)
+
+
+ScreenDesigner._reference_defaults = _v4042_reference_defaults
+
+_v4042_orig_reference_load = ScreenDesigner._reference_load
+
+
+def _v4042_reference_load(self):
+    data = _v4042_reference_fix(_v4042_orig_reference_load(self))
+    _v4042_bump_reference(self)
+    return data
+
+
+ScreenDesigner._reference_load = _v4042_reference_load
+
+
+# --- справочник, принятый из файла проекта
+_v4042_last_project_sections = [None]
+_v4042_orig_unpack_reference = _v3080_unpack_reference
+
+
+def _v4042_unpack_reference(block):
+    sections, history = _v4042_orig_unpack_reference(block)
+    _v4042_last_project_sections[0] = sections if isinstance(sections, dict) else None
+    return sections, history
+
+
+_v3080_unpack_reference = _v4042_unpack_reference
+_v4042_orig_apply_reference = _v3080_apply_reference
+
+
+def _v4042_apply_reference(self, taken, theirs_sections):
+    data = getattr(self, "_reference_data", None)
+    before = {}
+    if isinstance(data, dict):
+        before = {section: {id(row) for row in rows} for section, rows in data.items()
+                  if isinstance(rows, list)}
+    applied = _v4042_orig_apply_reference(self, taken, theirs_sections)
+    try:
+        theirs_full = _v4042_last_project_sections[0] or {}
+        for section, rows in (data or {}).items():
+            if not isinstance(rows, list):
+                continue
+            known = before.get(section, set())
+            added = [row for row in rows if id(row) not in known and not _v4042_is_header(row)]
+            for row in added:
+                name = str(row[0] or "")
+                target = _v4042_group_of(theirs_full.get(section) or [], name)
+                if not target or target not in V4042_GROUPS:
+                    target = _v4042_keyword_group(self, name)
+                if _v4042_norm(name) == _v4042_norm(V4042_STUD):
+                    target = V4042_FASTENERS
+                _v4042_move_row(rows, name, target)
+        _v4042_reference_fix(data)
+    except Exception:
+        pass
+    _v4042_bump_reference(self)
+    return applied
+
+
+_v3080_apply_reference = _v4042_apply_reference
+ScreenDesigner._v3080_apply_reference = _v4042_apply_reference
+
+
+# ---------------------------------------------------------------------
+# 7. Подгруппа позиции — из справочника
+# ---------------------------------------------------------------------
+def _v4042_bump_reference(self):
+    try:
+        self._v4042_ref_gen = int(_v4042_attr(self, "_v4042_ref_gen", 0) or 0) + 1
+    except Exception:
+        pass
+
+
+def _v4042_reference_signature(self):
+    data = getattr(self, "_reference_data", None)
+    if not isinstance(data, dict):
+        return None
+    return (id(data), int(_v4042_attr(self, "_v4042_ref_gen", 0) or 0),
+            tuple((section, id(rows), len(rows) if isinstance(rows, list) else 0)
+                  for section, rows in data.items()))
+
+
+def _v4042_group_index(self):
+    """{норм. название: {раздел: подгруппа}} и список названий для поиска по началу."""
+    signature = _v4042_reference_signature(self)
+    cached = _v4042_attr(self, "_v4042_group_cache", None)
+    if cached and cached[0] == signature:
+        return cached[1], cached[2]
+    index = {}
+    data = getattr(self, "_reference_data", None) or {}
+    known = set(V4042_GROUPS)
+    for section, rows in data.items():
+        group = None
+        for row in rows or []:
+            if _v4042_is_header(row):
+                title = str(row[0]).strip()
+                group = title if title in known else None
+                continue
+            if not isinstance(row, (list, tuple)) or not row or not group:
+                continue
+            name = str(row[0] or "").strip()
+            if not name:
+                continue
+            names = {name}
+            try:
+                names.add(str(_v3083_original_name(self, name) or ""))
+            except Exception:
+                pass
+            try:
+                names.update(_v4027_aliases(name))
+            except Exception:
+                pass
+            for alias in names:
+                key = _v4042_norm(alias)
+                if key:
+                    index.setdefault(key, {}).setdefault(section, group)
+    prefixes = sorted(index, key=len, reverse=True)
+    self._v4042_group_cache = (signature, index, prefixes)
+    self._v4042_group_memo = {}
+    return index, prefixes
+
+
+def _v4042_pick(self, groups):
+    hint = _v4042_attr(self, "_v4042_section_hint", None)
+    if hint and hint in groups:
+        return groups[hint]
+    counts = {}
+    for group in groups.values():
+        counts[group] = counts.get(group, 0) + 1
+    return max(counts, key=lambda g: (counts[g], -list(groups.values()).index(g)))
+
+
+def _v4042_reference_group(self, name):
+    """Подгруппа позиции по текущему справочнику; None — позиции в справочнике нет."""
+    raw = str(name or "").strip()
+    if not raw:
+        return None
+    index, prefixes = _v4042_group_index(self)
+    if not index:
+        return None
+    memo = _v4042_attr(self, "_v4042_group_memo", None)
+    if memo is None:
+        memo = self._v4042_group_memo = {}
+    memo_key = (raw, _v4042_attr(self, "_v4042_section_hint", None))
+    if memo_key in memo:
+        return memo[memo_key]
+    candidates = [raw, raw.split("•", 1)[-1].strip(),
+                  re.sub(r"^(?:МЦД|РЖД)\s*[•:/-]?\s*", "", raw, flags=re.I).strip()]
+    for convert in (_v3083_rename_name, _v3083_original_name):
+        try:
+            candidates.append(str(convert(self, raw) or ""))
+        except Exception:
+            pass
+    try:
+        candidates.append(str(_v4027_canonical(raw) or ""))
+    except Exception:
+        pass
+    keys = []
+    for candidate in candidates:
+        key = _v4042_norm(candidate)
+        if key and key not in keys:
+            keys.append(key)
+    result = None
+    for key in keys:
+        if key in index:
+            result = _v4042_pick(self, index[key])
+            break
+    if result is None:
+        for key in keys:
+            for prefix in prefixes:
+                if len(prefix) < len(key) and key.startswith(prefix) and key[len(prefix)] in V4042_SEPARATORS:
+                    result = _v4042_pick(self, index[prefix])
+                    break
+            if result is not None:
+                break
+    memo[memo_key] = result
+    return result
+
+
+_v4042_keyword_prev = ScreenDesigner._reference_group_for_component
+
+
+def _v4042_keyword_group(self, name):
+    """Резерв по ключевым словам (прежняя логика) + шпилька → «Крепёж и метизы»."""
+    try:
+        original = str(_v3083_original_name(self, name) or name)
+    except Exception:
+        original = str(name or "")
+    if "шпилька" in str(original).casefold() or "шпилька" in str(name or "").casefold():
+        return V4042_FASTENERS
+    return _v4042_keyword_prev(self, name)
+
+
+def _v4042_reference_group_for_component(self, name):
+    try:
+        group = _v4042_reference_group(self, name)
+    except Exception:
+        group = None
+    return group or _v4042_keyword_group(self, name)
+
+
+ScreenDesigner._reference_group_for_component = _v4042_reference_group_for_component
+
+
+def _v4042_with_hint(section, function, *args, **kwargs):
+    self = args[0]
+    previous = _v4042_attr(self, "_v4042_section_hint", None)
+    self._v4042_section_hint = section
+    try:
+        return function(*args, **kwargs)
+    finally:
+        self._v4042_section_hint = previous
+
+
+_v4042_orig_fastener_names = ScreenDesigner._static_print_fastener_names
+
+
+def _v4042_static_print_fastener_names(self, sign):
+    try:
+        section = _v3095_sign_section(sign)[0]
+    except Exception:
+        section = None
+    return _v4042_with_hint(section, _v4042_orig_fastener_names, self, sign)
+
+
+ScreenDesigner._static_print_fastener_names = _v4042_static_print_fastener_names
+
+
+# --- окно справочника: подгруппы по положению строки в справочнике
+_v4042_orig_reference_refresh = ScreenDesigner._reference_refresh
+
+
+def _v4042_reference_refresh(self):
+    try:
+        section = self.reference_section_var.get()
+    except Exception:
+        section = None
+    return _v4042_with_hint(section, _v4042_orig_reference_refresh, self)
+
+
+ScreenDesigner._reference_refresh = _v4042_reference_refresh
+
+_v4042_orig_reference_save = ScreenDesigner._reference_save
+
+
+def _v4042_reference_save(self):
+    _v4042_bump_reference(self)
+    return _v4042_orig_reference_save(self)
+
+
+ScreenDesigner._reference_save = _v4042_reference_save
+
+
+def _v4042_reference_move(self, row_index, target):
+    """«Перенести в подгруппу»: строка уходит в конец выбранной подгруппы."""
+    section = self.reference_section_var.get()
+    rows = (getattr(self, "_reference_data", None) or {}).get(section)
+    if not isinstance(rows, list) or not (0 <= row_index < len(rows)):
+        return
+    row = rows[row_index]
+    name = str(row[0] or "")
+    old_group = _v4042_group_of(rows, name) or ""
+    if not _v4042_move_row(rows, name, target):
+        return
+    stamp = datetime.now().strftime("%d.%m.%Y %H:%M")
+    try:
+        author = self._v3073_user()
+    except Exception:
+        author = ""
+    self._reference_history.append({"date": stamp, "section": section, "row": row_index, "column": "group",
+                                    "old": old_group, "new": target, "by": author, "name": name})
+    try:
+        self._reference_save()
+    except Exception as exc:
+        messagebox.showerror("Справочник", f"Не удалось сохранить корректировку:\n{exc}")
+    self._reference_refresh()
+    for method in ("_refresh_components_table", "_refresh_project_journal"):
+        try:
+            getattr(self, method)()
+        except Exception:
+            pass
+
+
+def _v4042_reference_menu(self, event):
+    tree = getattr(self, "reference_tree", None)
+    if tree is None:
+        return None
+    iid = tree.identify_row(event.y)
+    if not iid or not str(iid).startswith("row_"):
+        return None
+    try:
+        tree.selection_set(iid)
+        tree.focus(iid)
+    except Exception:
+        pass
+    row_index = int(str(iid).split("_", 1)[1])
+    rows = (getattr(self, "_reference_data", None) or {}).get(self.reference_section_var.get()) or []
+    current = _v4042_group_of(rows, rows[row_index][0]) if 0 <= row_index < len(rows) else None
+    editable = bool(getattr(self, "reference_edit_var", None) and self.reference_edit_var.get())
+    present = {str(r[0]).strip() for r in rows if _v4042_is_header(r)}
+    menu = tk.Menu(self, tearoff=0)
+    sub = tk.Menu(menu, tearoff=0)
+    for group in V4042_GROUPS:
+        sub.add_command(label=group, state="normal" if (editable and group != current and group in present)
+                        else "disabled", command=lambda g=group: _v4042_reference_move(self, row_index, g))
+    menu.add_cascade(label="Перенести в подгруппу", menu=sub)
+    if not editable:
+        menu.add_command(label="Включите «Внести корректировки»", state="disabled")
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+# --- подписи «ДАННЫЕ УКАЗАТЕЛЯ»: текущее название позиции справочника
+V4042_LABEL_SOURCES = {
+    "Уголок 30×20×2": "Уголок алюминиевый 30×20×2 мм",
+    "Уголок 40×20×2": "Уголок алюминиевый 40×20×2 мм",
+    "П-профиль 60×20×2": "Профиль алюминиевый П-образный 60×20×2",
+    "Каркас 40×20×2": "Профильная труба алюминиевая 40×20×2 мм",
+    "Профиль Гефест": "Профиль Гефест",
+    "Шпилька М10": V4042_STUD,
+    "DIN-рейка": "DIN-рейка",
+    "Прижимная планка МПК 8мм": "Прижимная планка МПК 8мм",
+    "Оргстекло": "Оргстекло 8 мм",
+    "Алюкобонд": "Алюкобонд 3 мм",
+}
+
+
+def _v4042_reference_name(self, original, section=None):
+    """Текущее название позиции справочника (с учётом переименования) или None."""
+    try:
+        current = str(_v3083_rename_name(self, original) or original)
+    except Exception:
+        current = original
+    data = getattr(self, "_reference_data", None) or {}
+    sections = [section] if section in data else []
+    sections += [s for s in data if s != section]
+    for key in (_v4042_norm(current), _v4042_norm(original)):
+        for name in sections:
+            for row in data.get(name) or []:
+                if (isinstance(row, (list, tuple)) and row and not _v4042_is_header(row)
+                        and _v4042_norm(row[0]) == key):
+                    return str(row[0]).strip()
+    return None
+
+
+def _v4042_data_label(self, label, sign=None):
+    text = str(label or "")
+    base, sep, tail = text.partition(" · ")
+    original = V4042_LABEL_SOURCES.get(base.strip())
+    if not original:
+        return text
+    try:
+        section = _v3095_sign_section(sign)[0] if sign else None
+    except Exception:
+        section = None
+    name = _v4042_reference_name(self, original, section)
+    if not name:
+        return text
+    return name + (sep + tail if sep else "")
+
+
+_v4042_orig_cut_rows = _v3077_cut_rows
+
+
+def _v4042_cut_rows(self, sign):
+    rows = _v4042_orig_cut_rows(self, sign)
+    out = []
+    for item in rows or []:
+        try:
+            label, value = item
+            out.append((_v4042_data_label(self, label, sign), value))
+        except Exception:
+            out.append(item)
+    return out
+
+
+_v3077_cut_rows = _v4042_cut_rows
+ScreenDesigner._v3077_cut_rows = _v4042_cut_rows
+
+
+
+# ---------------------------------------------------------------------
+# 8. «Номер макета» не повторяет наименование изделия
+# ---------------------------------------------------------------------
+# Причина: программа сама в «Номер макета» ничего не пишет — поле
+# заполняется только вводом/вставкой в него (автозаполнение, «умный»
+# ввод наименования, загрузка и смена режима его не трогают). Начало
+# наименования попало туда вставкой текста в соседнее поле. Теперь:
+#   • при уходе из поля / Enter такой текст очищается с подсказкой;
+#   • при открытии проекта значение-начало наименования очищается
+#     (изменение попадает в журнал изменений при сохранении);
+#   • на печать такой текст не выводится.
+V4042_LAYOUT_HINT = "Повтор наименования — очищено"
+
+
+def _v4042_layout_is_name(layout, name):
+    value = _v4042_norm(layout)
+    title = _v4042_norm(name)
+    return bool(value) and bool(title) and len(value) >= 3 and title.startswith(value)
+
+
+def _v4042_layout_no(sign):
+    sign = sign or {}
+    value = str(sign.get("layout_no", "") or "")
+    return "" if _v4042_layout_is_name(value, sign.get("name", "")) else value
+
+
+def _v4042_layout_entry(self):
+    var = getattr(self, "static_layout_no_var", None)
+    frame = getattr(self, "static_params_frame", None)
+    if var is None or frame is None:
+        return None
+    for child in frame.winfo_children():
+        try:
+            if isinstance(child, (ttk.Entry, tk.Entry)) and str(child.cget("textvariable")) == str(var):
+                return child
+        except Exception:
+            continue
+    return None
+
+
+def _v4042_layout_check(self, _event=None):
+    var = getattr(self, "static_layout_no_var", None)
+    name_var = getattr(self, "static_name_var", None)
+    if var is None or name_var is None:
+        return None
+    if not _v4042_layout_is_name(var.get(), name_var.get()):
+        return None
+    var.set("")
+    entry = _v4042_layout_entry(self)
+    if entry is None:
+        return None
+    _v4042_layout_hint_hide(self)
+    try:
+        # подсказка — внутри очищенного поля, как замещающий текст
+        label = tk.Label(entry.master, text=V4042_LAYOUT_HINT, fg="#B3261E", font=("Arial", 9),
+                         anchor="w", bd=0, highlightthickness=0, bg="white", cursor="xterm")
+        label.place(in_=entry, x=4, rely=0.5, anchor="w", relwidth=1.0, width=-10)
+        label.bind("<Button-1>", lambda e: (_v4042_layout_hint_hide(self), entry.focus_set()))
+        self._v4042_layout_label = label
+        self._v4042_layout_after = self.after(6000, lambda: _v4042_layout_hint_hide(self))
+    except Exception:
+        pass
+    return None
+
+
+def _v4042_layout_hint_hide(self, _event=None):
+    label = getattr(self, "_v4042_layout_label", None)
+    self._v4042_layout_label = None
+    if getattr(self, "_v4042_layout_after", None):
+        try:
+            self.after_cancel(self._v4042_layout_after)
+        except Exception:
+            pass
+        self._v4042_layout_after = None
+    if label is not None:
+        try:
+            label.destroy()
+        except Exception:
+            pass
+    return None
+
+
+def _v4042_install_layout_guard(self):
+    entry = _v4042_layout_entry(self)
+    if entry is None:
+        return
+    for sequence in ("<FocusOut>", "<Return>", "<KP_Enter>"):
+        entry.bind(sequence, lambda e: _v4042_layout_check(self, e), add="+")
+    for sequence in ("<FocusIn>", "<KeyPress>"):
+        entry.bind(sequence, lambda e: _v4042_layout_hint_hide(self), add="+")
+    try:
+        # при загрузке другого изделия подсказка снимается
+        self.static_layout_no_var.trace_add(
+            "write", lambda *_: None if getattr(self, "_v4042_layout_label", None) is None
+            or not self.static_layout_no_var.get() else _v4042_layout_hint_hide(self))
+    except Exception:
+        pass
+
+
+def _v4042_migrate_layout(self):
+    changed = []
+    for sign in getattr(self, "saved_static_signs", []) or []:
+        if not isinstance(sign, dict):
+            continue
+        value = str(sign.get("layout_no", "") or "")
+        if value and _v4042_layout_is_name(value, sign.get("name", "")):
+            sign["layout_no"] = ""
+            changed.append(str(sign.get("article") or sign.get("name") or ""))
+    if not changed:
+        return []
+    try:
+        index = getattr(self, "_active_static_index", None)
+        signs = self.saved_static_signs
+        if index is not None and 0 <= index < len(signs):
+            previous = getattr(self, "_loading_saved_product", False)
+            self._loading_saved_product = True
+            try:
+                self.static_layout_no_var.set(signs[index].get("layout_no", ""))
+            finally:
+                self._loading_saved_product = previous
+    except Exception:
+        pass
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    try:
+        self._print_debug_log("V40.42: очищен «Номер макета», совпадавший с наименованием: " + ", ".join(changed))
+    except Exception:
+        pass
+    return changed
+
+
+_v4042_orig_open_project = ScreenDesigner._open_project
+
+
+def _v4042_open_project(self, *args, **kwargs):
+    result = _v4042_orig_open_project(self, *args, **kwargs)
+    try:
+        _v4042_migrate_layout(self)
+    except Exception:
+        pass
+    _v4042_bump_reference(self)
+    return result
+
+
+ScreenDesigner._open_project = _v4042_open_project
+
+
+# --- печать: текст вписывается в ячейку шапки журнала изделия
+def _v4042_cell_text(self, d, x, y, value, max_w, max_h, size=30, min_size=16, bold=True,
+                     fill="black"):
+    """Одна строка того же вида, что раньше; если не помещается — меньше
+    шрифт, затем перенос в 2 строки, в крайнем случае — многоточие."""
+    text = re.sub(r"\s+", " ", str(value if value is not None else "")).strip()
+    if not text:
+        return
+
+    def width(t, f):
+        return d.textbbox((0, 0), t, font=f)[2]
+
+    for s in range(size, min_size - 1, -1):
+        f = self._font_for_print(s, bold)
+        if width(text, f) <= max_w:
+            d.text((x, y), text, font=f, fill=fill)
+            return
+    for s in range(min(size, 24), 13, -1):
+        f = self._font_for_print(s, bold)
+        words, lines, cur = text.split(" "), [], ""
+        for word in words:
+            cand = word if not cur else cur + " " + word
+            if width(cand, f) <= max_w:
+                cur = cand
+            else:
+                if cur:
+                    lines.append(cur)
+                cur = word
+        if cur:
+            lines.append(cur)
+        line_h = int(s * 1.18)
+        if len(lines) <= 2 and all(width(line, f) <= max_w for line in lines) and line_h * len(lines) <= max_h:
+            top = y - (line_h // 2 if len(lines) == 2 else 0)
+            for n, line in enumerate(lines):
+                d.text((x, top + n * line_h), line, font=f, fill=fill)
+            return
+    f = self._font_for_print(14, bold)
+    cut = text
+    while cut and width(cut + "…", f) > max_w:
+        cut = cut[:-1]
+    d.text((x, y), cut.rstrip() + "…", font=f, fill=fill)
+
+
+
+# ---------------------------------------------------------------------
+# 1а. Журнал проекта: поиск
+# ---------------------------------------------------------------------
+V4042_MATCH_TAG = "v4042_match"
+V4042_CURRENT_TAG = "v4042_current"
+V4042_CURRENT_BG = "#FFE58A"
+V4042_FIND_KEYCODES = {70, 3, 41}          # физическая клавиша F: Windows / macOS / X11
+
+
+def _v4042_journal_columns(tree):
+    display = list(tree["displaycolumns"])
+    if not display or display == ["#all"]:
+        display = list(tree["columns"])
+    return display
+
+
+def _v4042_row_text(tree, iid, columns):
+    parts = []
+    for column in columns:
+        try:
+            parts.append(str(tree.set(iid, column) or ""))
+        except Exception:
+            pass
+    return _v4042_norm(" \u0001 ".join(parts))
+
+
+def _v4042_all_rows(tree, parent=""):
+    out = []
+    for iid in tree.get_children(parent):
+        out.append(iid)
+        out += _v4042_all_rows(tree, iid)
+    return out
+
+
+def _v4042_match_font(tree):
+    font = getattr(tree, "_v4042_font", None)
+    if font is not None:
+        return font
+    try:
+        import tkinter.font as tkfont
+        base = ttk.Style().lookup("Treeview", "font") or "TkDefaultFont"
+        try:
+            font = tkfont.nametofont(base).copy()
+        except Exception:
+            font = tkfont.Font(font=base)
+        font.configure(underline=1)
+    except Exception:
+        font = None
+    tree._v4042_font = font
+    return font
+
+
+def _v4042_strip_tags(tree, iid):
+    tags = [t for t in (tree.item(iid, "tags") or ()) if t not in (V4042_MATCH_TAG, V4042_CURRENT_TAG)]
+    tree.item(iid, tags=tags)
+    return tags
+
+
+def _v4042_search_apply(self, keep_position=True):
+    """Подчёркивает строки, где есть текст поиска; выделение строк не меняет."""
+    tree = getattr(self, "project_journal_tree", None)
+    var = getattr(self, "_v4042_search_var", None)
+    if tree is None or var is None:
+        return
+    query = _v4042_norm(var.get())
+    font = _v4042_match_font(tree)
+    try:
+        if font is not None:
+            tree.tag_configure(V4042_MATCH_TAG, font=font)
+        tree.tag_configure(V4042_CURRENT_TAG, background=V4042_CURRENT_BG)
+    except Exception:
+        pass
+    columns = _v4042_journal_columns(tree)
+    previous = getattr(self, "_v4042_current", None)
+    matches = []
+    for iid in _v4042_all_rows(tree):
+        tags = _v4042_strip_tags(tree, iid)
+        if not query:
+            continue
+        if query in _v4042_row_text(tree, iid, columns):
+            parent = tree.parent(iid)
+            # вложенная строка-экземпляр повторяет родителя — не считаем её отдельно
+            if parent and query in _v4042_row_text(tree, parent, columns):
+                continue
+            matches.append(iid)
+            tree.item(iid, tags=tags + [V4042_MATCH_TAG])
+            if parent:
+                tree.item(parent, open=True)
+    self._v4042_matches = matches
+    if not matches:
+        self._v4042_current = None
+    elif not (keep_position and previous in matches):
+        self._v4042_current = matches[0]
+    _v4042_search_show_current(self, scroll=not (keep_position and previous in matches))
+
+
+def _v4042_search_show_current(self, scroll=True):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    matches = getattr(self, "_v4042_matches", []) or []
+    current = getattr(self, "_v4042_current", None)
+    for iid in matches:
+        if not tree.exists(iid):
+            continue
+        tags = [t for t in (tree.item(iid, "tags") or ()) if t != V4042_CURRENT_TAG]
+        if iid == current:
+            tags.append(V4042_CURRENT_TAG)
+        tree.item(iid, tags=tags)
+    if current and tree.exists(current) and scroll:
+        try:
+            tree.see(current)
+        except Exception:
+            pass
+    counter = getattr(self, "_v4042_search_counter", None)
+    if counter is not None:
+        query = getattr(self, "_v4042_search_var", None)
+        text = ""
+        if query is not None and query.get().strip():
+            text = (f"{matches.index(current) + 1} из {len(matches)}" if current in matches
+                    else "нет совпадений")
+        counter.set(text)
+
+
+def _v4042_search_step(self, step):
+    tree = getattr(self, "project_journal_tree", None)
+    matches = [m for m in (getattr(self, "_v4042_matches", []) or []) if tree is not None and tree.exists(m)]
+    if not matches:
+        _v4042_search_apply(self, keep_position=False)
+        return "break"
+    current = getattr(self, "_v4042_current", None)
+    position = matches.index(current) if current in matches else -1
+    self._v4042_current = matches[(position + step) % len(matches)]
+    _v4042_search_show_current(self, scroll=True)
+    return "break"
+
+
+def _v4042_search_clear(self, _event=None):
+    var = getattr(self, "_v4042_search_var", None)
+    if var is not None:
+        var.set("")
+    _v4042_search_apply(self, keep_position=False)
+    return "break"
+
+
+def _v4042_search_schedule(self):
+    if getattr(self, "_v4042_search_after", None):
+        try:
+            self.after_cancel(self._v4042_search_after)
+        except Exception:
+            pass
+    self._v4042_search_after = self.after(120, lambda: (setattr(self, "_v4042_search_after", None),
+                                                         _v4042_search_apply(self, keep_position=False)))
+
+
+def _v4042_search_focus(self, _event=None):
+    entry = getattr(self, "_v4042_search_entry", None)
+    if entry is None:
+        return None
+    try:
+        views = getattr(self, "project_journal_views", None)
+        if views is not None:
+            views.select(0)
+        entry.focus_set()
+        entry.selection_range(0, "end")
+        entry.icursor("end")
+    except Exception:
+        pass
+    return "break"
+
+
+def _v4042_journal_tab_visible(self):
+    tree = getattr(self, "project_journal_tree", None)
+    try:
+        return tree is not None and bool(tree.winfo_viewable())
+    except Exception:
+        return False
+
+
+def _v4042_find_key(self, event):
+    """Ctrl+F / Cmd+F при любой раскладке, если открыт журнал проекта."""
+    state = int(getattr(event, "state", 0) or 0)
+    if sys.platform == "darwin":
+        modifier = bool(state & _TK_CMD_MASK or state & 0x0080 or state & 0x0004)
+    else:
+        modifier = bool(state & 0x0004)
+    if not modifier or state & 0x0001:
+        return None
+    code = int(getattr(event, "keycode", -1) or -1)
+    keysym = str(getattr(event, "keysym", "") or "").lower()
+    if code not in V4042_FIND_KEYCODES and keysym not in ("f", "cyrillic_a"):
+        return None
+    if not _v4042_journal_tab_visible(self):
+        return None
+    return _v4042_search_focus(self)
+
+
+# ---------------------------------------------------------------------
+# 1б. Итог по всему журналу
+# ---------------------------------------------------------------------
+def _v4042_total_counts(self):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return 0, 0.0
+    names, total = set(), 0.0
+    for iid in tree.get_children(""):
+        try:
+            qty = _v3096_qty(tree.set(iid, "qty"))
+        except Exception:
+            qty = 0.0
+        key = _v3096_key(self, tree, iid)
+        if key:
+            names.add(key)
+        total += qty
+    return len(names), total
+
+
+_v4042_orig_counts_update = _v3096_update
+
+
+def _v4042_counts_update(self):
+    _v4042_orig_counts_update(self)
+    var = getattr(self, "_v4042_total_var", None)
+    if var is None:
+        return
+    try:
+        names, total = _v4042_total_counts(self)
+        quantity = int(total) if abs(total - round(total)) < 1e-6 else round(total, 2)
+        var.set(f"Всего в журнале: наименований {names}   •   изделий {quantity}")
+    except Exception:
+        pass
+
+
+_v3096_update = _v4042_counts_update
+ScreenDesigner._v3096_update_journal_counts = _v4042_counts_update
+
+
+# ---------------------------------------------------------------------
+# 4. Сортировка по всем столбцам
+# ---------------------------------------------------------------------
+V4042_NUMERIC = {"num", "qty", "weight", "sides"}
+
+
+def _v4042_sort_value(self, iid, col):
+    """(есть значение, ключ). Пустые и «—» — без значения (всегда в конце)."""
+    tree = self.project_journal_tree
+    try:
+        raw = str(tree.set(iid, col) or "").strip()
+    except Exception:
+        raw = ""
+    if col == "calc":
+        if raw == CALC_ON_MARK:
+            return True, (0,)
+        if raw == CALC_OFF_MARK:
+            return True, (1,)
+        return False, ()
+    if raw in ("", "—", "-", "–"):
+        return False, ()
+    if col in V4042_NUMERIC:
+        m = re.search(r"-?\d+(?:[.,]\d+)?", raw.replace(" ", "").replace(" ", ""))
+        if m:
+            try:
+                return True, (0, float(m.group(0).replace(",", ".")))
+            except Exception:
+                pass
+        return True, (1, _v4040_natural(raw))
+    if col == "size":
+        text = raw.lower().replace("×", "x").replace("х", "x")
+        nums = [float(x.replace(",", ".")) for x in re.findall(r"\d+(?:[.,]\d+)?", text)]
+        round_item = text.startswith("ø") or text.startswith("d") or "ø" in text
+        if nums:
+            return True, (1 if round_item else 0, tuple(nums))
+        return True, (2, _v4040_natural(raw))
+    return True, (0, _v4040_natural(raw))
+
+
+def _v4042_sort_project_journal_by_column(self, col):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    if getattr(self, "_project_journal_sort_column", None) == col:
+        self._project_journal_sort_reverse = not bool(getattr(self, "_project_journal_sort_reverse", False))
+    else:
+        self._project_journal_sort_column = col
+        self._project_journal_sort_reverse = False
+    reverse = bool(self._project_journal_sort_reverse)
+    filled, blanks = [], []
+    for position, iid in enumerate(tree.get_children("")):
+        has_value, key = _v4042_sort_value(self, iid, col)
+        (filled if has_value else blanks).append((key, position, iid))
+    filled.sort(key=lambda x: x[0], reverse=reverse)      # устойчиво: равные — в прежнем порядке
+    for index, (_key, _pos, iid) in enumerate(filled + blanks):
+        tree.move(iid, "", index)
+    self._project_journal_commit_current_order()
+    self._project_journal_update_sort_headers()
+    self._mark_project_dirty()
+    try:
+        self._refresh_project_matrix()
+    except Exception:
+        pass
+    try:
+        _v4042_search_apply(self)
+    except Exception:
+        pass
+
+
+ScreenDesigner._sort_project_journal_by_column = _v4042_sort_project_journal_by_column
+
+
+# --- после обновления, перетаскивания и правки — пересчёт подчёркивания
+_v4042_orig_refresh_journal = ScreenDesigner._refresh_project_journal
+
+
+def _v4042_refresh_project_journal(self, *args, **kwargs):
+    result = _v4042_orig_refresh_journal(self, *args, **kwargs)
+    try:
+        _v4042_search_apply(self)
+    except Exception:
+        pass
+    try:
+        _v4042_counts_update(self)
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._refresh_project_journal = _v4042_refresh_project_journal
+
+_v4042_orig_drag_end = ScreenDesigner._project_journal_drag_end
+
+
+def _v4042_drag_end(self, event):
+    result = _v4042_orig_drag_end(self, event)
+    try:
+        self.after_idle(lambda: _v4042_search_apply(self))
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._project_journal_drag_end = _v4042_drag_end
+
+
+# ---------------------------------------------------------------------
+# 5. Комментарий для нескольких выбранных строк
+# ---------------------------------------------------------------------
+V4042_COMMENT_LIMIT = 1000
+
+
+def _v4042_append_comment(old, text):
+    old = re.sub(r"\s+", " ", str(old or "")).strip()
+    if not old:
+        return text
+    parts = [p.strip() for p in old.split(";")]
+    if _v4042_norm(text) in {_v4042_norm(p) for p in parts} or _v4042_norm(old) == _v4042_norm(text):
+        return old
+    return f"{old}; {text}"[:V4042_COMMENT_LIMIT]
+
+
+def _v4042_comment_many(self, rows):
+    tree = self.project_journal_tree
+    records = []
+    for iid in rows:
+        record = self._project_journal_record_for_iid(iid)
+        if isinstance(record, dict):
+            records.append((iid, record))
+    if not records:
+        return
+    win = tk.Toplevel(self)
+    win.title(f"Комментарий — выбрано {len(records)} изд.")
+    win.resizable(True, False)
+    try:
+        win.transient(self)
+    except Exception:
+        pass
+    body = ttk.Frame(win, padding=(14, 12, 14, 12))
+    body.pack(fill="both", expand=True)
+    ttk.Label(body, text=f"Текст добавится в комментарий каждого из {len(records)} выбранных изделий: "
+                         "к пустому — запишется, к заполненному — допишется через «; ».",
+              wraplength=440, justify="left", foreground="#666666").pack(anchor="w", pady=(0, 8))
+    text_box = tk.Text(body, width=56, height=4, wrap="word", relief="solid", borderwidth=1, undo=True)
+    text_box.pack(fill="both", expand=True)
+    bar = ttk.Frame(body)
+    bar.pack(fill="x", pady=(10, 0))
+
+    def apply():
+        text = re.sub(r"\s+", " ", text_box.get("1.0", "end")).strip()[:500]
+        win.destroy()
+        if not text:
+            return
+        changed = 0
+        for iid, record in records:
+            old = str(record.get(V40_COMMENT_FIELD, "") or "")
+            new = _v4042_append_comment(old, text)
+            if new != old:
+                record[V40_COMMENT_FIELD] = new
+                changed += 1
+                try:
+                    if tree.exists(iid):
+                        tree.set(iid, "comment", new)
+                except Exception:
+                    pass
+        if changed:
+            try:
+                self._mark_project_dirty()
+            except Exception:
+                pass
+            try:
+                self._refresh_project_journal()
+            except Exception:
+                pass
+            try:
+                tree.selection_set([iid for iid, _r in records if tree.exists(iid)])
+            except Exception:
+                pass
+
+    ttk.Button(bar, text="Добавить", command=apply).pack(side="right")
+    ttk.Button(bar, text="Отмена", command=win.destroy).pack(side="right", padx=(0, 8))
+    win.bind("<Escape>", lambda e: win.destroy())
+    text_box.bind("<Control-Return>", lambda e: (apply(), "break")[1])
+    text_box.bind("<Command-Return>", lambda e: (apply(), "break")[1]) if sys.platform == "darwin" else None
+    text_box.focus_set()
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    return win
+
+
+_v4042_orig_edit_comment = _v40_edit_comment
+
+
+def _v4042_edit_comment(self, iid=None):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is not None:
+        try:
+            rows = [r for r in tree.selection() if not tree.parent(r)]
+        except Exception:
+            rows = []
+        if len(rows) > 1 and (iid is None or iid in rows):
+            try:
+                _v40_close_editor(self, save=True)
+            except Exception:
+                pass
+            return _v4042_comment_many(self, rows)
+    return _v4042_orig_edit_comment(self, iid)
+
+
+_v40_edit_comment = _v4042_edit_comment
+ScreenDesigner._v40_edit_comment = _v4042_edit_comment
+
+
+# ---------------------------------------------------------------------
+# 3 (журнал). Shift + ↑ / ↓ — расширить выделение
+# ---------------------------------------------------------------------
+def _v4042_journal_shift_arrow(self, step):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return "break"
+    rows = _v4032_visible_rows(tree)
+    if not rows:
+        return "break"
+    focus = tree.focus()
+    if focus not in rows:
+        selection = [r for r in tree.selection() if r in rows]
+        focus = selection[-1] if selection else rows[0]
+    anchor = getattr(self, "_v4032_anchor", None)
+    if anchor not in rows:
+        anchor = focus
+        self._v4032_anchor = anchor
+    position = max(0, min(len(rows) - 1, rows.index(focus) + step))
+    target = rows[position]
+    a, b = sorted((rows.index(anchor), position))
+    tree.selection_set(rows[a:b + 1])
+    tree.focus(target)
+    tree.see(target)
+    return "break"
+
+
+# ---------------------------------------------------------------------
+# Сборка вкладки журнала: строка поиска, итог, клавиши
+# ---------------------------------------------------------------------
+_v4042_orig_build_journal = ScreenDesigner._build_project_journal_tab
+
+
+def _v4042_build_project_journal_tab(self, parent):
+    _v4042_orig_build_journal(self, parent)
+    try:
+        journal = getattr(self, "project_journal_tree", None)
+        if journal is not None:
+            # теги поиска создаются раньше тегов состояния — их оформление главнее
+            journal.tag_configure(V4042_CURRENT_TAG, background=V4042_CURRENT_BG)
+            font = _v4042_match_font(journal)
+            if font is not None:
+                journal.tag_configure(V4042_MATCH_TAG, font=font)
+    except Exception:
+        pass
+    try:
+        views = getattr(self, "project_journal_views", None)
+        # итог — второй строкой под счётчиком «Наименований … • Изделий …»
+        counts_line = None
+        for child in parent.winfo_children():
+            if isinstance(child, ttk.Frame):
+                for sub in child.winfo_children():
+                    try:
+                        if str(sub.cget("textvariable")) == str(self.project_journal_counts_var):
+                            counts_line = child
+                    except Exception:
+                        continue
+        self._v4042_total_var = tk.StringVar(value="Всего в журнале: наименований 0   •   изделий 0")
+        total_line = ttk.Frame(parent)
+        if counts_line is not None:
+            total_line.pack(fill="x", pady=(0, 2), after=counts_line)
+        elif views is not None:
+            total_line.pack(fill="x", pady=(0, 2), before=views)
+        else:
+            total_line.pack(fill="x", pady=(0, 2))
+        ttk.Label(total_line, textvariable=self._v4042_total_var, foreground=V3096_COLOR,
+                  font=("Arial", 11, "bold")).pack(side="right")
+
+        # поиск — под строкой подсказки, слева
+        search = ttk.Frame(parent)
+        if views is not None:
+            search.pack(fill="x", pady=(0, 6), before=views)
+        else:
+            search.pack(fill="x", pady=(0, 6))
+        ttk.Label(search, text="Поиск:").pack(side="left", padx=(0, 5))
+        self._v4042_search_var = tk.StringVar(value="")
+        entry = ttk.Entry(search, textvariable=self._v4042_search_var, width=34)
+        entry.pack(side="left")
+        self._v4042_search_entry = entry
+        ttk.Button(search, text="Найти", command=lambda: _v4042_search_step(self, 1)).pack(
+            side="left", padx=(6, 0))
+        self._v4042_search_counter = tk.StringVar(value="")
+        ttk.Label(search, textvariable=self._v4042_search_counter, foreground="#666666").pack(
+            side="left", padx=(10, 0))
+        ttk.Label(search, text="Ctrl / Cmd + F — поиск; Enter / F3 — следующее, Shift + Enter — предыдущее; "
+                               "Esc — очистить", foreground="#8a8a8a").pack(side="left", padx=(14, 0))
+        self._v4042_search_var.trace_add("write", lambda *_: _v4042_search_schedule(self))
+        for sequence, step in (("<Return>", 1), ("<KP_Enter>", 1), ("<F3>", 1),
+                               ("<Shift-Return>", -1), ("<Shift-KP_Enter>", -1), ("<Shift-F3>", -1)):
+            entry.bind(sequence, lambda e, s=step: _v4042_search_step(self, s))
+        entry.bind("<Escape>", lambda e: _v4042_search_clear(self, e))
+        tree = getattr(self, "project_journal_tree", None)
+        if tree is not None:
+            tree.bind("<F3>", lambda e: _v4042_search_step(self, 1))
+            tree.bind("<Shift-F3>", lambda e: _v4042_search_step(self, -1))
+            tree.bind("<Shift-Up>", lambda e: _v4042_journal_shift_arrow(self, -1))
+            tree.bind("<Shift-Down>", lambda e: _v4042_journal_shift_arrow(self, 1))
+        self.bind_all("<KeyPress>", lambda e: _v4042_find_key(self, e), add="+")
+    except Exception:
+        import traceback
+        try:
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+
+
+ScreenDesigner._build_project_journal_tab = _v4042_build_project_journal_tab
+
+
+
+# ---------------------------------------------------------------------
+# 3. Слова в полях ввода: Ctrl+Delete, Ctrl+BackSpace (и Option на macOS),
+#    на macOS дополнительно Ctrl+← / → и Ctrl+Shift+← / →.
+#    Стрелки, Delete и BackSpace от раскладки не зависят — сочетания
+#    работают и в русской раскладке. Ctrl+←/→ и Shift-варианты на Windows
+#    и Linux уже даёт сам Tk (<<PrevWord>>, <<NextWord>>, <<SelectPrevWord>>,
+#    <<SelectNextWord>>) — их не трогаем.
+# ---------------------------------------------------------------------
+V4042_WORD_TAG = "LEDWordKeys"
+
+
+def _v4042_word_char(ch):
+    return ch.isalnum() or ch == "_"
+
+
+def _v4042_word_left(text, pos):
+    i = pos
+    while i > 0 and text[i - 1].isspace():
+        i -= 1
+    if i > 0 and _v4042_word_char(text[i - 1]):
+        while i > 0 and _v4042_word_char(text[i - 1]):
+            i -= 1
+    else:
+        while i > 0 and not text[i - 1].isspace() and not _v4042_word_char(text[i - 1]):
+            i -= 1
+    return i
+
+
+def _v4042_word_right(text, pos):
+    i, n = pos, len(text)
+    if i < n and _v4042_word_char(text[i]):
+        while i < n and _v4042_word_char(text[i]):
+            i += 1
+    elif i < n and not text[i].isspace():
+        while i < n and not text[i].isspace() and not _v4042_word_char(text[i]):
+            i += 1
+    while i < n and text[i].isspace():
+        i += 1
+    return i
+
+
+def _v4042_editable(widget):
+    if not isinstance(widget, (tk.Entry, ttk.Entry, ttk.Combobox, tk.Spinbox, tk.Text)):
+        return False
+    try:
+        return str(widget.cget("state")) not in ("disabled", "readonly")
+    except Exception:
+        return True
+
+
+def _v4042_delete_word(event, forward):
+    w = event.widget
+    if not _v4042_editable(w):
+        return None
+    try:
+        if isinstance(w, tk.Text):
+            if w.tag_ranges("sel"):
+                w.delete("sel.first", "sel.last")
+            elif forward:
+                after = w.get("insert", "insert lineend")
+                if not after:
+                    w.delete("insert")
+                else:
+                    w.delete("insert", f"insert + {_v4042_word_right(after, 0)} chars")
+            else:
+                before = w.get("insert linestart", "insert")
+                if not before:
+                    w.delete("insert - 1 chars")
+                else:
+                    count = len(before) - _v4042_word_left(before, len(before))
+                    w.delete(f"insert - {count} chars", "insert")
+            w.see("insert")
+            try:
+                w.edit_separator()
+            except Exception:
+                pass
+            return "break"
+        if w.selection_present():
+            first, last = w.index("sel.first"), w.index("sel.last")
+            w.delete(first, last)
+            w.icursor(first)
+        else:
+            text, pos = w.get(), int(w.index("insert"))
+            if forward:
+                w.delete(pos, _v4042_word_right(text, pos))
+            else:
+                start = _v4042_word_left(text, pos)
+                w.delete(start, pos)
+                w.icursor(start)
+        try:
+            w.xview(w.index("insert"))
+        except Exception:
+            pass
+    except tk.TclError:
+        return "break"
+    return "break"
+
+
+def _v4042_virtual(event, name):
+    try:
+        event.widget.event_generate(name)
+    except Exception:
+        pass
+    return "break"
+
+
+def _v4042_install_word_keys(self):
+    bindings = [("<Control-BackSpace>", lambda e: _v4042_delete_word(e, False)),
+                ("<Control-Delete>", lambda e: _v4042_delete_word(e, True)),
+                ("<Control-KP_Delete>", lambda e: _v4042_delete_word(e, True))]
+    if sys.platform == "darwin":
+        bindings += [("<Option-BackSpace>", lambda e: _v4042_delete_word(e, False)),
+                     ("<Option-Delete>", lambda e: _v4042_delete_word(e, True)),
+                     ("<Control-Left>", lambda e: _v4042_virtual(e, "<<PrevWord>>")),
+                     ("<Control-Right>", lambda e: _v4042_virtual(e, "<<NextWord>>")),
+                     ("<Control-Shift-Left>", lambda e: _v4042_virtual(e, "<<SelectPrevWord>>")),
+                     ("<Control-Shift-Right>", lambda e: _v4042_virtual(e, "<<SelectNextWord>>"))]
+    for sequence, handler in bindings:
+        try:
+            self.bind_class(V4042_WORD_TAG, sequence, handler)
+        except tk.TclError:
+            pass
+
+    def install(widget):
+        try:
+            if isinstance(widget, (tk.Entry, ttk.Entry, ttk.Combobox, tk.Spinbox, tk.Text)):
+                tags = list(widget.bindtags())
+                if V4042_WORD_TAG not in tags:
+                    # после «своих» привязок поля и тега буфера обмена, до класса
+                    position = 1
+                    if getattr(self, "_clipboard_bindtag", None) in tags:
+                        position = tags.index(self._clipboard_bindtag) + 1
+                    tags.insert(position, V4042_WORD_TAG)
+                    widget.bindtags(tuple(tags))
+        except Exception:
+            pass
+        try:
+            for child in widget.winfo_children():
+                install(child)
+        except Exception:
+            pass
+
+    install(self)
+    self.bind_all("<Map>", lambda e: install(e.widget), add="+")
+
+
+# ---------------------------------------------------------------------
+# 6. Всплывающие окна — строго по центру рабочей области экрана
+# ---------------------------------------------------------------------
+# Каждый tk.Toplevel (в т.ч. окна сообщений V40.03 и simpledialog)
+# создаётся скрытым; когда окно построено и известен его размер, оно
+# ставится по центру рабочей области монитора главного окна и
+# показывается — без «прыжка». Положение «+x+y», заданное в коде до
+# показа, заменяется центрированием; размер «WxH» сохраняется.
+# Не трогаются: подсказки и прочие окна без рамки (overrideredirect),
+# выпадающие меню, редакторы ячеек (это не Toplevel), главное окно.
+# Системные окна выбора файлов (filedialog) ставит ОС.
+V4042_PENDING = []          # окна, ожидающие первого показа
+V4042_SIZE_RE = re.compile(r"^\s*(\d+)x(\d+)")
+
+
+def _v4042_work_area(win):
+    try:
+        root = win._root()
+    except Exception:
+        root = win
+    left, top, right, bottom = _v3094_monitor_rect(root)
+    if sys.platform == "darwin" and top == 0:
+        top = 25                         # строка меню macOS
+    return left, top, right, bottom
+
+
+def _v4042_window_size(win):
+    size = getattr(win, "_v4042_size", None)
+    try:
+        if win.winfo_ismapped() and win.winfo_width() > 1:
+            return int(win.winfo_width()), int(win.winfo_height())
+    except Exception:
+        pass
+    try:
+        req_w, req_h = int(win.winfo_reqwidth()), int(win.winfo_reqheight())
+    except Exception:
+        req_w = req_h = 1
+    if size:
+        return int(size[0]), int(size[1])
+    return req_w, req_h
+
+
+def _v4042_center(win, show=True):
+    """Ставит окно по центру рабочей области; show — показать (если скрыто нами)."""
+    try:
+        if not win.winfo_exists():
+            return
+    except Exception:
+        return
+    pending = getattr(win, "_v4042_pending", False)
+    win._v4042_pending = False
+    try:
+        V4042_PENDING.remove(win)
+    except ValueError:
+        pass
+    try:
+        overrideredirect = bool(win.wm_overrideredirect())
+    except Exception:
+        overrideredirect = False
+    if not overrideredirect:
+        try:
+            win.tk.call("update", "idletasks")
+            width, height = _v4042_window_size(win)
+            left, top, right, bottom = _v4042_work_area(win)
+            x = left + max(0, (right - left - width) // 2)
+            y = top + max(0, (bottom - top - height) // 2)
+            win.tk.call("wm", "geometry", win._w, f"+{int(x)}+{int(y)}")
+            win._v4042_placed = (int(x), int(y), int(width), int(height))
+        except Exception:
+            pass
+    if show and pending and not getattr(win, "_v4042_user_hidden", False):
+        try:
+            win.tk.call("wm", "deiconify", win._w)
+        except Exception:
+            pass
+
+
+def _v4042_flush_pending():
+    for win in list(V4042_PENDING):
+        try:
+            alive = bool(win.winfo_exists())
+        except Exception:
+            alive = False
+        if not alive:
+            try:
+                V4042_PENDING.remove(win)
+            except ValueError:
+                pass
+            continue
+        if getattr(win, "_v4042_user_hidden", False):
+            continue                       # покажет сам код — тогда и центрируем
+        _v4042_center(win)
+
+
+def _v4042_recenter_if_grown(win):
+    """Окно показано раньше времени (update_idletasks в середине сборки)
+    и потом выросло — ставим по центру ещё раз, пока его не двигали."""
+    placed = getattr(win, "_v4042_placed", None)
+    if not placed:
+        return
+    try:
+        if not win.winfo_exists() or bool(win.wm_overrideredirect()):
+            return
+        win.tk.call("update", "idletasks")
+        width, height = int(win.winfo_width()), int(win.winfo_height())
+        x, y = int(win.winfo_x()), int(win.winfo_y())
+    except Exception:
+        return
+    if (width, height) == placed[2:] or width <= 1:
+        return
+    if abs(x - placed[0]) > 40 or abs(y - placed[1]) > 60:
+        return                                   # окно уже переставили
+    _v4042_center(win, show=False)
+
+
+def _v4042_wrap(win, names, factory):
+    for name in names:
+        try:
+            original = getattr(win, name)
+        except Exception:
+            continue
+        try:
+            setattr(win, name, factory(original))
+        except Exception:
+            pass
+
+
+def _v4042_exempt(win):
+    try:
+        return bool(win.wm_overrideredirect())
+    except Exception:
+        return False
+
+
+def _v4042_prepare_toplevel(win):
+    win._v4042_pending = True          # ещё не показано
+    win._v4042_guard = True            # до первого прохода цикла событий: «+x+y» → центр
+    win._v4042_user_hidden = False
+    win._v4042_size = None
+    win._v4042_placed = None
+    win._v4042_asked_pos = None
+
+    def geometry_factory(original):
+        def geometry(spec=None, *args, **kwargs):
+            if spec is None:
+                spec = kwargs.pop("newGeometry", None)
+            if spec is None:
+                return original()
+            text = str(spec)
+            if getattr(win, "_v4042_guard", False) and not _v4042_exempt(win):
+                size = V4042_SIZE_RE.match(text)
+                has_pos = "+" in text or text.count("-") > 0
+                if size or has_pos:
+                    if size:
+                        win._v4042_size = (int(size.group(1)), int(size.group(2)))
+                        original(f"{size.group(1)}x{size.group(2)}")
+                    if has_pos:
+                        win._v4042_asked_pos = text[size.end():] if size else text
+                        if not getattr(win, "_v4042_pending", False):
+                            _v4042_center(win, show=False)
+                    return ""
+            return original(spec)
+        return geometry
+
+    def withdraw_factory(original):
+        def withdraw():
+            win._v4042_user_hidden = True
+            return original()
+        return withdraw
+
+    def deiconify_factory(original):
+        def deiconify():
+            win._v4042_user_hidden = False
+            if getattr(win, "_v4042_pending", False):
+                _v4042_center(win, show=False)
+            return original()
+        return deiconify
+
+    def overrideredirect_factory(original):
+        def overrideredirect(flag=None):
+            result = original(flag) if flag is not None else original()
+            if flag and getattr(win, "_v4042_pending", False):
+                # подсказка и т. п.: показывается как обычно, без центрирования
+                win._v4042_pending = False
+                win._v4042_guard = False
+                try:
+                    V4042_PENDING.remove(win)
+                except ValueError:
+                    pass
+                asked = getattr(win, "_v4042_asked_pos", None)
+                try:
+                    if asked:
+                        win.tk.call("wm", "geometry", win._w, asked)
+                    if not getattr(win, "_v4042_user_hidden", False):
+                        win.tk.call("wm", "deiconify", win._w)
+                except Exception:
+                    pass
+            return result
+        return overrideredirect
+
+    def show_first_factory(original):
+        def method(*args, **kwargs):
+            if getattr(win, "_v4042_pending", False) and not getattr(win, "_v4042_user_hidden", False):
+                _v4042_center(win)
+            return original(*args, **kwargs)
+        return method
+
+    _v4042_wrap(win, ("geometry", "wm_geometry"), geometry_factory)
+    _v4042_wrap(win, ("withdraw", "wm_withdraw"), withdraw_factory)
+    _v4042_wrap(win, ("deiconify", "wm_deiconify"), deiconify_factory)
+    _v4042_wrap(win, ("overrideredirect", "wm_overrideredirect"), overrideredirect_factory)
+    _v4042_wrap(win, ("grab_set", "grab_set_global", "focus_force", "lift", "tkraise",
+                      "wait_visibility"), show_first_factory)
+    try:
+        win.tk.call("wm", "withdraw", win._w)
+    except Exception:
+        win._v4042_pending = False
+        win._v4042_guard = False
+        return
+    V4042_PENDING.append(win)
+
+    def first_show():
+        try:
+            if not win.winfo_exists():
+                return
+        except Exception:
+            return
+        if getattr(win, "_v4042_pending", False):
+            if not getattr(win, "_v4042_user_hidden", False):
+                _v4042_center(win)
+        else:
+            _v4042_recenter_if_grown(win)
+        win._v4042_guard = False
+
+    try:
+        win.after(0, first_show)
+    except Exception:
+        pass
+
+
+_v4042_orig_toplevel_init = getattr(tk.Toplevel, "__init__", None)
+
+
+def _v4042_toplevel_init(self, *args, **kwargs):
+    _v4042_orig_toplevel_init(self, *args, **kwargs)
+    try:
+        _v4042_prepare_toplevel(self)
+    except Exception:
+        pass
+
+
+try:
+    if isinstance(tk.Toplevel, type) and issubclass(tk.Toplevel, tk.BaseWidget):
+        tk.Toplevel.__init__ = _v4042_toplevel_init
+except Exception:
+    pass
+
+# прежнее размещение V30.94 / V40.02 (над главным окном, на 1/3 высоты) отключено
+_v3094_place_over_root = lambda win: None          # noqa: E731
+
+_v4042_orig_update_idletasks = getattr(tk.Misc, "update_idletasks", None)
+
+
+def _v4042_update_idletasks(self):
+    result = _v4042_orig_update_idletasks(self)
+    if V4042_PENDING:
+        # как и раньше, update_idletasks показывает построенное окно —
+        # теперь сразу в центре
+        _v4042_flush_pending()
+        _v4042_orig_update_idletasks(self)
+    return result
+
+
+if callable(_v4042_orig_update_idletasks):
+    tk.Misc.update_idletasks = _v4042_update_idletasks
+
+
+
+# ---------------------------------------------------------------------
+# 9. «Выборочная печать»: «Артикул» — по ширине текста, окно — по
+#    ширине всех столбцов (без горизонтальной прокрутки), по центру.
+# ---------------------------------------------------------------------
+def _v4042_tree_font(tree):
+    import tkinter.font as tkfont
+    try:
+        name = ttk.Style().lookup(str(tree.cget("style") or "Treeview"), "font") or \
+            ttk.Style().lookup("Treeview", "font") or "TkDefaultFont"
+    except Exception:
+        name = "TkDefaultFont"
+    try:
+        return tkfont.nametofont(name)
+    except Exception:
+        try:
+            return tkfont.Font(font=name)
+        except Exception:
+            return tkfont.nametofont("TkDefaultFont")
+
+
+def _v4042_heading_font():
+    import tkinter.font as tkfont
+    try:
+        name = ttk.Style().lookup("Heading", "font") or ttk.Style().lookup("Treeview.Heading", "font")
+        if name:
+            return tkfont.nametofont(name) if not isinstance(name, tuple) else tkfont.Font(font=name)
+    except Exception:
+        pass
+    return tkfont.nametofont("TkHeadingFont")
+
+
+def _v4042_selective_fit(win, tree, columns, titles):
+    try:
+        body_font = _v4042_tree_font(tree)
+        head_font = _v4042_heading_font()
+        values = [str(tree.set(iid, "article") or "") for iid in tree.get_children("")]
+        text_w = max([body_font.measure(v) for v in values] + [0])
+        head_w = head_font.measure(titles.get("article", "Артикул") + " ▼")
+        width = max(text_w, head_w) + 26
+        tree.column("article", width=width, minwidth=width, stretch=False)
+        for col in columns:
+            if col != "article":
+                tree.column(col, stretch=False)
+        total = sum(int(tree.column(col, "width")) for col in columns)
+        left, top, right, bottom = _v4042_work_area(win)
+        win_w = min(right - left - 20, total + 24 + 22 + 6)
+        win_h = min(bottom - top - 40, 560)
+        win.geometry(f"{int(win_w)}x{int(win_h)}")
+        win.minsize(min(int(win_w), 480), 320)
+
+        def walk(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from walk(child)
+
+        for child in walk(win):
+            if isinstance(child, ttk.Label):
+                try:
+                    if int(float(str(child.cget("wraplength")) or 0)) > 0:
+                        child.configure(wraplength=max(300, int(win_w) - 40))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+
+# ---------------------------------------------------------------------
+# 11. «Чертежи DXF»: векторный PDF-предпросмотр
+# ---------------------------------------------------------------------
+# Чертёж строится в миллиметрах листа (начало — левый верхний угол,
+# ось Y вниз) как список примитивов; затем записывается в PDF через
+# PyMuPDF (fitz), а если его нет — через reportlab. Линии и текст —
+# векторные. Геометрия — та же, что в DXF (_v4031_grid, раскрой МПК).
+V4042_PAPER = {"A4": (297.0, 210.0), "A3": (420.0, 297.0)}
+V4042_SCALES = (2, 5, 10, 20)
+V4042_FRAME = (20.0, 5.0, 5.0, 5.0)          # поля рамки: слева, сверху, справа, снизу
+V4042_DIM_CAP = 3.5                          # высота прописных букв размеров, мм
+V4042_TB_CAP = 3.0                           # высота текста штампа, мм
+V4042_W_CONTOUR = 0.5
+V4042_W_GRID = 0.3
+V4042_W_DIM = 0.25
+V4042_W_THIN = 0.18
+V4042_INK = (0.0, 0.0, 0.0)
+V4042_GRID_INK = (0.80, 0.10, 0.12)
+V4042_DIM_INK = (0.05, 0.25, 0.60)
+V4042_TB_W = 140.0
+V4042_TB_ROWS = (6.0, 6.0, 6.0, 11.0, 6.0, 6.5)
+V4042_MM = 72.0 / 25.4
+V4042_FONT_FILES = {
+    False: ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial.ttf",
+            str(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "arial.ttf")),
+    True: ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+           "/System/Library/Fonts/Supplemental/Arial Bold.ttf", "/Library/Fonts/Arial Bold.ttf",
+           str(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "arialbd.ttf")),
+}
+_V4042_METRICS = {}
+
+
+def _v4042_font_file(bold=False):
+    for path in V4042_FONT_FILES[bool(bold)]:
+        try:
+            if Path(path).exists():
+                return path
+        except Exception:
+            continue
+    if bold:
+        return _v4042_font_file(False)
+    return None
+
+
+def _v4042_metrics(bold=False):
+    """(PIL-шрифт 1000 ед., доля высоты прописной от кегля)."""
+    key = bool(bold)
+    if key not in _V4042_METRICS:
+        from PIL import ImageFont
+        path = _v4042_font_file(bold)
+        font = ImageFont.truetype(path, 1000) if path else ImageFont.load_default()
+        try:
+            top, bottom = font.getbbox("H")[1], font.getbbox("H")[3]
+            cap = max(0.55, min(0.80, (bottom - top) / 1000.0))
+        except Exception:
+            cap = 0.72
+        _V4042_METRICS[key] = (font, cap)
+    return _V4042_METRICS[key]
+
+
+def _v4042_em(cap_mm, bold=False):
+    return cap_mm / _v4042_metrics(bold)[1]
+
+
+def _v4042_text_w(text, cap_mm, bold=False):
+    font, _cap = _v4042_metrics(bold)
+    try:
+        length = font.getlength(str(text))
+    except Exception:
+        length = 600.0 * len(str(text))
+    return length / 1000.0 * _v4042_em(cap_mm, bold)
+
+
+class _V4042Sheet:
+    """Список примитивов одного листа (мм, Y вниз)."""
+
+    def __init__(self, paper, scale):
+        self.paper = paper
+        self.size = V4042_PAPER[paper]
+        self.scale = scale
+        self.items = []
+
+    def line(self, a, b, width=V4042_W_DIM, color=V4042_INK):
+        self.items.append(("line", (float(a[0]), float(a[1])), (float(b[0]), float(b[1])),
+                           width, color))
+
+    def path(self, segments, width=V4042_W_CONTOUR, color=V4042_INK, closed=True):
+        self.items.append(("path", segments, width, color, closed))
+
+    def rect(self, x1, y1, x2, y2, width=V4042_W_THIN, color=V4042_INK, fill=None):
+        self.items.append(("rect", (min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)), width,
+                           color, fill))
+
+    def text(self, x, y, text, cap=V4042_DIM_CAP, anchor="l", rotate=0, bold=False, color=V4042_INK):
+        """x, y — опорная точка базовой линии; anchor l / c / r вдоль текста."""
+        width = _v4042_text_w(text, cap, bold)
+        shift = {"l": 0.0, "c": width / 2.0, "r": width}.get(anchor, 0.0)
+        if rotate == 90:
+            x0, y0 = x, y + shift
+        else:
+            x0, y0 = x - shift, y
+        self.items.append(("text", (x0, y0), str(text), cap, rotate, bold, color))
+        return width
+
+
+# --- размеры ----------------------------------------------------------
+def _v4042_tick(sheet, x, y):
+    sheet.line((x - 1.1, y + 1.1), (x + 1.1, y - 1.1), V4042_W_DIM, V4042_DIM_INK)
+
+
+def _v4042_chain(sheet, orient, points, labels, c_obj, c_dim, side):
+    """Цепочка размеров. orient 'h' — вдоль X (линия y = c_dim), 'v' — вдоль Y
+    (линия x = c_dim). points — координаты листа вдоль оси, labels — подписи
+    отрезков. c_obj — кромка объекта, откуда выносные. side +1 — размеры ниже/
+    правее объекта, −1 — выше/левее. Возвращает внешнюю границу занятой полосы."""
+    cap = V4042_DIM_CAP
+    tier = cap + 2.2
+    ink = V4042_DIM_INK
+    lo, hi = min(points), max(points)
+    over = 2.0 * side
+    for p in points:
+        start = c_obj + 1.0 * side
+        if orient == "h":
+            sheet.line((p, start), (p, c_dim + over), V4042_W_DIM, ink)
+            _v4042_tick(sheet, p, c_dim)
+        else:
+            sheet.line((start, p), (c_dim + over, p), V4042_W_DIM, ink)
+            _v4042_tick(sheet, c_dim, p)
+    if orient == "h":
+        sheet.line((lo - 2.0, c_dim), (hi + 2.0, c_dim), V4042_W_DIM, ink)
+    else:
+        sheet.line((c_dim, lo - 2.0), (c_dim, hi + 2.0), V4042_W_DIM, ink)
+    placed = {}                                    # ярус → [(от, до)]
+    used_tiers = 0
+    segments = sorted(zip(points, points[1:], labels), key=lambda s: s[0])
+    for a, b, text in segments:
+        length = abs(b - a)
+        mid = (a + b) / 2.0
+        width = _v4042_text_w(text, cap)
+        if width + 1.2 <= length:
+            if orient == "h":
+                sheet.text(mid, c_dim - 0.9, text, cap, "c", 0, color=ink)
+            else:
+                sheet.text(c_dim - 0.9, mid, text, cap, "c", 90, color=ink)
+            continue
+        # подпись на ярусе не заходит за крайние выносные (их продолжают
+        # выносные габаритного размера)
+        center = mid
+        if center - width / 2.0 < lo + 0.8 and center + width / 2.0 <= hi - 0.8:
+            center = min(lo + 0.8 + width / 2.0, hi - 0.8 - width / 2.0)
+        elif center + width / 2.0 > hi - 0.8 and center - width / 2.0 >= lo + 0.8:
+            center = max(hi - 0.8 - width / 2.0, lo + 0.8 + width / 2.0)
+        span = (center - width / 2.0 - 0.8, center + width / 2.0 + 0.8)
+        chosen = None
+        for k in range(1, 9):
+            busy = placed.get(k, [])
+            if any(not (span[1] <= s0 or span[0] >= s1) for s0, s1 in busy):
+                continue
+            # выноска не должна пересекать подписи нижних ярусов
+            crossing = any(s0 - 0.3 <= mid <= s1 + 0.3 for j in range(1, k)
+                           for s0, s1 in placed.get(j, []))
+            if crossing:
+                continue
+            chosen = k
+            break
+        if chosen is None:
+            chosen = max(placed or {0: []}) + 1
+        placed.setdefault(chosen, []).append(span)
+        used_tiers = max(used_tiers, chosen)
+        if side > 0:
+            band = c_dim + 2.6 + (chosen - 1) * tier       # за выносными (они выходят на 2 мм)
+            base = band + cap                                # базовая линия текста
+            reach = band - 0.4
+        else:
+            base = c_dim - 1.0 - chosen * tier
+            reach = base + 0.4
+        if orient == "h":
+            sheet.line((mid, c_dim), (mid, reach), V4042_W_THIN, ink)
+            sheet.text(center, base, text, cap, "c", 0, color=ink)
+        else:
+            sheet.line((c_dim, mid), (reach, mid), V4042_W_THIN, ink)
+            sheet.text(base, center, text, cap, "c", 90, color=ink)
+    if side > 0:
+        return c_dim + 2.6 + used_tiers * tier
+    return c_dim - 1.0 - cap - used_tiers * tier
+
+
+def _v4042_num(value):
+    return _v4030_num(value)
+
+
+# --- стенка -------------------------------------------------------------
+def _v4042_wall_layout(entry, sheet, origin):
+    """Рисует стенку с размерами; origin — левый верхний угол стенки на листе.
+    Возвращает (x1, y1, x2, y2) — габарит чертежа с размерами."""
+    W, H, vertical, lines, positions, starts = _v4031_grid(entry)
+    plan = entry["plan"]
+    k = 1.0 / sheet.scale
+    ox, oy = origin
+    left, top, right, bottom = ox, oy, ox + W * k, oy + H * k
+
+    def P(x, y):
+        return ox + x * k, oy + (H - y) * k
+
+    # контур R49: прямые и четверти окружности (кривые Безье)
+    r = V4030_CORNER_R * k
+    kappa = 0.5522847498 * r
+    segs = [("l", (left + r, top), (right - r, top)),
+            ("c", (right - r, top), (right - r + kappa, top), (right, top + r - kappa), (right, top + r)),
+            ("l", (right, top + r), (right, bottom - r)),
+            ("c", (right, bottom - r), (right, bottom - r + kappa), (right - r + kappa, bottom), (right - r, bottom)),
+            ("l", (right - r, bottom), (left + r, bottom)),
+            ("c", (left + r, bottom), (left + r - kappa, bottom), (left, bottom - r + kappa), (left, bottom - r)),
+            ("l", (left, bottom - r), (left, top + r)),
+            ("c", (left, top + r), (left, top + r - kappa), (left + r - kappa, top), (left + r, top))]
+    sheet.path(segs, V4042_W_CONTOUR, V4042_INK, True)
+    for a, b in lines:
+        sheet.line(P(*a), P(*b), V4042_W_GRID, V4042_GRID_INK)
+
+    gap = 9.0
+    chain = [0.0] + [float(s) for s in starts] + [float(plan["wall_len"])]
+    cross = [0.0] + [float(p) for p in positions] + [float(plan["wall_breadth"])]
+    chain_labels = [_v4042_num(b - a) for a, b in zip(chain, chain[1:])]
+    cross_labels = [_v4042_num(b - a) for a, b in zip(cross, cross[1:])]
+    box = [left, top, right, bottom]
+    if vertical:
+        # вдоль ряда (по Y) — слева; поперёк рядов (по X) — сверху
+        pts = [P(0.0, y)[1] for y in chain]
+        edge = _v4042_chain(sheet, "v", pts, chain_labels, left, left - gap, -1)
+        h_line = edge - gap
+        _v4042_chain(sheet, "v", [top, bottom], [_v4042_num(H)], left, h_line, -1)
+        box[0] = h_line - V4042_DIM_CAP - 2.0
+        pts = [P(x, 0.0)[0] for x in cross]
+        top_edge = _v4042_chain(sheet, "h", pts, cross_labels, top, top - gap, -1)
+        box[1] = top_edge - 1.0
+        w_line = bottom + gap
+        _v4042_chain(sheet, "h", [left, right], [_v4042_num(W)], bottom, w_line, 1)
+        box[3] = w_line + 1.0
+    else:
+        pts = [P(x, 0.0)[0] for x in chain]
+        edge = _v4042_chain(sheet, "h", pts, chain_labels, bottom, bottom + gap, 1)
+        w_line = edge + gap
+        _v4042_chain(sheet, "h", [left, right], [_v4042_num(W)], bottom, w_line, 1)
+        box[3] = w_line + 1.0
+        pts = [P(0.0, y)[1] for y in cross]
+        right_edge = _v4042_chain(sheet, "v", sorted(pts), list(reversed(cross_labels)), right,
+                                  right + gap, 1)
+        box[2] = right_edge + 1.0
+        h_line = left - gap
+        _v4042_chain(sheet, "v", [top, bottom], [_v4042_num(H)], left, h_line, -1)
+        box[0] = h_line - V4042_DIM_CAP - 2.0
+    # R49 — на свободной стороне
+    diag = r * (1.0 - 0.70710678)
+    if vertical:
+        ax, ay = right - diag, top + diag
+        tx, ty = right + 6.0, top - 3.0
+        sheet.line((ax, ay), (tx - 0.5, ty + 0.8), V4042_W_THIN, V4042_DIM_INK)
+        sheet.line((tx - 0.5, ty + 0.8), (tx + _v4042_text_w("R49", V4042_DIM_CAP) + 0.5, ty + 0.8),
+                   V4042_W_THIN, V4042_DIM_INK)
+        sheet.text(tx, ty, f"R{_v4042_num(V4030_CORNER_R)}", V4042_DIM_CAP, "l", color=V4042_DIM_INK)
+        box[2] = max(box[2], tx + _v4042_text_w("R49", V4042_DIM_CAP) + 1.0)
+    else:
+        ax, ay = left + diag, top + diag
+        tw = _v4042_text_w("R49", V4042_DIM_CAP)
+        tx, ty = left - 6.0, top - 4.0
+        sheet.line((ax, ay), (tx + 0.5, ty + 0.8), V4042_W_THIN, V4042_DIM_INK)
+        sheet.line((tx + 0.5, ty + 0.8), (tx - tw - 0.5, ty + 0.8), V4042_W_THIN, V4042_DIM_INK)
+        sheet.text(tx, ty, f"R{_v4042_num(V4030_CORNER_R)}", V4042_DIM_CAP, "r", color=V4042_DIM_INK)
+        box[1] = min(box[1], ty - V4042_DIM_CAP - 1.0)
+    # база Б — левый нижний угол (начало координат)
+    sheet.path([("l", (left, bottom), (left + 3.2, bottom)), ("l", (left + 3.2, bottom), (left, bottom - 3.2)),
+                ("l", (left, bottom - 3.2), (left, bottom))], V4042_W_THIN, V4042_INK, True)
+    sheet.items[-1] = sheet.items[-1] + ((0, 0, 0),)
+    sheet.text(left - 2.2, bottom + 2.0 + V4042_DIM_CAP, "Б", V4042_DIM_CAP, "r", bold=True)
+    return tuple(box)
+
+
+def _v4042_frame(sheet):
+    pw, ph = sheet.size
+    l, t, r, b = V4042_FRAME
+    sheet.rect(l, t, pw - r, ph - b, V4042_W_CONTOUR)
+    return l, t, pw - r, ph - b
+
+
+def _v4042_fit_text(text, cap, width, bold=False, min_cap=None):
+    """Текст в ширину: не меньше min_cap; если не помещается — многоточие."""
+    min_cap = min_cap or cap
+    size = cap
+    while size > min_cap and _v4042_text_w(text, size, bold) > width:
+        size = round(size - 0.1, 2)
+    if _v4042_text_w(text, size, bold) <= width:
+        return text, size
+    cut = str(text)
+    while cut and _v4042_text_w(cut + "…", size, bold) > width:
+        cut = cut[:-1]
+    return cut.rstrip() + "…", size
+
+
+def _v4042_wrap_text(text, cap, width, lines=2, bold=False):
+    words, out, cur = str(text).split(), [], ""
+    for word in words:
+        cand = word if not cur else cur + " " + word
+        if _v4042_text_w(cand, cap, bold) <= width:
+            cur = cand
+        else:
+            if cur:
+                out.append(cur)
+            cur = word
+    if cur:
+        out.append(cur)
+    if len(out) > lines:
+        out = out[:lines - 1] + [" ".join(out[lines - 1:])]
+    return [(_v4042_fit_text(line, cap, width, bold)[0]) for line in out]
+
+
+def _v4042_title_block(sheet, frame, rows):
+    """Штамп в правом нижнем углу рамки. rows — [(подпись, значение, строк)]."""
+    x2, y2 = frame[2], frame[3]
+    x1 = x2 - V4042_TB_W
+    heights = list(V4042_TB_ROWS)
+    y1 = y2 - sum(heights)
+    sheet.rect(x1, y1, x2, y2, V4042_W_CONTOUR)
+    label_w = 30.0
+    y = y1
+    cap = V4042_TB_CAP
+    for (label, value, lines), height in zip(rows, heights):
+        if y > y1:
+            sheet.line((x1, y), (x2, y), V4042_W_THIN)
+        if isinstance(value, (list, tuple)):
+            # последняя строка: несколько ячеек
+            cells = value
+            cell_w = (x2 - x1) / len(cells)
+            for i, cell in enumerate(cells):
+                cx = x1 + i * cell_w
+                if i:
+                    sheet.line((cx, y), (cx, y + height), V4042_W_THIN)
+                text, size = _v4042_fit_text(cell, cap, cell_w - 2.4)
+                sheet.text(cx + 1.2, y + (height + size) / 2.0, text, size)
+        else:
+            sheet.line((x1 + label_w, y), (x1 + label_w, y + height), V4042_W_THIN)
+            sheet.text(x1 + 1.2, y + (height + cap) / 2.0, label, cap)
+            room = x2 - x1 - label_w - 2.4
+            if lines > 1:
+                parts = _v4042_wrap_text(value, cap, room, lines)
+                step = height / len(parts) if parts else height
+                for n, part in enumerate(parts):
+                    sheet.text(x1 + label_w + 1.2, y + step * n + (step + cap) / 2.0, part, cap,
+                               bold=(label == "Объект"))
+            else:
+                text, size = _v4042_fit_text(value, cap, room, bold=(label == "Объект"))
+                sheet.text(x1 + label_w + 1.2, y + (height + size) / 2.0, text, size,
+                           bold=(label == "Объект"))
+        y += height
+    return x1, y1, x2, y2
+
+
+def _v4042_stamp_rows(self, file_name, wall_text, items_text, led_text, scale, kind="Стенка"):
+    try:
+        project = self.project_name_var.get().strip()
+    except Exception:
+        project = ""
+    project = project or getattr(self, "project_name", "") or "—"
+    return [("Объект", project, 1), ("Файл", file_name, 1), (kind, wall_text, 1),
+            ("Изделия", items_text, 2), ("Светодиоды" if kind == "Стенка" else "Полосы", led_text, 1),
+            ("", (f"Масштаб 1:{scale}", f"Дата {datetime.now().strftime('%d.%m.%Y')}",
+                  APP_TITLE.replace("Конструктор ", "")), 1)]
+
+
+V4042_NOTE_WALL = ("Сплошные линии — сетка разметки: линии рядов и поперечные линии мест светодиодов. "
+                   "По поперечной линии ставится торец корпуса, корпус 70 мм — в сторону дальней кромки. "
+                   "Б — база, начало координат DXF. Размеры в мм.")
+
+
+def _v4042_notes(sheet, frame, text, lines=5):
+    """Примечание — над штампом, в его ширину. Возвращает верх занятой зоны."""
+    width = V4042_TB_W
+    parts = _v4042_wrap_text(text, V4042_TB_CAP, width - 2.0, lines)
+    step = V4042_TB_CAP + 1.8
+    bottom = frame[3] - sum(V4042_TB_ROWS) - 2.0
+    x = frame[2] - width + 1.0
+    for n, part in enumerate(parts):
+        sheet.text(x, bottom - (len(parts) - 1 - n) * step, part, V4042_TB_CAP, color=(0.3, 0.3, 0.3))
+    return bottom - len(parts) * step - 1.0
+
+
+def _v4042_regions(frame, corner_top):
+    """Свободные области листа для чертежа: слева от штампа (вся высота)
+    и над штампом с примечанием (вся ширина)."""
+    top = frame[1] + 12.0
+    return [(frame[0] + 4.0, top, frame[2] - V4042_TB_W - 6.0, frame[3] - 4.0),
+            (frame[0] + 4.0, top, frame[2] - 4.0, corner_top - 4.0)]
+
+
+def _v4042_wall_sheet(self, entry):
+    W, H = float(entry["ww"]), float(entry["hh"])
+    plan = entry["plan"]
+    rows = plan["rows"]
+    placed = None
+    for scale in V4042_SCALES:
+        for paper in ("A4", "A3"):
+            sheet = _V4042Sheet(paper, scale)
+            frame = _v4042_frame(sheet)
+            corner_top = _v4042_notes(sheet, frame, V4042_NOTE_WALL)
+            probe = _V4042Sheet(paper, scale)
+            bx1, by1, bx2, by2 = _v4042_wall_layout(entry, probe, (0.0, 0.0))
+            bw, bh = bx2 - bx1, by2 - by1
+            for area in _v4042_regions(frame, corner_top):
+                if bw <= area[2] - area[0] and bh <= area[3] - area[1]:
+                    placed = (sheet, frame, area, bx1, by1, bw, bh)
+                    break
+            if placed:
+                break
+        if placed:
+            break
+    if placed:
+        sheet, frame, area, bx1, by1, bw, bh = placed
+        ox = area[0] + (area[2] - area[0] - bw) / 2.0 - bx1
+        oy = area[1] + (area[3] - area[1] - bh) / 2.0 - by1
+        _v4042_wall_layout(entry, sheet, (ox, oy))
+    else:
+        sheet = _V4042Sheet("A3", V4042_SCALES[-1])
+        frame = _v4042_frame(sheet)
+        _v4042_notes(sheet, frame, V4042_NOTE_WALL)
+        _v4042_wall_layout(entry, sheet, (frame[0] + 40.0, frame[1] + 30.0))
+    grid = f"{len(rows)} × {rows[0]['n']} = {plan['total']}" if rows else "—"
+    sheet.text(frame[0] + 4.0, frame[1] + 4.0 + 5.0,
+               f"Стенка {_v4042_num(W)} × {_v4042_num(H)} мм · R{_v4042_num(V4030_CORNER_R)} · "
+               f"сетка {grid}", 5.0, bold=True)
+    items = ", ".join(entry.get("articles") or []) + f" · стенок: {entry.get('qty', 1)}"
+    rows_text = _v4042_stamp_rows(
+        self, entry["file"], f"{_v4042_num(W)} × {_v4042_num(H)} мм, R{_v4042_num(V4030_CORNER_R)} · "
+        "Алюкобонд 3 мм", items, f"{plan['total']} на стенку (сетка {grid})", sheet.scale)
+    _v4042_title_block(sheet, frame, rows_text)
+    return sheet
+
+
+# --- лист МПК -----------------------------------------------------------
+def _v4042_plank_groups(rows):
+    groups = []
+    for index, row in enumerate(rows):
+        lengths = tuple(int(round(float(x))) for x in row)
+        if groups and groups[-1]["lengths"] == lengths:
+            groups[-1]["last"] = index
+        else:
+            groups.append({"first": index, "last": index, "lengths": lengths})
+    return groups
+
+
+def _v4042_plank_sheets(self, sheet_data):
+    rows = sheet_data["rows"]
+    scale = 10
+    sheet = _V4042Sheet("A3", scale)
+    frame = _v4042_frame(sheet)
+    k = 1.0 / scale
+    L, Wd = float(V4011_SHEET_L), float(V4011_SHEET_W)
+    left = frame[0] + 30.0
+    top = frame[1] + 18.0
+    right, bottom = left + L * k, top + Wd * k
+    sheet.rect(left, top, right, bottom, V4042_W_CONTOUR)
+    groups = _v4042_plank_groups(rows)
+    for index, row in enumerate(rows):
+        y_top = top + _v4011_plank_top(index) * k
+        y_bot = y_top + V4011_PLANK_H * k
+        x = left + V4011_END * k
+        for length in row:
+            sheet.rect(x, y_top, x + float(length) * k, y_bot, V4042_W_GRID * 0.6, V4042_GRID_INK)
+            x += (float(length) + V4011_CROSS) * k
+    # подписи длин — на полосе групп одинаковых полос, где хватает места
+    cap = V4042_DIM_CAP
+    for group in groups:
+        y1 = top + _v4011_plank_top(group["first"]) * k
+        y2 = top + (_v4011_plank_top(group["last"]) + V4011_PLANK_H) * k
+        if y2 - y1 < cap + 1.2:
+            continue
+        x = left + V4011_END * k
+        base = (y1 + y2) / 2.0 + cap / 2.0
+        for length in group["lengths"]:
+            width = float(length) * k
+            label = str(length)
+            tw = _v4042_text_w(label, cap)
+            if tw + 2.0 <= width:
+                cx = x + width / 2.0
+                sheet.rect(cx - tw / 2.0 - 0.6, base - cap - 0.6, cx + tw / 2.0 + 0.6, base + 0.8, 0.0,
+                           None, (1.0, 1.0, 1.0))
+                sheet.text(cx, base, label, cap, "c")
+            x += (float(length) + V4011_CROSS) * k
+    # номера полос слева: 1, 5, 10, …
+    for index in range(len(rows)):
+        number = index + 1
+        if number == 1 or number % 5 == 0 or number == len(rows):
+            y_mid = top + (_v4011_plank_top(index) + V4011_PLANK_H / 2.0) * k
+            if number == len(rows) and number % 5 and number - (number // 5) * 5 < 2 and number > 5:
+                continue
+            sheet.line((left - 1.5, y_mid), (left, y_mid), V4042_W_THIN)
+            sheet.text(left - 2.2, y_mid + cap / 2.0, str(number), cap, "r")
+    sheet.text(left - 2.2, top - 2.0, "Полоса", V4042_TB_CAP, "r", color=(0.3, 0.3, 0.3))
+    # остаток
+    used = _v4011_used_height(len(rows))
+    rest = Wd - used
+    if rest > 0:
+        ry = top + used * k
+        sheet.rect(left, ry, right, bottom, V4042_W_THIN, V4042_DIM_INK, (0.93, 0.96, 1.0))
+        if (bottom - ry) > cap + 2.0:
+            sheet.text((left + right) / 2.0, (ry + bottom) / 2.0 + cap / 2.0,
+                       f"Остаток {_v4042_num(L)} × {_v4042_num(rest)}", cap, "c", color=V4042_DIM_INK)
+        _v4042_chain(sheet, "v", [ry, bottom], [_v4042_num(rest)], right, right + 9.0, 1)
+    _v4042_chain(sheet, "h", [left, right], [_v4042_num(L)], bottom, bottom + 9.0, 1)
+    _v4042_chain(sheet, "v", [top, bottom], [_v4042_num(Wd)], left, left - 18.0, -1)
+    sheet.text(frame[0] + 4.0, frame[1] + 4.0 + 5.0,
+               f"Прижимная планка МПК 8мм — раскрой листа {_v4042_num(L)} × {_v4042_num(Wd)} · "
+               f"лист {sheet_data['index']} из {sheet_data['count']}", 5.0, bold=True)
+    note = (f"Планка {V4011_PLANK_H:g} мм, фреза {V4011_MILL:g} мм, зазор {V4011_GAP:g} мм; от торца "
+            f"полосы {V4011_END:g} мм, между планками {V4011_CROSS:g} мм. Длины всех планок — "
+            "в таблице на следующем листе.")
+    _v4042_notes(sheet, frame, note)
+    planks = sum(len(r) for r in rows)
+    stamp = _v4042_stamp_rows(
+        self, sheet_data["file"], f"МПК 8 мм {_v4042_num(L)} × {_v4042_num(Wd)}",
+        f"Изделий с планкой: {sheet_data.get('products', '—')}; планок на листе: {planks}; "
+        + f"{float(sheet_data.get('meters', 0) or 0):.1f}".replace(".", ",") + " м.п.",
+        f"{len(rows)}; остаток {_v4042_num(L)} × {_v4042_num(rest)} мм", scale, kind="Лист")
+    _v4042_title_block(sheet, frame, stamp)
+    pages = [sheet]
+    # таблица полос
+    table = _V4042Sheet("A3", scale)
+    frame2 = _v4042_frame(table)
+    table.text(frame2[0] + 4.0, frame2[1] + 9.0,
+               f"Раскрой листа МПК 8мм {sheet_data['index']} из {sheet_data['count']} — длины планок по полосам",
+               5.0, bold=True)
+    columns = (("Полосы", 30.0), ("Кол-во полос", 40.0), ("Планки в полосе, мм", 0.0),
+               ("Сумма, мм", 30.0), ("Остаток полосы, мм", 52.0))
+    col_gap = 8.0
+    usable_w = frame2[2] - frame2[0] - 8.0
+    row_h = V4042_DIM_CAP + 3.0
+    y_start = frame2[1] + 16.0
+    y_limit = frame2[3] - sum(V4042_TB_ROWS) - 4.0
+    per_block = int((y_limit - y_start - row_h) // row_h)
+    two_blocks = len(groups) > per_block
+    block_w = (usable_w - col_gap) / 2.0 if two_blocks else min(usable_w, 300.0)
+    fixed = sum(w for _n, w in columns)
+    widths = [w if w else block_w - fixed for _n, w in columns]
+    entries = []
+    for group in groups:
+        span = (f"{group['first'] + 1}" if group["first"] == group["last"]
+                else f"{group['first'] + 1}–{group['last'] + 1}")
+        total = sum(group["lengths"])
+        rest_strip = L - 2 * V4011_END - total - V4011_CROSS * max(0, len(group["lengths"]) - 1)
+        entries.append((span, str(group["last"] - group["first"] + 1),
+                        " + ".join(str(x) for x in group["lengths"]), str(total), _v4042_num(max(0.0, rest_strip))))
+    pages_tables = [table]
+    per_page = per_block * (2 if two_blocks else 1)
+
+    def header(sheet_, x0):
+        y = y_start
+        sheet_.rect(x0, y, x0 + block_w, y + row_h, V4042_W_THIN, V4042_INK, (0.92, 0.92, 0.92))
+        cx = x0
+        for (name, _w), w in zip(columns, widths):
+            text, size = _v4042_fit_text(name, V4042_TB_CAP, w - 2.0, bold=True)
+            sheet_.text(cx + 1.0, y + (row_h + size) / 2.0, text, size, bold=True)
+            cx += w
+
+    for i, entry_row in enumerate(entries):
+        page_no, rest_i = divmod(i, per_page)
+        block, line_no = divmod(rest_i, per_block)
+        while len(pages_tables) <= page_no:
+            extra = _V4042Sheet("A3", scale)
+            _v4042_frame(extra)
+            pages_tables.append(extra)
+        current = pages_tables[page_no]
+        x0 = V4042_FRAME[0] + 4.0 + block * (block_w + col_gap)
+        if line_no == 0:
+            header(current, x0)
+        y = y_start + row_h * (line_no + 1)
+        current.rect(x0, y, x0 + block_w, y + row_h, V4042_W_THIN)
+        cx = x0
+        for value, w in zip(entry_row, widths):
+            text, size = _v4042_fit_text(value, V4042_DIM_CAP, w - 2.0, min_cap=V4042_TB_CAP)
+            current.text(cx + 1.0, y + (row_h + size) / 2.0, text, size)
+            cx += w
+    for n, page in enumerate(pages_tables):
+        fr = (V4042_FRAME[0], V4042_FRAME[1], page.size[0] - V4042_FRAME[2], page.size[1] - V4042_FRAME[3])
+        rows_text = list(stamp)
+        rows_text[-1] = ("", (f"Таблица {n + 1}", f"Дата {datetime.now().strftime('%d.%m.%Y')}",
+                              APP_TITLE.replace("Конструктор ", "")), 1)
+        _v4042_title_block(page, fr, rows_text)
+    return pages + pages_tables
+
+
+# --- запись PDF ---------------------------------------------------------
+def _v4042_bezier_points(seg):
+    return seg[1], seg[2], seg[3], seg[4]
+
+
+def _v4042_write_fitz(sheets, path):
+    import fitz
+    doc = fitz.open()
+    mm = V4042_MM
+    files = {False: _v4042_font_file(False), True: _v4042_font_file(True)}
+    for sheet in sheets:
+        pw, ph = sheet.size
+        page = doc.new_page(width=pw * mm, height=ph * mm)
+        names = {}
+        for bold, file in files.items():
+            name = "ledb" if bold else "ledr"
+            if file:
+                try:
+                    page.insert_font(fontname=name, fontfile=file)
+                    names[bold] = name
+                    continue
+                except Exception:
+                    pass
+            names[bold] = "helv"
+        shape = page.new_shape()
+
+        def pt(p):
+            return fitz.Point(p[0] * mm, p[1] * mm)
+
+        for item in sheet.items:
+            kind = item[0]
+            if kind == "line":
+                _k, a, b, width, color = item
+                shape.draw_line(pt(a), pt(b))
+                shape.finish(color=color, width=max(0.1, width * mm), closePath=False)
+            elif kind == "rect":
+                _k, (x1, y1, x2, y2), width, color, fill = item
+                stroke = bool(color) and bool(width)
+                if not stroke and not fill:
+                    continue
+                shape.draw_rect(fitz.Rect(x1 * mm, y1 * mm, x2 * mm, y2 * mm))
+                # без обводки — width=0 (иначе PyMuPDF рисует чёрную рамку)
+                shape.finish(color=color if stroke else None, fill=fill,
+                             width=max(0.1, width * mm) if stroke else 0, closePath=True)
+            elif kind == "path":
+                segs, width, color, closed = item[1], item[2], item[3], item[4]
+                fill = item[5] if len(item) > 5 else None
+                for seg in segs:
+                    if seg[0] == "l":
+                        shape.draw_line(pt(seg[1]), pt(seg[2]))
+                    else:
+                        p1, p2, p3, p4 = _v4042_bezier_points(seg)
+                        shape.draw_bezier(pt(p1), pt(p2), pt(p3), pt(p4))
+                shape.finish(color=color, fill=fill, width=max(0.1, width * mm), closePath=bool(closed))
+        shape.commit()
+        for item in sheet.items:
+            if item[0] != "text":
+                continue
+            _k, (x, y), text, cap, rotate, bold, color = item
+            size = _v4042_em(cap, bold) * mm
+            name = names.get(bool(bold), "helv")
+            kwargs = {"fontsize": size, "fontname": name, "color": color, "rotate": int(rotate or 0)}
+            if name != "helv" and files.get(bool(bold)):
+                kwargs["fontfile"] = files[bool(bold)]
+            page.insert_text(fitz.Point(x * mm, y * mm), text, **kwargs)
+    doc.save(str(path), deflate=True)
+    doc.close()
+
+
+def _v4042_write_reportlab(sheets, path):
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    mm = V4042_MM
+    names = {}
+    for bold in (False, True):
+        file = _v4042_font_file(bold)
+        name = "LEDDrawB" if bold else "LEDDraw"
+        if file:
+            try:
+                pdfmetrics.registerFont(TTFont(name, file))
+                names[bold] = name
+                continue
+            except Exception:
+                pass
+        names[bold] = "Helvetica-Bold" if bold else "Helvetica"
+    first = sheets[0].size
+    c = rl_canvas.Canvas(str(path), pagesize=(first[0] * mm, first[1] * mm))
+    for sheet in sheets:
+        pw, ph = sheet.size
+        c.setPageSize((pw * mm, ph * mm))
+        H = ph * mm
+
+        def X(v):
+            return v * mm
+
+        def Y(v, H=H):
+            return H - v * mm
+
+        for item in sheet.items:
+            kind = item[0]
+            if kind == "line":
+                _k, a, b, width, color = item
+                c.setStrokeColorRGB(*color)
+                c.setLineWidth(max(0.1, width * mm))
+                c.line(X(a[0]), Y(a[1]), X(b[0]), Y(b[1]))
+            elif kind == "rect":
+                _k, (x1, y1, x2, y2), width, color, fill = item
+                if fill:
+                    c.setFillColorRGB(*fill)
+                if color and width:
+                    c.setStrokeColorRGB(*color)
+                    c.setLineWidth(max(0.1, width * mm))
+                c.rect(X(x1), Y(y2), (x2 - x1) * mm, (y2 - y1) * mm, stroke=1 if (color and width) else 0,
+                       fill=1 if fill else 0)
+            elif kind == "path":
+                segs, width, color, closed = item[1], item[2], item[3], item[4]
+                fill = item[5] if len(item) > 5 else None
+                p = c.beginPath()
+                start = segs[0][1]
+                p.moveTo(X(start[0]), Y(start[1]))
+                for seg in segs:
+                    if seg[0] == "l":
+                        p.lineTo(X(seg[2][0]), Y(seg[2][1]))
+                    else:
+                        _p1, p2, p3, p4 = _v4042_bezier_points(seg)
+                        p.curveTo(X(p2[0]), Y(p2[1]), X(p3[0]), Y(p3[1]), X(p4[0]), Y(p4[1]))
+                if closed:
+                    p.close()
+                c.setStrokeColorRGB(*color)
+                c.setLineWidth(max(0.1, width * mm))
+                if fill:
+                    c.setFillColorRGB(*fill)
+                c.drawPath(p, stroke=1, fill=1 if fill else 0)
+        for item in sheet.items:
+            if item[0] != "text":
+                continue
+            _k, (x, y), text, cap, rotate, bold, color = item
+            c.setFillColorRGB(*color)
+            c.setFont(names[bool(bold)], _v4042_em(cap, bold) * mm)
+            c.saveState()
+            c.translate(X(x), Y(y))
+            if rotate:
+                c.rotate(rotate)
+            c.drawString(0, 0, text)
+            c.restoreState()
+        c.showPage()
+    c.save()
+
+
+def _v4042_write_pdf(sheets, path):
+    try:
+        import fitz  # noqa: F401
+    except Exception:
+        fitz = None
+    error = None
+    if fitz is not None:
+        try:
+            return _v4042_write_fitz(sheets, path)
+        except Exception as exc:
+            error = exc
+    try:
+        import reportlab  # noqa: F401
+    except Exception:
+        if error is not None:
+            raise error
+        raise RuntimeError("Для PDF нужен модуль PyMuPDF (fitz). Установите: pip install pymupdf")
+    return _v4042_write_reportlab(sheets, path)
+
+
+def _v4042_pdf_path(self, stem):
+    import tempfile
+    folder = Path(tempfile.gettempdir()) / "LED_Screen_Designer"
+    folder.mkdir(parents=True, exist_ok=True)
+    base = self._safe_filename_part(stem) or "Чертёж"
+    path = folder / f"{base}.pdf"
+    n = 2
+    while path.exists():
+        path = folder / f"{base}_{n}.pdf"
+        n += 1
+    return path
+
+
+def _v4042_make_pdf(self, items, stem):
+    sheets = []
+    for kind, item in items:
+        if kind == "wall":
+            sheets.append(_v4042_wall_sheet(self, item))
+        else:
+            sheets.extend(_v4042_plank_sheets(self, item))
+    if not sheets:
+        return None
+    path = _v4042_pdf_path(self, stem)
+    _v4042_write_pdf(sheets, path)
+    return path
+
+
+def _v4042_pdf_open(self, items, stem):
+    if not items:
+        messagebox.showwarning(V4030_TAB_TITLE, "Выберите стенку или лист МПК в списке.")
+        return None
+    try:
+        path = _v4042_make_pdf(self, items, stem)
+    except Exception as exc:
+        import traceback
+        try:
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+        messagebox.showerror(V4030_TAB_TITLE, f"Не удалось сформировать PDF:\n{exc}")
+        return None
+    if path is None:
+        return None
+    try:
+        self._open_pdf_path(path)
+    except Exception as exc:
+        messagebox.showinfo(V4030_TAB_TITLE, f"PDF сохранён:\n{path}\n\nОткрыть не удалось: {exc}")
+    return path
+
+
+def _v4042_pdf_selected(self):
+    target = getattr(self, "_v4042_pdf_target", None)
+    item, kind = None, "wall"
+    if target and target[0] == "plank":
+        kind = "plank"
+        item = next((s for s in getattr(self, "_v4030_sheets_data", []) or [] if s["file"] == target[1]), None)
+    if item is None:
+        kind = "wall"
+        file = getattr(self, "_v4030_selected_file", None)
+        item = next((e for e in getattr(self, "_v4030_walls_data", []) or [] if e["file"] == file), None)
+    if item is None:
+        messagebox.showwarning(V4030_TAB_TITLE, "Выберите стенку в списке или в предпросмотре "
+                                                "(или лист МПК в таблице раскроя).")
+        return None
+    return _v4042_pdf_open(self, [(kind, item)], Path(item["file"]).stem)
+
+
+def _v4042_pdf_all(self):
+    try:
+        self._v4030_refresh()
+    except Exception:
+        pass
+    items = _v4030_all_files(self)
+    if not items:
+        messagebox.showwarning(V4030_TAB_TITLE, "Нет чертежей для PDF.")
+        return None
+    return _v4042_pdf_open(self, items, f"{_v4030_project(self)}_Чертежи_DXF")
+
+
+_v4042_orig_dxf_build_tab = ScreenDesigner._v4030_build_tab
+
+
+def _v4042_dxf_build_tab(self, parent):
+    _v4042_orig_dxf_build_tab(self, parent)
+
+    def walk(widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from walk(child)
+
+    try:
+        for child in list(walk(parent)):
+            if not isinstance(child, ttk.Button):
+                continue
+            text = str(child.cget("text"))
+            if text == "Сохранить выбранный DXF":
+                ttk.Button(child.master, text="Предпросмотр PDF",
+                           command=lambda: _v4042_pdf_selected(self)).pack(side="left", padx=(6, 0))
+            elif text == "Открыть папку":
+                ttk.Button(child.master, text="PDF всех чертежей",
+                           command=lambda: _v4042_pdf_all(self)).pack(side="right", padx=(0, 6), before=child)
+        wall_tree = getattr(self, "_v4030_wall_tree", None)
+        plank_tree = getattr(self, "_v4030_plank_tree", None)
+        if wall_tree is not None:
+            wall_tree.bind("<<TreeviewSelect>>", lambda e: setattr(
+                self, "_v4042_pdf_target", ("wall", (wall_tree.selection() or [None])[0])), add="+")
+        if plank_tree is not None:
+            plank_tree.bind("<<TreeviewSelect>>", lambda e: setattr(
+                self, "_v4042_pdf_target", ("plank", (plank_tree.selection() or [None])[0])), add="+")
+        canvas = getattr(self, "_v4030_canvas", None)
+        if canvas is not None:
+            canvas.bind("<Button-1>", lambda e: setattr(self, "_v4042_pdf_target", None), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._v4030_build_tab = _v4042_dxf_build_tab
+
+
+
+# ---------------------------------------------------------------------
+# Подключение
+# ---------------------------------------------------------------------
+_v4042_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4042_build_ui(self):
+    _v4042_orig_build_ui(self)
+    for step in (_v4042_install_layout_guard, _v4042_install_word_keys):
+        try:
+            step(self)
+        except Exception:
+            import traceback
+            try:
+                self._print_debug_log(traceback.format_exc())
+            except Exception:
+                pass
+    tree = getattr(self, "reference_tree", None)
+    if tree is not None:
+        for sequence in ("<Button-3>", "<Button-2>"):
+            try:
+                tree.bind(sequence, lambda e: _v4042_reference_menu(self, e), add="+")
+            except Exception:
+                pass
+        if sys.platform == "darwin":
+            try:
+                tree.bind("<Control-Button-1>", lambda e: _v4042_reference_menu(self, e), add="+")
+            except Exception:
+                pass
+    journal = getattr(self, "project_journal_tree", None)
+    if journal is not None:
+        try:
+            # теги поиска создаются раньше тегов состояния — их оформление главнее
+            journal.tag_configure(V4042_CURRENT_TAG, background=V4042_CURRENT_BG)
+            font = _v4042_match_font(journal)
+            if font is not None:
+                journal.tag_configure(V4042_MATCH_TAG, font=font)
+        except Exception:
+            pass
+
+
+ScreenDesigner._build_ui = _v4042_build_ui
+
+
+# =====================================================================
+# V40.42.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -36674,7 +39387,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.40.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.42.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -36687,7 +39400,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.40.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.42.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
