@@ -1,4 +1,4 @@
-# V40.42.1 = V40.42 + перенесённые исправления сборки Windows:
+# V40.45.1 = V40.45 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# V40.42.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# V40.45.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
 # NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
 # есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
 _TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
@@ -92,7 +92,7 @@ if sys.platform != "darwin":
     tk.Misc.bind_all = _tk_bind_all
     tk.Misc.bind_class = _tk_bind_class
 
-APP_TITLE = "Конструктор LED-экранов V40.42.1"
+APP_TITLE = "Конструктор LED-экранов V40.45.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2005,7 +2005,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.42.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.45.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2587,13 +2587,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.42.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.45.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.42.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.45.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2631,7 +2631,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.42.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.45.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3864,7 +3864,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.42.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.45.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9923,7 +9923,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.42.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.45.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9936,7 +9936,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.42.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.45.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13981,7 +13981,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.42.1: строка остаётся «статической» (серая заливка), только если
+                # V40.45.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -14556,7 +14556,8 @@ class ScreenDesigner(BaseTk):
         ttk.Button(footer,text="Печать всех",command=self._print_all_static_signs).pack(side="right",padx=(6,0))
         ttk.Button(footer,text="Печать выбранного",command=self._print_selected_static_sign).pack(side="right")
         self.static_canvas.bind("<Configure>",lambda e:self._draw_static_grid())
-        self.static_params_frame=ttk.LabelFrame(body,text="Параметры статического указателя",padding=10); self.static_params_frame.grid(row=0,column=1,sticky="new",padx=(6,0)); self.static_params_frame.columnconfigure(1,weight=1); self.static_params_frame.columnconfigure(3,weight=1)
+        static_side=self._v4044_static_side(body)  # V40.44: правая колонка прокручивается
+        self.static_params_frame=ttk.LabelFrame(static_side,text="Параметры статического указателя",padding=10); self.static_params_frame.grid(row=0,column=1,sticky="new",padx=(6,0)); self.static_params_frame.columnconfigure(1,weight=1); self.static_params_frame.columnconfigure(3,weight=1)
         self.static_name_var=tk.StringVar(); self.static_article_var=tk.StringVar(); self.static_layout_no_var=tk.StringVar(); self.static_width_input_var=tk.StringVar(); self.static_height_input_var=tk.StringVar(); self.static_diameter_input_var=tk.StringVar(); self.static_round_var=tk.BooleanVar(value=False); self.static_sides_var=tk.IntVar(value=1); self.static_face_type_var=tk.StringVar(value="С подсветкой"); self.static_profile_var=tk.StringVar(value="60×20×2 мм"); self.static_frame_profile_var=tk.StringVar(value="40×20×2 мм"); self.static_profile_label_var=tk.StringVar(value="П-профиль:"); self.static_dimensions_var=tk.StringVar(value="—"); self.static_mount_type_var=tk.StringVar(value=""); self.static_quantity_var=tk.StringVar(value=""); self.static_autofill_var=tk.BooleanVar(value=True)
         self.static_article_var.trace_add("write",self._force_static_article_upper)
         # V20.27: автозаполнение должно срабатывать при любом программном/ручном
@@ -14632,7 +14633,7 @@ class ScreenDesigner(BaseTk):
         ttk.Separator(self.static_params_frame,orient="horizontal").grid(row=row,column=0,columnspan=2,sticky="ew",pady=9); row+=1; ttk.Label(self.static_params_frame,text="Исполнение",font=("Arial",11,"bold")).grid(row=row,column=0,columnspan=2,sticky="w"); row+=1
         for value in ("С подсветкой","Без подсветки","Светоотражающее"): ttk.Radiobutton(self.static_params_frame,text=value,value=value,variable=self.static_face_type_var,command=self._static_apply_autofill).grid(row=row,column=0,columnspan=2,sticky="w",pady=3); row+=1
         # Блок добавления в проект расположен отдельно, как на вкладке LED-экранов.
-        saved=ttk.LabelFrame(body,text="Сохранённые указатели в проекте",padding=7)
+        saved=ttk.LabelFrame(static_side,text="Сохранённые указатели в проекте",padding=7)  # V40.44
         saved.grid(row=1,column=1,sticky="nsew",padx=(6,0),pady=(7,0))
         self.static_add_project_button = tk.Button(
             saved, text="＋  Добавить указатель в проект",
@@ -38925,8 +38926,1485 @@ def _v4042_build_ui(self):
 ScreenDesigner._build_ui = _v4042_build_ui
 
 
+
+
+
 # =====================================================================
-# V40.42.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.43
+#   1. Журнал проекта: щелчки с клавишами определяются по платформе.
+#      Windows: Alt — бит 0x20000, бит 0x0008 — это NumLock (не Alt и не
+#      Cmd); дополнительно читается физическое состояние Alt / Ctrl / Shift
+#      (GetKeyState). Linux: Alt — Mod1, NumLock (Mod2) не мешает.
+#      macOS: Cmd — Mod1, Option — Mod2. Все щелчки идут через один
+#      разборщик: простой — выделить / снять, Shift — диапазон, Ctrl/Cmd —
+#      добавить / убрать, Alt/Option — предпросмотр комплектующих.
+#      «Расчёт» больше не путает включённый NumLock с клавишей.
+#      Ctrl/Cmd + A — при любой раскладке. Предпросмотр есть и в правом меню.
+#   2. Координатное поле LED-экранов (Стандарт и Нестандарт, МЦД и РЖД):
+#      щелчок и протяжка мышью начинаются только внутри поля сетки.
+#      PRO-экран не меняется.
+#   3. «Дублировать изделие» в «Сохранённых экранах» и «Сохранённых
+#      указателях»: без выделения — копия последнего добавленного изделия
+#      в конец списка; с выделением — копия сразу после выделенной строки.
+#   4. Обе таблицы: маркер ══ на нижней границе — двойной щелчок
+#      переключает 10 строк ↔ все строки (AutoExpandingTreeview).
+# Расчёты не меняются.
+# =====================================================================
+
+import copy as _v4043_copy
+
+V4043_WIN = sys.platform.startswith("win")
+V4043_MAC = sys.platform == "darwin"
+
+
+# ---------------------------------------------------------------------
+# 1. Клавиши при щелчке
+# ---------------------------------------------------------------------
+def _v4043_win_keys():
+    """Windows: физически нажатые Shift / Ctrl / Alt (GetKeyState)."""
+    found = set()
+    if not V4043_WIN:
+        return found
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        for code, name in ((0x10, "shift"), (0x11, "ctrl"), (0x12, "alt")):
+            if user32.GetKeyState(code) & 0x8000:
+                found.add(name)
+    except Exception:
+        pass
+    return found
+
+
+def _v4043_mods(event):
+    """Набор клавиш при событии: shift, ctrl, alt, cmd. Lock-клавиши не учитываются."""
+    try:
+        state = int(getattr(event, "state", 0) or 0)
+    except Exception:
+        state = 0
+    mods = set()
+    if state & 0x0001:
+        mods.add("shift")
+    if state & 0x0004:
+        mods.add("ctrl")
+    if V4043_WIN:
+        if state & 0x20000:
+            mods.add("alt")
+        mods |= _v4043_win_keys()
+    elif V4043_MAC:
+        if state & _TK_CMD_MASK:
+            mods.add("cmd")
+        if state & 0x0010:
+            mods.add("alt")                    # Option
+    else:
+        if state & _TK_CMD_MASK:
+            mods.add("alt")                    # Mod1
+    return mods
+
+
+def _v4043_modifier_held(event):
+    return bool(_v4043_mods(event))
+
+
+_v4032_modifier_held = _v4043_modifier_held
+
+_v4043_plain = _v4032_journal_plain_press
+_v4043_range = _v4032_journal_range
+_v4043_toggle = _v4032_journal_toggle
+_v4043_preview = _v4032_journal_preview
+
+
+def _v4043_journal_click(self, event):
+    """Единый разбор щелчка в журнале проекта."""
+    mods = _v4043_mods(event)
+    try:
+        if "alt" in mods:
+            tree = self.project_journal_tree
+            if tree.identify_row(event.y):
+                return _v4043_preview(self, event) or "break"
+            return "break"
+        if "shift" in mods:
+            return _v4043_range(self, event)
+        if "ctrl" in mods or "cmd" in mods:
+            return _v4043_toggle(self, event)
+    except Exception:
+        return "break"
+    return _v4043_plain(self, event)
+
+
+# все прежние обработчики журнала ведут в один разборщик
+_v4032_journal_plain_press = _v4043_journal_click
+_v4032_journal_range = _v4043_journal_click
+_v4032_journal_toggle = _v4043_journal_click
+_v4032_journal_preview = _v4043_journal_click
+
+V4043_A_KEYCODES = {65, 0, 38}               # клавиша A: Windows / macOS / X11
+
+
+def _v4043_journal_key(self, event):
+    """Ctrl/Cmd + A при любой раскладке."""
+    mods = _v4043_mods(event)
+    primary = "cmd" in mods if V4043_MAC else "ctrl" in mods
+    if not primary or "shift" in mods or "alt" in mods:
+        return None
+    code = int(getattr(event, "keycode", -1) or -1)
+    keysym = str(getattr(event, "keysym", "") or "").lower()
+    if code in V4043_A_KEYCODES or keysym in ("a", "cyrillic_ef"):
+        tree = getattr(self, "project_journal_tree", None)
+        if tree is not None:
+            tree.selection_set(tree.get_children(""))
+        return "break"
+    return None
+
+
+V4043_PREVIEW_LABEL = ("Предпросмотр комплектующих (Option + щелчок)" if V4043_MAC
+                       else "Предпросмотр комплектующих (Alt + щелчок)")
+
+
+def _v4043_menu(self, event):
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return None
+    rows = _v40_rows(self, event)
+    if not rows:
+        return None
+    menu = tk.Menu(self, tearoff=0)
+    product = self._project_journal_product_iid(rows[0])
+    can_preview = str(product).startswith("led:") or str(product).startswith("static:")
+    menu.add_command(label=V4043_PREVIEW_LABEL, state="normal" if can_preview else "disabled",
+                     command=lambda p=product: self._show_journal_components_preview(p))
+    menu.add_separator()
+    menu.add_command(label="Состояние изделия", state="disabled")
+    for state in _v40_places(self):
+        menu.add_command(label=f"    {state} — всё количество",
+                         command=lambda s=state: _v40_assign_all(self, s))
+    menu.add_command(label="    Снять состояние", command=lambda: _v40_clear(self))
+    menu.add_separator()
+    menu.add_command(label="Разбить по количеству…", command=lambda: _v40_split_window(self))
+    menu.add_separator()
+    menu.add_command(label="Комментарий…",
+                     command=lambda i=rows[0]: _v40_edit_comment(self, i))
+    menu.add_separator()
+    manual = _v4037_manual_rows(rows)
+    items = _v4025_manual_items(self)
+    checked = bool(manual) and all(
+        0 <= index < len(items) and items[index].get(V4037_FIELD) for _iid, index in manual)
+    var = tk.BooleanVar(master=menu, value=checked)
+    menu._v4037_var = var
+    menu.add_checkbutton(label=V4037_MENU_LABEL, variable=var, onvalue=True, offvalue=False,
+                         state="normal" if manual else "disabled",
+                         command=lambda r=list(rows): _v4037_set(self, r, bool(var.get())))
+    statics = _v4035_static_rows(self, rows)
+    menu.add_command(label=V4035_MENU_LABEL, state="normal" if statics else "disabled",
+                     command=lambda r=list(rows): _v4035_convert(self, r))
+    try:
+        menu.tk_popup(event.x_root, event.y_root)
+    finally:
+        menu.grab_release()
+    return "break"
+
+
+_v40_menu = _v4043_menu
+ScreenDesigner._v40_journal_menu = _v4043_menu
+
+_v4043_orig_build_journal = ScreenDesigner._build_project_journal_tab
+
+
+def _v4043_build_project_journal_tab(self, parent):
+    _v4043_orig_build_journal(self, parent)
+    tree = getattr(self, "project_journal_tree", None)
+    if tree is None:
+        return
+    if not V4043_MAC:
+        # «Command» / «Option» на Windows и Linux — это NumLock и т. п.:
+        # такие привязки перехватывали бы обычные щелчки и клавиши.
+        for sequence in ("<Command-ButtonPress-1>", "<Option-ButtonPress-1>", "<Command-a>",
+                         "<Command-A>", "<Meta-ButtonPress-1>", "<Meta-a>", "<Meta-A>"):
+            try:
+                tree.unbind(sequence)
+            except tk.TclError:
+                pass
+        # на Linux Tk 9 «Option» — это Alt: вернуть Alt + щелчок разборщику
+        try:
+            tree.bind("<Alt-ButtonPress-1>", lambda e: _v4043_journal_click(self, e))
+        except tk.TclError:
+            pass
+    try:
+        tree.bind("<KeyPress>", lambda e: _v4043_journal_key(self, e), add="+")
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_project_journal_tab = _v4043_build_project_journal_tab
+
+
+# ---------------------------------------------------------------------
+# 2. Координатное поле LED-экрана: активна только область сетки
+# ---------------------------------------------------------------------
+V4043_ZONE_TOL = 5          # px: допуск за линией контура поля
+
+
+def _v4043_in_field(self, event):
+    try:
+        canvas = self.canvas
+        cx, cy = canvas.canvasx(event.x), canvas.canvasy(event.y)
+        max_w, max_h = self._rzd_coordinate_limits()
+        x2 = ORIGIN_X + mm_to_px(max_w)
+        y2 = ORIGIN_Y + mm_to_px(max_h)
+    except Exception:
+        return True
+    tol = V4043_ZONE_TOL
+    return (ORIGIN_X - tol) <= cx <= (x2 + tol) and (ORIGIN_Y - tol) <= cy <= (y2 + tol)
+
+
+def _v4043_wrap_drag(name, start=False):
+    original = getattr(ScreenDesigner, name)
+
+    def wrapper(self, event):
+        if start:
+            self._v4043_press_outside = not _v4043_in_field(self, event)
+        if getattr(self, "_v4043_press_outside", False):
+            if name == "_end_drag":
+                self._v4043_press_outside = False
+            return "break"
+        return original(self, event)
+
+    wrapper.__name__ = name
+    setattr(ScreenDesigner, name, wrapper)
+
+
+_v4043_wrap_drag("_start_drag", start=True)
+_v4043_wrap_drag("_drag")
+_v4043_wrap_drag("_end_drag")
+
+
+# ---------------------------------------------------------------------
+# 4. AutoExpandingTreeview — высота таблицы 10 строк ↔ по содержимому
+# ---------------------------------------------------------------------
+class AutoExpandingTreeview:
+    """Подключается к существующей ttk.Treeview (колонки, сортировка,
+    данные не меняются). Маркер ══ на нижней границе: двойной щелчок —
+    переключить. В развёрнутом виде высота следует за числом записей."""
+
+    HANDLE_W = 46
+    HANDLE_H = 10
+    HINT = "Двойной щелчок — показать все строки / вернуть 10 строк"
+
+    def __init__(self, tree, scrollbar=None, collapsed_rows=10, room=None, container=None,
+                 watch=()):
+        self.tree = tree
+        self.scrollbar = scrollbar
+        self.container = container or tree.master
+        self.room = room
+        self.collapsed_rows = max(1, int(collapsed_rows))
+        self.expanded = False
+        self._job = None
+        self._applied = None
+        self._metrics = (None, None)
+        self._spacer = None
+        self._sb_hidden = False
+        self._wrap_tree()
+        self._make_handle()
+        for widget in tuple(watch) + (self.container,):
+            try:
+                widget.bind("<Configure>", lambda e: self._schedule(), add="+")
+            except Exception:
+                pass
+        self.refresh_height()
+
+    # --- методы ------------------------------------------------------
+    def expand(self):
+        self.expanded = True
+        self.refresh_height()
+
+    def collapse(self):
+        self.expanded = False
+        self.refresh_height()
+
+    def toggle(self, _event=None):
+        if self.expanded:
+            self.collapse()
+        else:
+            self.expand()
+        return "break"
+
+    def set_collapsed_rows(self, rows=10):
+        self.collapsed_rows = max(1, int(rows))
+        self.refresh_height()
+
+    def refresh_height(self):
+        self._job = None
+        tree = self.tree
+        try:
+            if not tree.winfo_exists():
+                return
+        except Exception:
+            return
+        count = len(tree.get_children(""))
+        rows = max(1, count) if self.expanded else self.collapsed_rows
+        fit = self._fit_rows()
+        if fit:
+            rows = min(rows, fit)
+        rows = max(1, rows)
+        if rows != self._applied:
+            try:
+                tree.configure(height=rows)
+                self._applied = rows
+            except Exception:
+                pass
+        self._set_scrollbar(not self.expanded or count > rows)
+        self._paint_handle()
+
+    # --- служебное ---------------------------------------------------
+    def _schedule(self):
+        if self._job is not None:
+            return
+        try:
+            self._job = self.tree.after_idle(self.refresh_height)
+        except Exception:
+            self._job = None
+
+    def _wrap_tree(self):
+        for name in ("insert", "delete", "detach", "reattach", "move", "set_children"):
+            original = getattr(self.tree, name, None)
+            if not callable(original):
+                continue
+
+            def wrapper(*args, _original=original, **kwargs):
+                result = _original(*args, **kwargs)
+                self._schedule()
+                return result
+
+            try:
+                setattr(self.tree, name, wrapper)
+            except Exception:
+                pass
+
+    def _row_metrics(self):
+        tree = self.tree
+        row_h, header_h = self._metrics
+        try:
+            items = tree.get_children("")
+            box = tree.bbox(items[0]) if items else None
+            if box and box[3] > 0:
+                header_h, row_h = int(box[1]), int(box[3])
+        except Exception:
+            pass
+        if not row_h:
+            try:
+                value = ttk.Style().lookup(str(tree.cget("style") or "Treeview"), "rowheight") or \
+                    ttk.Style().lookup("Treeview", "rowheight")
+                row_h = int(float(value)) if value else 0
+            except Exception:
+                row_h = 0
+            if not row_h:
+                try:
+                    import tkinter.font as tkfont
+                    row_h = int(tkfont.nametofont("TkDefaultFont").metrics("linespace")) + 4
+                except Exception:
+                    row_h = 20
+        if not header_h:
+            header_h = row_h + 4
+        self._metrics = (row_h, header_h)
+        return row_h, header_h
+
+    def _fit_rows(self):
+        if self.room is None:
+            return None
+        try:
+            px = self.room()
+        except Exception:
+            px = None
+        if not px or px <= 0:
+            return None
+        row_h, header_h = self._row_metrics()
+        return max(3, int((px - header_h - 4) // max(1, row_h)))
+
+    def _set_scrollbar(self, visible):
+        sb = self.scrollbar
+        if sb is None:
+            return
+        try:
+            if visible and self._sb_hidden:
+                if self._spacer is not None:
+                    self._spacer.pack_forget()
+                sb.pack(side="right", fill="y")
+                self._sb_hidden = False
+            elif not visible and not self._sb_hidden:
+                width = max(int(sb.winfo_width()), int(sb.winfo_reqwidth()))
+                if self._spacer is None:
+                    self._spacer = ttk.Frame(sb.master, width=width)
+                else:
+                    self._spacer.configure(width=width)
+                sb.pack_forget()
+                # то же место справа: ширина таблицы и столбцов не меняется
+                self._spacer.pack(side="right", fill="y")
+                self._sb_hidden = True
+        except Exception:
+            pass
+
+    def _make_handle(self):
+        parent = self.container.master
+        try:
+            bg = (ttk.Style().lookup("TLabelframe", "background")
+                  or ttk.Style().lookup("TFrame", "background") or "#ececec")
+        except Exception:
+            bg = "#ececec"
+        try:
+            handle = tk.Canvas(parent, width=self.HANDLE_W, height=self.HANDLE_H, bd=0,
+                               highlightthickness=0, background=bg, cursor="sb_v_double_arrow",
+                               takefocus=0)
+        except tk.TclError:
+            handle = tk.Canvas(parent, width=self.HANDLE_W, height=self.HANDLE_H, bd=0,
+                               highlightthickness=0, cursor="sb_v_double_arrow", takefocus=0)
+        self.handle = handle
+        handle.place(in_=self.container, relx=0.5, rely=1.0, anchor="center")
+        self._raise_handle()
+        handle.bind("<Double-Button-1>", self.toggle)
+        handle.bind("<Enter>", lambda e: self._paint_handle(hover=True))
+        handle.bind("<Leave>", lambda e: self._paint_handle(hover=False))
+        self._tip = None
+        handle.bind("<Enter>", self._show_tip, add="+")
+        handle.bind("<Leave>", self._hide_tip, add="+")
+        handle.bind("<ButtonPress-1>", self._hide_tip, add="+")
+
+    def _paint_handle(self, hover=False):
+        handle = getattr(self, "handle", None)
+        if handle is None:
+            return
+        try:
+            handle.delete("all")
+            color = "#1F6FEB" if hover else ("#5b8fd6" if self.expanded else "#8c8c8c")
+            for y in (3, 7):
+                handle.create_line(10, y, self.HANDLE_W - 10, y, fill=color, width=2, capstyle="round")
+            self._raise_handle()
+        except Exception:
+            pass
+
+    def _raise_handle(self):
+        # у Canvas lift() — это подъём фигур; окно поднимаем командой raise
+        try:
+            self.handle.tk.call("raise", self.handle._w)
+        except Exception:
+            pass
+
+    def _show_tip(self, _event=None):
+        self._hide_tip()
+        try:
+            tip = tk.Toplevel(self.handle)
+            tip.wm_overrideredirect(True)
+            x = self.handle.winfo_rootx() + self.HANDLE_W // 2 - 140
+            y = self.handle.winfo_rooty() + self.HANDLE_H + 6
+            tip.wm_geometry(f"+{max(0, x)}+{y}")
+            tk.Label(tip, text=self.HINT, background="#ffffe0", foreground="#222222", relief="solid",
+                     borderwidth=1, font=("Arial", 9), padx=6, pady=2).pack()
+            self._tip = tip
+        except Exception:
+            self._tip = None
+
+    def _hide_tip(self, _event=None):
+        tip = getattr(self, "_tip", None)
+        self._tip = None
+        if tip is not None:
+            try:
+                tip.destroy()
+            except Exception:
+                pass
+
+
+ScreenDesigner.AutoExpandingTreeview = AutoExpandingTreeview
+
+
+def _v4043_find_scrollbar(tree):
+    for child in tree.master.winfo_children():
+        if isinstance(child, ttk.Scrollbar):
+            return child
+    return None
+
+
+def _v4043_install_tables(self):
+    tables = {}
+    # --- «Сохранённые экраны в проекте» (правая панель прокручивается)
+    tree = getattr(self, "saved_tree", None)
+    if tree is not None:
+        view = getattr(self, "led_side_canvas", None)
+
+        def room(view=view):
+            if view is None:
+                return None
+            height = int(view.winfo_height())
+            return None if height <= 50 else height - 150
+
+        tables["screens"] = AutoExpandingTreeview(
+            tree, _v4043_find_scrollbar(tree), 10, room=room, container=tree.master,
+            watch=(view,) if view is not None else ())
+    # --- «Сохранённые указатели в проекте»
+    tree = getattr(self, "static_saved_tree", None)
+    if tree is not None:
+        frame = tree.master
+        box = frame.master
+        try:
+            frame.pack_configure(fill="x", expand=False)
+        except Exception:
+            pass
+
+        def room(box=box, frame=frame):
+            height = int(box.winfo_height())
+            if height <= 50:
+                return None
+            other = int(box.winfo_reqheight()) - int(frame.winfo_reqheight())
+            return height - other - 6
+
+        tables["signs"] = AutoExpandingTreeview(tree, _v4043_find_scrollbar(tree), 10, room=room,
+                                                container=frame, watch=(box,))
+    self._v4043_tables = tables
+
+
+# ---------------------------------------------------------------------
+# 3. «Дублировать изделие»
+# ---------------------------------------------------------------------
+V4043_DUP_LABEL = "Дублировать изделие"
+V4043_DROP_FIELDS = (V40_STATE_FIELD, V40_COMMENT_FIELD, _v4004_PASSPORT_KEY, "journal_order")
+
+
+def _v4043_clone(record, kind):
+    """Копия изделия с теми же параметрами. Не копируются: состояние,
+    комментарий, паспорт, место в журнале; у экрана — серийные номера."""
+    clone = _v4043_copy.deepcopy(record)
+    for key in V4043_DROP_FIELDS:
+        clone.pop(key, None)
+    if kind == "screens":
+        clone["part_number"] = ""
+        for inst in clone.get("instances") or []:
+            if isinstance(inst, dict):
+                inst["part_number"] = ""
+    return clone
+
+
+def _v4043_records(self, kind):
+    return self.saved_screens if kind == "screens" else self.saved_static_signs
+
+
+def _v4043_tree(self, kind):
+    return getattr(self, "saved_tree" if kind == "screens" else "static_saved_tree", None)
+
+
+def _v4043_remember(self, kind, record):
+    memo = getattr(self, "_v4043_last_added", None)
+    if not isinstance(memo, dict):
+        memo = self._v4043_last_added = {}
+    memo[kind] = id(record)
+
+
+def _v4043_last_added(self, kind):
+    records = _v4043_records(self, kind)
+    wanted = (getattr(self, "_v4043_last_added", None) or {}).get(kind)
+    for index, record in enumerate(records):
+        if id(record) == wanted:
+            return index
+    return len(records) - 1 if records else None
+
+
+def _v4043_refresh_after(self, kind):
+    names = ["_rebuild_saved_screens_tree", "_update_dynamic_product_buttons"] if kind == "screens" else \
+        ["_refresh_static_saved_tree", "_update_static_product_buttons"]
+    names += ["_refresh_project_journal", "_refresh_components_screen_selector", "_refresh_components_table",
+              "_refresh_stock_screen_selector", "_refresh_procurement_table", "_trial_refresh",
+              "_refresh_project_matrix", "_v4030_refresh"]
+    for name in names:
+        try:
+            getattr(self, name)()
+        except Exception:
+            pass
+    self._usage_stale = True
+
+
+def _v4043_duplicate(self, kind):
+    records = _v4043_records(self, kind)
+    tree = _v4043_tree(self, kind)
+    if not records or tree is None:
+        return None
+    selection = [iid for iid in tree.selection() if str(iid).isdigit()]
+    if selection:
+        source = int(selection[0])
+        position = source + 1
+    else:
+        source = _v4043_last_added(self, kind)
+        position = len(records)
+    if source is None or not (0 <= source < len(records)):
+        return None
+    original = records[source]
+    clone = _v4043_clone(original, kind)
+    if selection:
+        # в журнале проекта — сразу после исходного изделия
+        try:
+            clone["journal_order"] = float(original.get("journal_order")) + 0.5
+        except (TypeError, ValueError):
+            pass
+    else:
+        orders = []
+        for group in (self.saved_screens, self.saved_static_signs, _v4025_manual_items(self)):
+            for rec in group or []:
+                try:
+                    orders.append(float(rec.get("journal_order")))
+                except (TypeError, ValueError, AttributeError):
+                    pass
+        if orders and original.get("journal_order") is not None:
+            clone["journal_order"] = max(orders) + 1
+    records.insert(position, clone)
+    active_name = "_active_screen_index" if kind == "screens" else "_active_static_index"
+    active = getattr(self, active_name, None)
+    if isinstance(active, int) and active >= position:
+        setattr(self, active_name, active + 1)
+    _v4043_remember(self, kind, clone)
+    try:
+        self._mark_project_dirty()
+    except Exception:
+        pass
+    _v4043_refresh_after(self, kind)
+    try:
+        iid = str(position)
+        if tree.exists(iid):
+            tree.selection_set(iid)
+            tree.focus(iid)
+            tree.see(iid)
+    except Exception:
+        pass
+    if kind == "screens":
+        try:
+            self._redraw_selection()
+        except Exception:
+            pass
+    return position
+
+
+def _v4043_dup_state(self):
+    for kind, attr in (("screens", "_v4043_dup_screens"), ("signs", "_v4043_dup_signs")):
+        button = getattr(self, attr, None)
+        if button is None:
+            continue
+        try:
+            button.configure(state="normal" if _v4043_records(self, kind) else "disabled")
+        except Exception:
+            pass
+
+
+def _v4043_add_buttons(self):
+    for kind, attr in (("screens", "_v4043_dup_screens"), ("signs", "_v4043_dup_signs")):
+        tree = _v4043_tree(self, kind)
+        if tree is None:
+            continue
+        box = tree.master.master
+        actions = None
+        for child in box.winfo_children():
+            if isinstance(child, ttk.Frame):
+                texts = [str(b.cget("text")) for b in child.winfo_children() if isinstance(b, ttk.Button)]
+                if "Загрузить" in texts and "Удалить" in texts:
+                    actions = child
+        if actions is None:
+            continue
+        button = ttk.Button(actions, text=V4043_DUP_LABEL, command=lambda k=kind: _v4043_duplicate(self, k))
+        button.pack(side="left", expand=True)
+        setattr(self, attr, button)
+    _v4043_dup_state(self)
+
+
+# --- запоминаем последнее добавленное изделие
+_v4043_orig_add_screen = ScreenDesigner._add_to_project
+
+
+def _v4043_add_to_project(self, *args, **kwargs):
+    before = len(getattr(self, "saved_screens", []) or [])
+    result = _v4043_orig_add_screen(self, *args, **kwargs)
+    if len(self.saved_screens) > before:
+        _v4043_remember(self, "screens", self.saved_screens[-1])
+    _v4043_dup_state(self)
+    return result
+
+
+ScreenDesigner._add_to_project = _v4043_add_to_project
+
+_v4043_orig_add_sign = ScreenDesigner._add_static_sign_to_project
+
+
+def _v4043_add_static_sign_to_project(self, *args, **kwargs):
+    before = len(getattr(self, "saved_static_signs", []) or [])
+    result = _v4043_orig_add_sign(self, *args, **kwargs)
+    if len(self.saved_static_signs) > before:
+        _v4043_remember(self, "signs", self.saved_static_signs[-1])
+    _v4043_dup_state(self)
+    return result
+
+
+ScreenDesigner._add_static_sign_to_project = _v4043_add_static_sign_to_project
+
+for _v4043_name in ("_update_dynamic_product_buttons", "_update_static_product_buttons"):
+    def _v4043_make(original):
+        def wrapper(self, *args, **kwargs):
+            result = original(self, *args, **kwargs)
+            _v4043_dup_state(self)
+            return result
+        return wrapper
+    setattr(ScreenDesigner, _v4043_name, _v4043_make(getattr(ScreenDesigner, _v4043_name)))
+
+
+# ---------------------------------------------------------------------
+# Подключение
+# ---------------------------------------------------------------------
+_v4043_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4043_build_ui(self):
+    _v4043_orig_build_ui(self)
+    for step in (_v4043_add_buttons, _v4043_install_tables):
+        try:
+            step(self)
+        except Exception:
+            import traceback
+            try:
+                self._print_debug_log(traceback.format_exc())
+            except Exception:
+                pass
+
+
+ScreenDesigner._build_ui = _v4043_build_ui
+
+
+
+
+
+# =====================================================================
+# V40.44
+#   • «Статические указатели»: правая колонка («Параметры указателя» и
+#     «Сохранённые указатели в проекте») прокручивается целиком, как
+#     правая панель LED-экранов, — со своей полосой прокрутки. Теперь
+#     таблице сохранённых указателей есть куда раскрываться.
+#   • Правило раскрывающихся таблиц: когда таблица раскрыта (двойной
+#     щелчок по ══) или растёт в раскрытом виде, панель сразу
+#     прокручивается вниз так, чтобы раскрытая таблица с кнопками под
+#     ней была видна целиком.
+# Расчёты не меняются.
+# =====================================================================
+
+
+def _v4044_static_side(self, body):
+    """Прокручиваемая правая колонка вкладки «Статические указатели».
+    Возвращает внутреннюю рамку, в которую кладутся блоки колонки."""
+    host = ttk.Frame(body)
+    host.grid(row=0, column=1, rowspan=2, sticky="nsew")
+    host.rowconfigure(0, weight=1)
+    host.columnconfigure(0, weight=1)
+    try:
+        bg = ttk.Style().lookup("TFrame", "background") or "#f0f0f0"
+    except Exception:
+        bg = "#f0f0f0"
+    canvas = tk.Canvas(host, highlightthickness=0, bd=0, background=bg, yscrollincrement=18)
+    scrollbar = ttk.Scrollbar(host, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.grid(row=0, column=0, sticky="nsew")
+    scrollbar.grid(row=0, column=1, sticky="ns", padx=(2, 0))
+    inner = ttk.Frame(canvas)
+    inner.columnconfigure(1, weight=1)
+    window = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+    def sync(_event=None):
+        # ширина колонки — по содержимому, как было без прокрутки
+        try:
+            width = int(inner.winfo_reqwidth())
+            canvas.configure(scrollregion=(0, 0, width, int(inner.winfo_reqheight())))
+            if int(canvas.winfo_reqwidth()) != width:
+                canvas.configure(width=width)
+        except Exception:
+            pass
+
+    def fit(event):
+        try:
+            canvas.itemconfigure(window, width=max(int(inner.winfo_reqwidth()), int(event.width)))
+        except Exception:
+            pass
+
+    inner.bind("<Configure>", sync, add="+")
+    canvas.bind("<Configure>", fit, add="+")
+    self.static_side_canvas = canvas
+    self.static_side_scrollbar = scrollbar
+    self.static_side_inner = inner
+    return inner
+
+
+ScreenDesigner._v4044_static_side = _v4044_static_side
+
+
+# --- раскрытая таблица: панель подтягивается вниз --------------------
+def _v4044_follow(ctrl):
+    """Прокрутить панель так, чтобы блок с раскрытой таблицей был виден."""
+    ctrl._v4044_follow_job = None
+    canvas = getattr(ctrl, "view", None)
+    box = getattr(ctrl, "reveal", None)
+    if canvas is None or box is None or not ctrl.expanded:
+        return
+    try:
+        if not canvas.winfo_exists() or not canvas.winfo_ismapped():
+            return
+        canvas.update_idletasks()
+        region = canvas.bbox("all")
+        if region:
+            canvas.configure(scrollregion=(0, 0, region[2], region[3]))
+        total = float(region[3]) if region else 0.0
+        if total <= 0:
+            return
+        view_top = float(canvas.canvasy(0))
+        view_h = float(canvas.winfo_height())
+        box_top = view_top + float(box.winfo_rooty() - canvas.winfo_rooty())
+        box_bottom = box_top + float(box.winfo_height())
+        if box_bottom <= view_top + view_h and box_top >= view_top:
+            return                                   # и так виден целиком
+        target = min(box_top, box_bottom - view_h + 6)
+        # прокрутка идёт шагами yscrollincrement — округляем вниз по листу,
+        # иначе низ блока остаётся за краем на несколько пикселей
+        try:
+            step = max(1, int(float(canvas.cget("yscrollincrement") or 1)))
+        except Exception:
+            step = 1
+        if target < box_top:
+            target = math.ceil(target / step) * step
+        target = max(0.0, target)
+        canvas.yview_moveto(target / total)
+    except Exception:
+        pass
+
+
+def _v4044_schedule_follow(ctrl):
+    if getattr(ctrl, "view", None) is None:
+        return
+    if getattr(ctrl, "_v4044_follow_job", None):
+        return
+    try:
+        ctrl._v4044_follow_job = ctrl.tree.after_idle(lambda: _v4044_follow(ctrl))
+        # второй проход — когда размеры панели окончательно пересчитаны
+        ctrl.tree.after(90, lambda: _v4044_follow(ctrl))
+    except Exception:
+        ctrl._v4044_follow_job = None
+
+
+_v4044_orig_refresh_height = AutoExpandingTreeview.refresh_height
+
+
+def _v4044_refresh_height(self):
+    before = self._applied
+    _v4044_orig_refresh_height(self)
+    grew = before is not None and self._applied is not None and self._applied > before
+    if self.expanded and (grew or getattr(self, "_v4044_just_expanded", False)):
+        self._v4044_just_expanded = False
+        _v4044_schedule_follow(self)
+
+
+def _v4044_expand(self):
+    self._v4044_just_expanded = True
+    self.expanded = True
+    self.refresh_height()
+
+
+AutoExpandingTreeview.refresh_height = _v4044_refresh_height
+AutoExpandingTreeview.expand = _v4044_expand
+AutoExpandingTreeview.view = None
+AutoExpandingTreeview.reveal = None
+
+
+def _v4044_install_tables(self):
+    """Обе таблицы ограничены видимой высотой своей прокручиваемой панели."""
+    tables = {}
+    for kind, tree_attr, view_attr in (("screens", "saved_tree", "led_side_canvas"),
+                                       ("signs", "static_saved_tree", "static_side_canvas")):
+        tree = getattr(self, tree_attr, None)
+        if tree is None:
+            continue
+        view = getattr(self, view_attr, None)
+        frame = tree.master
+        box = frame.master
+        if kind == "signs":
+            try:
+                frame.pack_configure(fill="x", expand=False)
+            except Exception:
+                pass
+
+        def room(view=view):
+            if view is None:
+                return None
+            height = int(view.winfo_height())
+            # место под кнопки над таблицей и под ней — блок помещается целиком
+            return None if height <= 50 else height - 150
+
+        ctrl = AutoExpandingTreeview(tree, _v4043_find_scrollbar(tree), 10, room=room, container=frame,
+                                     watch=(view,) if view is not None else ())
+        ctrl.view = view
+        ctrl.reveal = box
+        tables[kind] = ctrl
+    self._v4043_tables = tables
+
+
+_v4043_install_tables = _v4044_install_tables
+
+
+
+
+
+# =====================================================================
+# V40.45 — печать журнала изделия: круглый МЦД, 1 сторона, с подсветкой —
+# стенка из алюкобонда Ø(D − 52) с раскладкой фронтальных светодиодов.
+#   • Ряды горизонтальные, шаг 120 мм, симметрично относительно оси;
+#     корпус 70 × 15 мм, зазор 65 мм, ряд симметричен относительно
+#     вертикальной оси; от кромки стенки до угла корпуса ≥ 32 мм; лишний
+#     светодиод ставится, если не хватает ≤ 20 мм (из крайних зазоров).
+#   • Оси по торцам светодиодов — штрихпунктир. Размеры — на выносках,
+#     подписи не накладываются на контуры: поля и шаг рядов, ось → торец,
+#     корпус 70 и зазор 65 один раз, изменённые зазоры у своих пар,
+#     отступ 32 мм.
+#   • Стенка шире листа 4000 × 1220 (Ø > 1220 − 2 × 4): из двух
+#     сегментов — Сегмент 1 (наибольший, сверху) и Сегмент 2 (снизу),
+#     шов горизонтальный; шов не ближе 20 мм к корпусу (иначе — в середину
+#     между рядами). Рядом — раскрой листа, фреза Ø4 мм.
+# Расчёты не меняются.
+# =====================================================================
+
+V4045_SHEET_L = 4000.0
+V4045_SHEET_W = 1220.0
+V4045_TOOL = 4.0
+V4045_SEAM_CLEAR = 20.0
+V4045_DIM = V4018_DIM
+V4045_EXT = V4018_EXT
+V4045_FACE_AXIS = (70, 96, 140)
+V4045_SEAM = (31, 72, 160)
+V4045_SEG2_FILL = (220, 228, 240)
+
+
+def _v4045_fmt(value):
+    value = round(float(value), 2)
+    if abs(value - round(value)) < 0.005:
+        return str(int(round(value)))
+    return f"{value:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def _v4045_plan(diameter):
+    """Раскладка на круглой стенке: ряды (y от центра, вверх +) и начала корпусов."""
+    dw = float(diameter) - V4018_WALL_TRIM
+    radius = dw / 2.0
+    inner = radius - V4024_EDGE
+    if inner <= V4024_LED_T:
+        return None
+    count = int((2 * inner - V4024_LED_T) // V4024_ROW_H) + 1
+    rows = []
+    for i in range(count):
+        y = (i - (count - 1) / 2.0) * V4024_ROW_H
+        a = abs(y) + V4024_LED_T / 2.0
+        if a >= inner:
+            continue
+        half = math.sqrt(inner * inner - a * a)
+        n = int((2 * half + V4024_GAP) // V4024_PITCH)
+        gaps = [V4024_GAP] * max(0, n - 1)
+        need = (n + 1) * V4024_LED_L + n * V4024_GAP - 2 * half
+        if n >= 2 and need <= V4024_EXTRA_LIMIT:
+            n += 1
+            gaps = [V4024_GAP] * (n - 1)
+            gaps[0] -= need / 2.0
+            gaps[-1] -= need / 2.0
+        if n <= 0:
+            continue
+        length = n * V4024_LED_L + sum(gaps)
+        x, xs = -length / 2.0, []
+        for k in range(n):
+            xs.append(x)
+            x += V4024_LED_L + (gaps[k] if k < len(gaps) else 0.0)
+        rows.append({"y": y, "xs": xs})
+    plan = {"dw": dw, "r": radius, "rows": rows, "pieces": None,
+            "total": sum(len(r["xs"]) for r in rows)}
+    hmax = V4045_SHEET_W - 2 * V4045_TOOL
+    if dw > hmax:
+        seam = radius - hmax
+        for row in rows:
+            if abs(row["y"] - seam) < V4024_LED_T / 2.0 + V4045_SEAM_CLEAR:
+                above = min((q["y"] for q in rows if q["y"] > row["y"]), default=row["y"] + V4024_ROW_H)
+                seam = (row["y"] + above) / 2.0
+                break
+        chord = 2 * math.sqrt(max(0.0, radius * radius - seam * seam))
+        plan["pieces"] = {"seam": seam, "h1": radius - seam, "h2": dw - (radius - seam),
+                          "w1": 2 * radius if seam < 0 else chord, "w2": chord if seam < 0 else 2 * radius,
+                          "chord": chord}
+    return plan
+
+
+def _v4045_applies(sign, mode, sides, is_round):
+    return (bool(is_round) and mode == MODE_MCD and int(sides or 1) == 1
+            and str((sign or {}).get("face_type", "С подсветкой")) == "С подсветкой")
+
+
+class _V4045Board:
+    """Занятые места чертежа: подписи, линии, окружности, корпуса."""
+
+    def __init__(self, d, bounds):
+        self.d, self.bounds = d, bounds
+        self.boxes, self.leds, self.lines, self.segs, self.rings = [], [], [], [], []
+
+    def box_free(self, box, pad=4):
+        x1, y1, x2, y2 = box
+        bx1, by1, bx2, by2 = self.bounds
+        if x1 < bx1 or x2 > bx2 or y1 < by1 or y2 > by2:
+            return False
+        if _v4017_hits(box, self.boxes, pad=pad) or _v4017_hits(box, self.leds, pad=pad):
+            return False
+        for seg in self.lines + self.segs:
+            if _v4045_seg_hits_box(seg, box, pad):
+                return False
+        for cx, cy, r in self.rings:
+            nx, ny = min(max(cx, x1 - pad), x2 + pad), min(max(cy, y1 - pad), y2 + pad)
+            dmin = math.hypot(nx - cx, ny - cy)
+            dmax = max(math.hypot(px - cx, py - cy) for px in (x1 - pad, x2 + pad) for py in (y1 - pad, y2 + pad))
+            if dmin <= r <= dmax:
+                return False
+        return True
+
+    def seg_free(self, seg, skip_boxes=()):
+        if any(_v4024_cross(seg, other) for other in self.segs):
+            return False
+        for box in self.boxes + self.leds:
+            if box in skip_boxes:
+                continue
+            if _v4045_seg_hits_box(seg, box, 1):
+                return False
+        return True
+
+    def near_lines(self, seg, skip=0.0, tol=4.0):
+        """Линия идёт вдоль чужой линии или пересекает её (кроме первых skip пикселей)."""
+        x1, y1, x2, y2 = seg
+        length = math.hypot(x2 - x1, y2 - y1)
+        if length <= skip:
+            return False
+        n = max(1, int(length / 2.0))
+        pts = [(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n) for i in range(n + 1)
+               if length * i / n >= skip]
+        for (ax, ay, bx, by) in self.lines + self.segs:
+            if (ax, ay, bx, by) == seg:
+                continue
+            dx, dy = bx - ax, by - ay
+            ll = dx * dx + dy * dy
+            if max(ax, bx) + tol < min(x1, x2) or min(ax, bx) - tol > max(x1, x2) \
+                    or max(ay, by) + tol < min(y1, y2) or min(ay, by) - tol > max(y1, y2):
+                continue
+            for (px, py) in pts:
+                t = 0.0 if ll <= 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ll))
+                if math.hypot(ax + dx * t - px, ay + dy * t - py) < tol:
+                    return True
+        return False
+
+    def text_box(self, x, y, text, font, anchor):
+        b = self.d.textbbox((x, y), text, font=font, anchor=anchor)
+        return (b[0] - 3, b[1] - 3, b[2] + 3, b[3] + 3)
+
+    def put_text(self, x, y, text, font, fill, anchor):
+        self.d.text((x, y), text, font=font, fill=fill, anchor=anchor)
+        self.boxes.append(self.text_box(x, y, text, font, anchor))
+
+    def leader(self, pts, dot=True):
+        for a, b in zip(pts, pts[1:]):
+            self.d.line((a[0], a[1], b[0], b[1]), fill=V4045_DIM, width=2)
+            self.segs.append((a[0], a[1], b[0], b[1]))
+        if dot:
+            x, y = pts[0]
+            self.d.ellipse((x - 4, y - 4, x + 4, y + 4), fill=V4045_DIM)
+
+    def callout(self, px, py, text, font, dirs, dot=True):
+        """Выноска: наклонная линия и полка с подписью; первое свободное место."""
+        tb = self.d.textbbox((0, 0), text, font=font)
+        tw = tb[2] - tb[0]
+        for dist in (36, 60, 90, 125, 165, 210, 260, 320):
+            for ang in dirs:
+                ex = px + dist * math.cos(math.radians(ang))
+                ey = py - dist * math.sin(math.radians(ang))
+                sgn = 1 if math.cos(math.radians(ang)) >= 0 else -1
+                end = ex + sgn * (tw + 14)
+                anchor = "ld" if sgn > 0 else "rd"
+                box = self.text_box(ex + sgn * 7, ey - 4, text, font, anchor)
+                lead, shelf = (px, py, ex, ey), (ex, ey, end, ey)
+                if (self.box_free(box) and self.seg_free(lead) and self.seg_free(shelf)
+                        and not self.near_lines(lead, skip=8) and not self.near_lines(shelf)):
+                    self.leader([(px, py), (ex, ey), (end, ey)], dot)
+                    self.put_text(ex + sgn * 7, ey - 4, text, font, V4045_DIM, anchor)
+                    return True
+        return False
+
+
+def _v4045_seg_hits_box(seg, box, pad=0):
+    x1, y1, x2, y2 = seg
+    bx1, by1, bx2, by2 = box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad
+    if max(x1, x2) < bx1 or min(x1, x2) > bx2 or max(y1, y2) < by1 or min(y1, y2) > by2:
+        return False
+    length = math.hypot(x2 - x1, y2 - y1)
+    n = max(1, int(length / 2.5))
+    for i in range(n + 1):
+        t = i / n
+        x, y = x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
+        if bx1 <= x <= bx2 and by1 <= y <= by2:
+            return True
+    return False
+
+
+def _v4045_circle(d, cx, cy, r, outline, width, fill=None):
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=outline, width=width, fill=fill)
+
+
+def _v4045_segment_poly(cx, cy, r, ys_px, upper, steps=160):
+    """Часть круга выше (upper) или ниже горизонтали y = ys_px (координаты листа, y вниз)."""
+    dy = ys_px - cy
+    a = math.degrees(math.asin(max(-1.0, min(1.0, -dy / r))))
+    a0, a1 = (a, 180 - a) if upper else (180 - a, 360 + a)
+    pts = []
+    for i in range(steps + 1):
+        t = math.radians(a0 + (a1 - a0) * i / steps)
+        pts.append((cx + r * math.cos(t), cy - r * math.sin(t)))
+    return pts
+
+
+def _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom):
+    try:
+        diameter = float(sign.get("diameter") or sign.get("width") or 0)
+    except Exception:
+        diameter = 0.0
+    plan = _v4045_plan(diameter)
+    if not plan or not plan["rows"]:
+        return
+    pieces = plan["pieces"]
+    dw, R = plan["dw"], plan["r"]
+    font = self._font_for_print(24, False)
+    size_font = self._font_for_print(30, True)
+    label_font = self._font_for_print(26, True)
+    left_edge, right_edge = gx2 + 60, right - 25
+    top_edge, bottom_edge = mt - 55, bottom - 5
+    title_h = 60
+    avail_h = bottom_edge - top_edge - title_h - 15
+    side_l = 260.0
+    side_r = 330.0 if pieces else 150.0
+    block_w = right_edge - left_edge
+    s = max(0.05, min(avail_h / dw, (block_w - side_l - side_r - 650) / dw, 1.6))
+    rp = R * s
+    cx = left_edge + side_l + rp
+    cy = top_edge + title_h + avail_h / 2.0
+    board = _V4045Board(d, (left_edge - 30, top_edge, right_edge, bottom_edge))
+    t_half = V4024_LED_T / 2.0 * s
+    rows = sorted(plan["rows"], key=lambda r: -r["y"])
+    rin = (R - V4024_EDGE) * s
+
+    def chord(y_mm):
+        return math.sqrt(max(0.0, R * R - y_mm * y_mm)) * s
+
+    # --- стенка и сегменты
+    if pieces:
+        ys_px = cy - pieces["seam"] * s
+        d.polygon(_v4045_segment_poly(cx, cy, rp, ys_px, True), fill=V4018_WALL_FILL)
+        d.polygon(_v4045_segment_poly(cx, cy, rp, ys_px, False), fill=V4045_SEG2_FILL)
+    else:
+        _v4045_circle(d, cx, cy, rp, None, 1, V4018_WALL_FILL)
+    steps = 200
+    for i in range(steps):
+        a0, a1 = 2 * math.pi * i / steps, 2 * math.pi * (i + 0.55) / steps
+        d.line((cx + rin * math.cos(a0), cy + rin * math.sin(a0), cx + rin * math.cos(a1), cy + rin * math.sin(a1)),
+               fill=(150, 150, 150), width=1)
+    _v4045_circle(d, cx, cy, rp, V4018_WALL_EDGE, 4)
+    board.rings += [(cx, cy, rp), (cx, cy, rin)]
+
+    # --- оси стенки
+    _v4017_dashdot(d, cx - rp - 16, cy, cx + rp + 16, cy, V4017_AXIS, width=2)
+    _v4017_dashdot(d, cx, cy - rp - 16, cx, cy + rp + 16, V4017_AXIS, width=2)
+    board.lines += [(cx - rp - 16, cy, cx + rp + 16, cy), (cx, cy - rp - 16, cx, cy + rp + 16)]
+
+    # --- светодиоды; оси по торцам — штрихпунктир
+    reach = t_half + 7
+    for row in rows:
+        py = cy - row["y"] * s
+        for x0 in row["xs"]:
+            xa, xb = cx + x0 * s, cx + (x0 + V4024_LED_L) * s
+            d.rectangle((xa, py - t_half, xb, py + t_half), fill=V4017_SEAT, outline=V4017_SEAT_EDGE,
+                        width=max(1, int(round(s * 1.2))))
+            board.leds.append((xa, py - t_half, xb, py + t_half))
+            for xe in (xa, xb):
+                _v4017_dashdot(d, xe, py - reach, xe, py + reach, V4045_FACE_AXIS, width=1)
+                board.lines.append((xe, py - reach, xe, py + reach))
+
+    # --- шов
+    seam_px = None
+    if pieces:
+        seam_px = cy - pieces["seam"] * s
+        half = chord(pieces["seam"])
+        _v4017_dash(d, cx - half - 18, seam_px, cx + half + 18, seam_px, V4045_SEAM, width=4, on=18, off=9)
+        board.lines.append((cx - half - 18, seam_px, cx + half + 18, seam_px))
+
+    # --- габарит стенки
+    board.put_text(cx, cy - rp - 22, f"Ø{_v4045_fmt(dw)} мм", size_font, V4018_WALL_EDGE, "ms")
+
+    # --- цепь рядов слева (поля и шаг; одинаковый шаг — один раз)
+    vx = cx - rp - 140
+    nodes = [R] + [row["y"] for row in rows] + [-R]
+    for v in nodes:
+        py = cy - v * s
+        edge_x = cx - chord(v)
+        d.line((vx - 8, py, edge_x - (0 if abs(v) >= R - 1e-6 else 4), py), fill=V4045_EXT, width=1)
+        board.lines.append((vx - 8, py, edge_x, py))
+    d.line((vx, cy - rp, vx, cy + rp), fill=V4045_DIM, width=2)
+    board.lines.append((vx, cy - rp, vx, cy + rp))
+    for v in nodes:
+        _v4018_tick(d, vx, cy - v * s, False)
+    seen = set()
+    for i, (a, b) in enumerate(zip(nodes, nodes[1:])):
+        text = _v4045_fmt(a - b)
+        edge_seg = i in (0, len(nodes) - 2)
+        if not edge_seg and text in seen:
+            continue
+        if not edge_seg:
+            seen.add(text)
+        ym = cy - (a + b) / 2.0 * s
+        board.leader([(vx, ym), (vx - 22, ym)], dot=True)
+        board.put_text(vx - 28, ym, text, font, V4045_DIM, "rm")
+
+    # --- высоты сегментов справа
+    hx = cx + rp + 150
+    if pieces:
+        seam = pieces["seam"]
+        for v in (R, seam, -R):
+            py = cy - v * s
+            x0 = cx if abs(v) >= R - 1e-6 else cx + chord(v) + 18
+            d.line((x0, py, hx + 8, py), fill=V4045_EXT, width=1)
+            board.lines.append((x0, py, hx + 8, py))
+        d.line((hx, cy - rp, hx, cy + rp), fill=V4045_DIM, width=2)
+        board.lines.append((hx, cy - rp, hx, cy + rp))
+        for v in (R, seam, -R):
+            _v4018_tick(d, hx, cy - v * s, False)
+        for text, a, b, name in ((_v4045_fmt(pieces["h1"]), R, seam, "Сегмент 1"),
+                                 (_v4045_fmt(pieces["h2"]), seam, -R, "Сегмент 2")):
+            ym = cy - (a + b) / 2.0 * s
+            tb = d.textbbox((0, 0), text, font=font)
+            if (a - b) * s >= (tb[2] - tb[0]) + 24:
+                _v4017_vtext(page, hx + 20, ym, text, font, V4045_DIM)
+                board.boxes.append((hx + 4, ym - (tb[2] - tb[0]) / 2 - 8, hx + 36, ym + (tb[2] - tb[0]) / 2 + 8))
+                board.put_text(hx + 50, ym, name, label_font, V4045_SEAM, "lm")
+            else:
+                board.callout(hx, ym, text, font, (20, 340, 45, 315), dot=True)
+                for dy in (-46, 46, -80, 80):
+                    box = board.text_box(hx + 50, ym + dy, name, label_font, "lm")
+                    if board.box_free(box) or dy == 80:
+                        board.put_text(hx + 50, ym + dy, name, label_font, V4045_SEAM, "lm")
+                        break
+
+    # --- размеры в рядах: выноски уходят по середине промежутка между рядами за стенку
+    gap_y = [R + 60.0 if not rows else rows[0]["y"] + V4024_ROW_H / 2.0]
+    for k in range(len(rows) - 1):
+        gap_y.append((rows[k]["y"] + rows[k + 1]["y"]) / 2.0)
+    gap_y.append(rows[-1]["y"] - V4024_ROW_H / 2.0)
+    used = set()
+
+    def row_dim(idx, xa_mm, xb_mm, text):
+        row = rows[idx]
+        side = 1 if (xa_mm + xb_mm) / 2.0 >= 0 else -1
+        order = (idx, idx + 1) if row["y"] >= 0 else (idx + 1, idx)
+        py = cy - row["y"] * s
+        xa, xb = cx + xa_mm * s, cx + xb_mm * s
+        xm = (xa + xb) / 2.0
+        for g in order:
+            if (g, side) in used:
+                continue
+            above = g == idx
+            yl = py - t_half - 6 if above else py + t_half + 6
+            yg = cy - gap_y[g] * s
+            span = 18.0 / s
+            edge = cx + side * (max(chord(gap_y[g] - span), chord(gap_y[g]), chord(gap_y[g] + span)) + 22)
+            if side > 0:
+                xt = max(edge, xm + 24)
+                box = board.text_box(xt + 6, yg, text, font, "lm")
+                if pieces and box[2] > hx - 10:
+                    continue
+            else:
+                xt = min(edge, xm - 24)
+                box = board.text_box(xt - 6, yg, text, font, "rm")
+                if box[0] < vx + 12:
+                    continue
+            dimseg = (xa, yl, xb, yl)
+            lead = [(xm, yl), (xm, yg), (xt, yg)]
+            segs = [(xm, yl, xm, yg), (xm, yg, xt, yg)]
+            if not board.box_free(box):
+                continue
+            if any(_v4024_cross(sg, other) for sg in segs for other in board.segs):
+                continue
+            if any(_v4045_seg_hits_box(sg, lb, 1) for sg in segs for lb in board.leds + board.boxes):
+                continue
+            if board.near_lines(segs[1], skip=3, tol=7) or board.near_lines(segs[0], skip=4, tol=3):
+                continue
+            used.add((g, side))
+            d.line(dimseg, fill=V4045_DIM, width=2)
+            board.segs.append(dimseg)
+            _v4018_tick(d, xa, yl, True, size=5)
+            _v4018_tick(d, xb, yl, True, size=5)
+            board.leader(lead, dot=False)
+            board.put_text(xt + 6 * side, yg, text, font, V4045_DIM, "lm" if side > 0 else "rm")
+            return True
+        # запасной вариант: размер над рядом, выноска с полкой в свободное место
+        for yl, dirs in ((py - t_half - 6, (60, 120, 30, 150, 75, 105)), (py + t_half + 6, (300, 240, 330, 210, 285, 255))):
+            if board.callout(xm, yl, text, font, dirs, dot=False):
+                d.line((xa, yl, xb, yl), fill=V4045_DIM, width=2)
+                board.segs.append((xa, yl, xb, yl))
+                _v4018_tick(d, xa, yl, True, size=5)
+                _v4018_tick(d, xb, yl, True, size=5)
+                return True
+        return False
+
+    def standard(row):
+        xs = row["xs"]
+        return all(abs((xs[k + 1] - xs[k] - V4024_LED_L) - V4024_GAP) < 0.01 for k in range(len(xs) - 1))
+
+    for parity in (1, 0):
+        group = [i for i, r in enumerate(rows) if len(r["xs"]) % 2 == parity]
+        if not group:
+            continue
+        pool = [i for i in group if standard(rows[i])] + [i for i in group if not standard(rows[i])]
+        pool.sort(key=lambda i: (not standard(rows[i]), abs(rows[i]["y"]) < 1e-6, abs(rows[i]["y"])))
+        for idx in pool:
+            faces = [v for x in rows[idx]["xs"] for v in (x, x + V4024_LED_L) if v > 1e-6]
+            if faces and row_dim(idx, 0.0, min(faces), _v4045_fmt(min(faces))):
+                break
+    std = [i for i, r in enumerate(rows) if standard(r) and len(r["xs"]) >= 4]
+    std.sort(key=lambda i: (abs(rows[i]["y"]) < 1e-6, abs(rows[i]["y"])))
+    for what in ("body", "gap"):
+        for idx in std:
+            xs = rows[idx]["xs"]
+            k = max(0, len(xs) // 2 - 2)
+            if what == "body" and row_dim(idx, xs[k], xs[k] + V4024_LED_L, _v4045_fmt(V4024_LED_L)):
+                break
+            if what == "gap" and row_dim(idx, xs[k] + V4024_LED_L, xs[k + 1], _v4045_fmt(V4024_GAP)):
+                break
+    for idx, row in enumerate(rows):
+        xs = row["xs"]
+        for k in range(len(xs) - 1):
+            gap = xs[k + 1] - xs[k] - V4024_LED_L
+            if abs(gap - V4024_GAP) > 0.01:
+                row_dim(idx, xs[k] + V4024_LED_L, xs[k + 1], _v4045_fmt(gap))
+
+    # --- отступ 32 мм от кромки стенки до корпуса
+    for deg in (225, 315, 215, 325, 235, 305, 205, 335, 245, 295, 195, 345, 135, 45, 145, 35):
+        ang = math.radians(deg)
+        ox, oy = cx + rp * math.cos(ang), cy - rp * math.sin(ang)
+        ix, iy = cx + rin * math.cos(ang), cy - rin * math.sin(ang)
+        mx, my = (ox + ix) / 2.0, (oy + iy) / 2.0
+        if _v4017_hits((mx - 6, my - 6, mx + 6, my + 6), board.boxes + board.leds, pad=2):
+            continue
+        if any(_v4045_seg_hits_box((ox, oy, ix, iy), b, 3) for b in board.boxes + board.leds):
+            continue
+        if any(_v4024_cross((ox, oy, ix, iy), sg) for sg in board.segs) or board.near_lines((ox, oy, ix, iy), tol=6):
+            continue
+        outward = deg
+        if board.callout(mx, my, _v4045_fmt(V4024_EDGE), font,
+                         (outward, outward + 20, outward - 20, outward + 40, outward - 40)):
+            d.line((ox, oy, ix, iy), fill=V4045_DIM, width=2)
+            board.segs.append((ox, oy, ix, iy))
+            for px, py in ((ox, oy), (ix, iy)):
+                d.line((px - 5, py - 5, px + 5, py + 5), fill=V4045_DIM, width=2)
+            break
+
+    # --- подпись шва
+    if pieces:
+        half = chord(pieces["seam"])
+        for px in (cx - half - 18, cx + half + 18):
+            dirs = (200, 160, 225, 135, 250) if px < cx else (340, 20, 315, 45)
+            if board.callout(px, seam_px, "шов", font, dirs, dot=False):
+                break
+
+    # --- раскрой листа 4000 × 1220 (фреза Ø4)
+    t = V4045_TOOL
+    if pieces:
+        parts = [("Сегмент 1", pieces["w1"], pieces["h1"], True), ("Сегмент 2", pieces["w2"], pieces["h2"], False)]
+    else:
+        parts = [("", dw, dw, None)]
+    sheets, cur, x = [], [], t
+    for part in parts:
+        if cur and x + part[1] + t > V4045_SHEET_L:
+            sheets.append(cur)
+            cur, x = [], t
+        cur.append((x, part))
+        x += part[1] + t
+    sheets.append(cur)
+    area_l = (hx + 50 + 160) if pieces else (cx + rp + side_r)
+    sx0 = area_l + 70
+    width_px = right_edge - sx0 - 10
+    if width_px < 250:
+        return
+    n = len(sheets)
+    gap_v = 95
+    k = min(width_px / V4045_SHEET_L, (avail_h - (n - 1) * gap_v - 40) / (n * V4045_SHEET_W))
+    total = n * V4045_SHEET_W * k + (n - 1) * gap_v
+    sy = cy - total / 2.0
+    small = self._font_for_print(22, True)
+    for sheet in sheets:
+        sx1, sy0, sy1 = sx0 + V4045_SHEET_L * k, sy, sy + V4045_SHEET_W * k
+        d.rectangle((sx0, sy0, sx1, sy1), fill=(247, 247, 247), outline=(90, 90, 90), width=3)
+        base = sy1 - t * k
+        for off, (name, pw, ph, upper) in sheet:
+            if upper is None:
+                ccx = sx0 + (off + R) * k
+                _v4045_circle(d, ccx, (sy0 + sy1) / 2.0, R * k, V4018_WALL_EDGE, 2, V4018_WALL_FILL)
+                d.text((ccx, (sy0 + sy1) / 2.0), f"Ø{_v4045_fmt(dw)}", font=font, fill=V4045_DIM, anchor="mm")
+                continue
+            seam = pieces["seam"]
+            ccx = sx0 + (off + pw / 2.0) * k
+            if upper:
+                pts = _v4045_segment_poly(ccx, base + seam * k, R * k, base, True)
+                fill = V4018_WALL_FILL
+            else:
+                raw = _v4045_segment_poly(0.0, 0.0, R * k, -seam * k, False)
+                pts = [(ccx + px, base - (py + seam * k)) for px, py in raw]
+                fill = V4045_SEG2_FILL
+            d.polygon(pts, fill=fill, outline=V4018_WALL_EDGE)
+            size_text = f"{_v4045_fmt(pw)} × {_v4045_fmt(ph)}"
+            if ph * k >= 70:
+                d.text((ccx, base - ph * k * 0.58), name, font=small, fill=V4045_SEAM, anchor="mm")
+                d.text((ccx, base - ph * k * 0.30), size_text, font=font, fill=V4045_DIM, anchor="mm")
+            else:                                   # низкий сегмент — подписи над ним, от его левого края
+                lx0 = sx0 + off * k + 4
+                d.text((lx0, base - ph * k - 52), name, font=small, fill=V4045_SEAM, anchor="lm")
+                d.text((lx0, base - ph * k - 22), size_text, font=font, fill=V4045_DIM, anchor="lm")
+        dim_y = sy1 + 34
+        d.line((sx0, dim_y, sx1, dim_y), fill=V4045_DIM, width=2)
+        for xx in (sx0, sx1):
+            d.line((xx, sy1 + 4, xx, dim_y + 8), fill=V4045_EXT, width=1)
+            _v4018_tick(d, xx, dim_y, True)
+        d.text(((sx0 + sx1) / 2.0, dim_y - 5), _v4045_fmt(V4045_SHEET_L), font=font, fill=V4045_DIM, anchor="md")
+        lx = sx0 - 30
+        d.line((lx, sy0, lx, sy1), fill=V4045_DIM, width=2)
+        for yy in (sy0, sy1):
+            d.line((sx0 - 4, yy, lx - 8, yy), fill=V4045_EXT, width=1)
+            _v4018_tick(d, lx, yy, False)
+        _v4017_vtext(page, lx - 20, (sy0 + sy1) / 2.0, _v4045_fmt(V4045_SHEET_W), font, V4045_DIM)
+        sy = sy1 + gap_v
+
+
+_v4045_prev_markup = _v4016_markup
+
+
+def _v4045_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    if _v4045_applies(sign, mode, sides, is_round) and right is not None and bottom is not None:
+        try:
+            return _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom)
+        except Exception:
+            import traceback
+            try:
+                self._print_debug_log(traceback.format_exc())
+            except Exception:
+                pass
+            return None
+    return _v4045_prev_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                              x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored, right, bottom)
+
+
+_v4016_markup = _v4045_markup
+
+
+# =====================================================================
+# V40.45.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -39387,7 +40865,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.42.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.45.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -39400,7 +40878,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.42.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.45.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
