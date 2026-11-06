@@ -1,4 +1,4 @@
-# V40.52.1 = V40.52 + перенесённые исправления сборки Windows:
+# V40.53.1 = V40.53 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# V40.52.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# V40.53.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
 # NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
 # есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
 _TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
@@ -92,7 +92,7 @@ if sys.platform != "darwin":
     tk.Misc.bind_all = _tk_bind_all
     tk.Misc.bind_class = _tk_bind_class
 
-APP_TITLE = "Конструктор LED-экранов V40.52.1"
+APP_TITLE = "Конструктор LED-экранов V40.53.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2005,7 +2005,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.52.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.53.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2587,13 +2587,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.52.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.53.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.52.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.53.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2631,7 +2631,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.52.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.53.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3864,7 +3864,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.52.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.53.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9926,7 +9926,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.52.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.53.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9939,7 +9939,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.52.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.53.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13984,7 +13984,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.52.1: строка остаётся «статической» (серая заливка), только если
+                # V40.53.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -41583,8 +41583,140 @@ if getattr(ScreenDesigner, "_v3083_original_name", None) is not None:
     ScreenDesigner._v3083_original_name = _v4052_original_name
 
 
+
+
 # =====================================================================
-# V40.52.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.53 — журнал изделия, круглый двусторонний МЦД: на «СТОРОНЕ 2»
+# выноска «А» и рядом «Вид А» — три соседних светодиода крупно,
+# размеры: зазор между корпусами, корпус 50 мм, отступ 9 мм от кромки.
+# Расчёты не меняются.
+# =====================================================================
+
+_v4053_prev_markup = _v4016_markup
+
+
+def _v4053_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    self._v4053_ctx = (gx2, gy2, mt, right, bottom)
+    try:
+        return _v4053_prev_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored, right, bottom)
+    finally:
+        self._v4053_ctx = None
+
+
+_v4016_markup = _v4053_markup
+_v4053_prev_round = _v4050_side2_round
+
+
+def _v4053_side2_round(self, d, diameter, x1, y1, x2, y2):
+    _v4053_prev_round(self, d, diameter, x1, y1, x2, y2)
+    try:
+        _v4053_view_a(self, d, diameter, x1, y1, x2, y2)
+    except Exception:
+        try:
+            import traceback
+            self._print_debug_log(traceback.format_exc())
+        except Exception:
+            pass
+
+
+_v4050_side2_round = _v4053_side2_round
+
+
+def _v4053_view_a(self, d, diameter, x1, y1, x2, y2):
+    ctx = getattr(self, "_v4053_ctx", None)
+    if not ctx:
+        return
+    gx2, gy2, mt, right, bottom = ctx
+    if right is None:
+        return
+    D = float(diameter)
+    R = D / 2.0
+    r, leds = _v4050_round_leds(D)
+    if len(leds) < 3:
+        return
+    n = len(leds)
+    a_led = 2 * math.asin(V4050_LED_L / 2.0 / r)
+    step = 2 * math.pi / n
+    gap = 2 * r * math.sin((step - a_led) / 2.0)
+    pitch = 2 * r * math.sin(step / 2.0)
+    left_edge, right_edge = gx2 + 90, right - 40
+    span_mm = 3 * V4050_LED_L + 2 * gap + 150
+    avail = right_edge - left_edge
+    if avail < 420:
+        return
+    k2 = min(avail / span_mm, 6.0)
+    vx = (left_edge + right_edge) / 2.0
+    vy = mt + 190
+
+    def Q(p):                                   # модель (мм от центра, y вверх) → лист
+        return vx + p[0] * k2, vy + (R - p[1]) * k2
+
+    title_font = self._font_for_print(30, True)
+    font = self._font_for_print(26, False)
+    d.text((vx, mt + 20), "Вид А", font=title_font, fill=V4050_INK, anchor="ma")
+    # кромка изделия и окружность установки
+    half = (1.5 * pitch + 30) / R
+    arc = [Q((R * math.cos(math.pi / 2 + t), R * math.sin(math.pi / 2 + t)))
+           for t in [-half + 2 * half * i / 60 for i in range(61)]]
+    d.line(arc, fill=V4050_INK, width=4)
+    arc_i = [Q((r * math.cos(math.pi / 2 + t), r * math.sin(math.pi / 2 + t)))
+             for t in [-half + 2 * half * i / 60 for i in range(61)]]
+    for a_, b_ in zip(arc_i[::2], arc_i[1::2]):
+        d.line((a_[0], a_[1], b_[0], b_[1]), fill=(150, 150, 150), width=1)
+    # три корпуса: верхний и соседние
+    polys = []
+    for j in (-1, 0, 1):
+        poly = leds[j % n]
+        pts = [Q(p) for p in poly]
+        d.polygon(pts, fill=(255, 255, 255), outline=V4050_INK)
+        d.line(pts + [pts[0]], fill=V4050_INK, width=2)
+        polys.append(pts)
+    left, mid = polys[0], polys[1]
+    # размеры над корпусами: зазор и корпус 50
+    top_y = min(p[1] for p in arc) - 60
+    m_left, m_right = mid[0], mid[1]               # наружная грань верхнего корпуса
+    g_right = left[1] if left[1][0] < m_left[0] else left[0]
+    if g_right[0] > m_left[0]:
+        g_right = left[0]
+    nodes = sorted([g_right[0], m_left[0], m_right[0]])
+    for x, yb in ((g_right[0], g_right[1]), (m_left[0], m_left[1]), (m_right[0], m_right[1])):
+        d.line((x, yb - 4, x, top_y - 10), fill=V4018_DIM, width=2)
+    d.line((nodes[0], top_y, nodes[-1], top_y), fill=V4018_DIM, width=2)
+    for x in nodes:
+        _v4018_tick(d, x, top_y, True)
+    d.text(((nodes[1] + nodes[2]) / 2.0, top_y - 8), _v4017_fmt(V4050_LED_L), font=font, fill=V4018_DIM, anchor="md")
+    gap_text = _v4017_fmt(round(gap, 1))
+    gx = (nodes[0] + nodes[1]) / 2.0
+    tb = d.textbbox((0, 0), gap_text, font=font)
+    if nodes[1] - nodes[0] >= (tb[2] - tb[0]) + 6:
+        d.text((gx, top_y - 8), gap_text, font=font, fill=V4018_DIM, anchor="md")
+    else:
+        d.line((gx, top_y, gx - 30, top_y - 34), fill=V4018_DIM, width=2)
+        d.line((gx - 30, top_y - 34, gx - 40 - (tb[2] - tb[0]), top_y - 34), fill=V4018_DIM, width=2)
+        d.text((gx - 34, top_y - 40), gap_text, font=font, fill=V4018_DIM, anchor="rd")
+    # отступ 9 мм от кромки до окружности установки — справа
+    xm = 1.5 * pitch + 10
+    po = Q((xm, math.sqrt(max(0.0, R * R - xm * xm))))
+    pi_ = Q((xm, math.sqrt(max(0.0, r * r - xm * xm))))
+    xd = po[0] + 50
+    for p in (po, pi_):
+        d.line((p[0] + 4, p[1], xd + 10, p[1]), fill=V4018_DIM, width=1)
+        _v4018_tick(d, xd, p[1], False)
+    d.line((xd, po[1] - 14, xd, pi_[1] + 14), fill=V4018_DIM, width=2)
+    d.text((xd + 14, (po[1] + pi_[1]) / 2.0), _v4017_fmt(V4050_INSET), font=font, fill=V4018_DIM, anchor="lm")
+    # выноска «А» на основном чертеже — у верхнего светодиода
+    k = (x2 - x1) / D
+    cx = (x1 + x2) / 2.0
+    ax, ay = cx + V4050_LED_L * 0.3 * k, y1 + (V4050_INSET + V4050_LED_T) * k + 4
+    ex, ey = ax + 46, ay + 52
+    d.line((ax, ay, ex, ey), fill=V4050_INK, width=2)
+    d.text((ex + 4, ey + 2), "А", font=title_font, fill=V4050_INK, anchor="lt")
+
+
+# =====================================================================
+# V40.53.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -42045,7 +42177,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.52.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.53.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -42058,7 +42190,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.52.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.53.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
