@@ -1,10 +1,12 @@
-# LED Screen Designer V40.45.1
+# LED Screen Designer V40.52.1
 
-Файл: `LED_Screen_Designer_v40_45_1.py`
+Файл: `LED_Screen_Designer_v40_52_1.py`
 
 Сборка Windows: GitHub Actions → «Build Windows LED Screen Designer»
 (запускается при push в `main` или вручную). Результат — архив
-`LED_Screen_Designer_v40_45_1_Windows.zip` в разделе Artifacts.
+`LED_Screen_Designer_v40_52_1_Windows.zip` в разделе Artifacts.
+
+V40.52.1 = V40.52 (автор) + те же исправления.
 
 V40.45.1 = V40.45 (автор) + те же исправления.
 

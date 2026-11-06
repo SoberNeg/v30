@@ -1,4 +1,4 @@
-# V40.45.1 = V40.45 + перенесённые исправления сборки Windows:
+# V40.52.1 = V40.52 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# V40.45.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# V40.52.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
 # NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
 # есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
 _TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
@@ -92,7 +92,7 @@ if sys.platform != "darwin":
     tk.Misc.bind_all = _tk_bind_all
     tk.Misc.bind_class = _tk_bind_class
 
-APP_TITLE = "Конструктор LED-экранов V40.45.1"
+APP_TITLE = "Конструктор LED-экранов V40.52.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2005,7 +2005,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.45.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.52.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2587,13 +2587,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.45.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.52.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.45.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.52.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2631,7 +2631,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.45.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.52.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -3864,7 +3864,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.45.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.52.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -4491,8 +4491,8 @@ class ScreenDesigner(BaseTk):
             desc = "Кабинеты 640/960 мм; перебор всех допустимых последовательностей по X и Y."
             help_text = "РЖД/Кабинет: габарит привязывается к размерам, точно собираемым из 640/960 мм."
         elif mode == MODE_MCD:
-            desc = "Модуль 320×160 мм; припуск 50 мм по периметру; R200."
-            help_text = "МЦД: модульная зона 320×160 мм + по 50 мм с каждой стороны; углы R200."
+            desc = "Модуль 320×160 мм; припуск 50 мм по периметру; R75."
+            help_text = "МЦД: модульная зона 320×160 мм + по 50 мм с каждой стороны; углы R75."
         else:
             desc = "Свободный модульный габарит, кратный 320×160 мм."
             help_text = "Нестандарт: шаг выбора X = 320 мм, Y = 160 мм."
@@ -4520,7 +4520,7 @@ class ScreenDesigner(BaseTk):
                 "МЦД\n"
                 "Модуль: 320×160 мм\n"
                 "Припуск: 50 мм с каждой стороны\n"
-                "Скругление внешнего контура: R200 мм"
+                "Скругление внешнего контура: R75 мм"
             )
         else:
             mode_info = (
@@ -6809,6 +6809,9 @@ class ScreenDesigner(BaseTk):
                 try:
                     if not is_round and not _v3098_is_special(MODE_MCD,False,s.get("face_type","С подсветкой"),w,h):
                         led_count=_v4024_grid_count(w,h) or led_count
+                    elif is_round:
+                        # V40.46: круглое — по раскладке на стенке Ø(D − 52)
+                        led_count=_v4046_round_count(diameter) or led_count
                 except Exception:
                     pass
                 clean_power=led_count*1.5
@@ -9923,7 +9926,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.45.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.52.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9936,7 +9939,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.45.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.52.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13981,7 +13984,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.45.1: строка остаётся «статической» (серая заливка), только если
+                # V40.52.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -15921,7 +15924,7 @@ class ScreenDesigner(BaseTk):
         self.canvas.create_text(ORIGIN_X - 5, y2, text=f"{h} мм", anchor="se", fill="#145d25", font=("Arial", 10, "bold"), tags="selection")
         if mode == MODE_MCD:
             self.canvas.create_text(ORIGIN_X + 8, ORIGIN_Y + 8, text="50 мм", anchor="nw", fill="#8a3b3b", font=("Arial", 8, "bold"), tags="selection")
-            self.canvas.create_text(x2 - 8, y2 - 8, text="R200", anchor="se", fill="#8a3b3b", font=("Arial", 8, "bold"), tags="selection")
+            self.canvas.create_text(x2 - 8, y2 - 8, text="R75", anchor="se", fill="#8a3b3b", font=("Arial", 8, "bold"), tags="selection")
 
         self._update_results()
         self._sync_active_screen_from_form()
@@ -16033,7 +16036,7 @@ class ScreenDesigner(BaseTk):
             self.cabinet_total_var.set("—")
             self.layout_counter_var.set("МЦД")
             self.layout_xy_var.set(f"Модульное поле: {core_w} × {core_h} мм\nГабарит с припусками: {w} × {h} мм")
-            self.cabinet_status_var.set("Припуск 50 мм с каждой стороны. Внешний контур со скруглением R200 мм.")
+            self.cabinet_status_var.set("Припуск 50 мм с каждой стороны. Внешний контур со скруглением R75 мм.")
             self.status_label.configure(foreground="#167329")
             self.layouts = []
             return
@@ -35597,6 +35600,7 @@ def _v4039_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
     # отличающиеся значения (одинаковый интервал подписывается один раз).
     segs = []
     taken = [d.textbbox((acx, ay1 - 45), f"{_v4017_fmt(aw)} мм", font=size_font, anchor="ma")]
+    _v4047_rect_chain(d, rows, vertical, to_page, sc, taken)  # V40.47: цепь и ленты
 
     def callout(px, py, text, dx, dy):
         """Выноска: точка на размерной линии → наклонная → полка с текстом."""
@@ -39862,7 +39866,7 @@ _v4043_install_tables = _v4044_install_tables
 #   • Стенка шире листа 4000 × 1220 (Ø > 1220 − 2 × 4): из двух
 #     сегментов — Сегмент 1 (наибольший, сверху) и Сегмент 2 (снизу),
 #     шов горизонтальный; шов не ближе 20 мм к корпусу (иначе — в середину
-#     между рядами). Рядом — раскрой листа, фреза Ø4 мм.
+#     между рядами).
 # Расчёты не меняются.
 # =====================================================================
 
@@ -39943,6 +39947,7 @@ class _V4045Board:
     def __init__(self, d, bounds):
         self.d, self.bounds = d, bounds
         self.boxes, self.leds, self.lines, self.segs, self.rings = [], [], [], [], []
+        self.wires = []  # V40.47: провода цепи — подписи их не перекрывают
 
     def box_free(self, box, pad=4):
         x1, y1, x2, y2 = box
@@ -39951,7 +39956,7 @@ class _V4045Board:
             return False
         if _v4017_hits(box, self.boxes, pad=pad) or _v4017_hits(box, self.leds, pad=pad):
             return False
-        for seg in self.lines + self.segs:
+        for seg in self.lines + self.segs + self.wires:
             if _v4045_seg_hits_box(seg, box, pad):
                 return False
         for cx, cy, r in self.rings:
@@ -40083,9 +40088,9 @@ def _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom):
     side_l = 260.0
     side_r = 330.0 if pieces else 150.0
     block_w = right_edge - left_edge
-    s = max(0.05, min(avail_h / dw, (block_w - side_l - side_r - 650) / dw, 1.6))
+    s = max(0.05, min(avail_h / dw, (block_w - side_l - side_r) / dw, 1.6))
     rp = R * s
-    cx = left_edge + side_l + rp
+    cx = left_edge + side_l + rp + max(0.0, (block_w - side_l - side_r - 2 * rp) / 2.0)
     cy = top_edge + title_h + avail_h / 2.0
     board = _V4045Board(d, (left_edge - 30, top_edge, right_edge, bottom_edge))
     t_half = V4024_LED_T / 2.0 * s
@@ -40115,6 +40120,8 @@ def _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom):
     _v4017_dashdot(d, cx, cy - rp - 16, cx, cy + rp + 16, V4017_AXIS, width=2)
     board.lines += [(cx - rp - 16, cy, cx + rp + 16, cy), (cx, cy - rp - 16, cx, cy + rp + 16)]
 
+    chain_mods = _v4047_round_wires(self, d, board, plan, cx, cy, s)  # V40.47: цепь и ленты
+
     # --- светодиоды; оси по торцам — штрихпунктир
     reach = t_half + 7
     for row in rows:
@@ -40127,6 +40134,8 @@ def _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom):
             for xe in (xa, xb):
                 _v4017_dashdot(d, xe, py - reach, xe, py + reach, V4045_FACE_AXIS, width=1)
                 board.lines.append((xe, py - reach, xe, py + reach))
+
+    _v4047_round_marks(d, board, chain_mods, cx, cy, s)  # V40.47
 
     # --- шов
     seam_px = None
@@ -40313,73 +40322,6 @@ def _v4045_round_wall(self, d, page, sign, gx2, mt, right, bottom):
             if board.callout(px, seam_px, "шов", font, dirs, dot=False):
                 break
 
-    # --- раскрой листа 4000 × 1220 (фреза Ø4)
-    t = V4045_TOOL
-    if pieces:
-        parts = [("Сегмент 1", pieces["w1"], pieces["h1"], True), ("Сегмент 2", pieces["w2"], pieces["h2"], False)]
-    else:
-        parts = [("", dw, dw, None)]
-    sheets, cur, x = [], [], t
-    for part in parts:
-        if cur and x + part[1] + t > V4045_SHEET_L:
-            sheets.append(cur)
-            cur, x = [], t
-        cur.append((x, part))
-        x += part[1] + t
-    sheets.append(cur)
-    area_l = (hx + 50 + 160) if pieces else (cx + rp + side_r)
-    sx0 = area_l + 70
-    width_px = right_edge - sx0 - 10
-    if width_px < 250:
-        return
-    n = len(sheets)
-    gap_v = 95
-    k = min(width_px / V4045_SHEET_L, (avail_h - (n - 1) * gap_v - 40) / (n * V4045_SHEET_W))
-    total = n * V4045_SHEET_W * k + (n - 1) * gap_v
-    sy = cy - total / 2.0
-    small = self._font_for_print(22, True)
-    for sheet in sheets:
-        sx1, sy0, sy1 = sx0 + V4045_SHEET_L * k, sy, sy + V4045_SHEET_W * k
-        d.rectangle((sx0, sy0, sx1, sy1), fill=(247, 247, 247), outline=(90, 90, 90), width=3)
-        base = sy1 - t * k
-        for off, (name, pw, ph, upper) in sheet:
-            if upper is None:
-                ccx = sx0 + (off + R) * k
-                _v4045_circle(d, ccx, (sy0 + sy1) / 2.0, R * k, V4018_WALL_EDGE, 2, V4018_WALL_FILL)
-                d.text((ccx, (sy0 + sy1) / 2.0), f"Ø{_v4045_fmt(dw)}", font=font, fill=V4045_DIM, anchor="mm")
-                continue
-            seam = pieces["seam"]
-            ccx = sx0 + (off + pw / 2.0) * k
-            if upper:
-                pts = _v4045_segment_poly(ccx, base + seam * k, R * k, base, True)
-                fill = V4018_WALL_FILL
-            else:
-                raw = _v4045_segment_poly(0.0, 0.0, R * k, -seam * k, False)
-                pts = [(ccx + px, base - (py + seam * k)) for px, py in raw]
-                fill = V4045_SEG2_FILL
-            d.polygon(pts, fill=fill, outline=V4018_WALL_EDGE)
-            size_text = f"{_v4045_fmt(pw)} × {_v4045_fmt(ph)}"
-            if ph * k >= 70:
-                d.text((ccx, base - ph * k * 0.58), name, font=small, fill=V4045_SEAM, anchor="mm")
-                d.text((ccx, base - ph * k * 0.30), size_text, font=font, fill=V4045_DIM, anchor="mm")
-            else:                                   # низкий сегмент — подписи над ним, от его левого края
-                lx0 = sx0 + off * k + 4
-                d.text((lx0, base - ph * k - 52), name, font=small, fill=V4045_SEAM, anchor="lm")
-                d.text((lx0, base - ph * k - 22), size_text, font=font, fill=V4045_DIM, anchor="lm")
-        dim_y = sy1 + 34
-        d.line((sx0, dim_y, sx1, dim_y), fill=V4045_DIM, width=2)
-        for xx in (sx0, sx1):
-            d.line((xx, sy1 + 4, xx, dim_y + 8), fill=V4045_EXT, width=1)
-            _v4018_tick(d, xx, dim_y, True)
-        d.text(((sx0 + sx1) / 2.0, dim_y - 5), _v4045_fmt(V4045_SHEET_L), font=font, fill=V4045_DIM, anchor="md")
-        lx = sx0 - 30
-        d.line((lx, sy0, lx, sy1), fill=V4045_DIM, width=2)
-        for yy in (sy0, sy1):
-            d.line((sx0 - 4, yy, lx - 8, yy), fill=V4045_EXT, width=1)
-            _v4018_tick(d, lx, yy, False)
-        _v4017_vtext(page, lx - 20, (sy0 + sy1) / 2.0, _v4045_fmt(V4045_SHEET_W), font, V4045_DIM)
-        sy = sy1 + gap_v
-
 
 _v4045_prev_markup = _v4016_markup
 
@@ -40403,8 +40345,1246 @@ def _v4045_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
 _v4016_markup = _v4045_markup
 
 
+
+
 # =====================================================================
-# V40.45.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.46 — круглый МЦД, 1 сторона, с подсветкой:
+#   • количество фронтальных светодиодов в BOM, журнале и мощности —
+#     по раскладке на стенке Ø(D − 52) (как на схеме журнала), а не по
+#     норме 60 шт./м²;
+#   • справочник «МЦД / круглый / 1 сторона / с подсветкой» — правило
+#     раскладки; из правила прямоугольных изделий убрана норма для круглых;
+#   • в журнале на карте указателя — только стенка, без раскроя листа.
+# =====================================================================
+
+V4046_ROUND_RULE = (
+    "Круглое изделие: количество по раскладке на стенке под алюкобонд Ø(D − 52) мм. "
+    "Корпус 70 × 15 мм, между торцами 65 мм (шаг 135 мм); ряды горизонтальные с шагом 120 мм, "
+    "симметрично относительно горизонтальной оси стенки; каждый ряд симметричен относительно "
+    "вертикальной оси. От кромки стенки до края корпуса не меньше 32 мм. Если следующему "
+    "светодиоду в ряду не хватает до поля 32 мм не больше 20 мм — он ставится, недостающее "
+    "забирается поровну из зазоров первой и последней пары. Количество = сумма светодиодов "
+    "во всех рядах.")
+V4046_OLD_ROUND = " Круглое изделие — 60 шт. на 1 м² площади π·D²/4, округление вверх."
+
+V4024_RULE = V4024_RULE.replace(V4046_OLD_ROUND, "")
+
+
+def _v4046_round_count(diameter):
+    try:
+        plan = _v4045_plan(float(diameter))
+    except Exception:
+        plan = None
+    return int(plan["total"]) if plan and plan.get("total") else 0
+
+
+def _v4046_reference_rule(data):
+    try:
+        for sec, rows in (data or {}).items():
+            name = str(sec)
+            if not (name.startswith("МЦД /") and "1 сторона" in name and "с подсветкой" in name):
+                continue
+            for row in rows or []:
+                if isinstance(row, list) and len(row) > 1 and str(row[0]).strip() == V4024_LED_NAME:
+                    if "круглый" in name:
+                        row[1] = V4046_ROUND_RULE
+                    else:
+                        row[1] = str(row[1]).replace(V4046_OLD_ROUND, "")
+    except Exception:
+        pass
+    return data
+
+
+_v4046_orig_reference_defaults = ScreenDesigner._reference_defaults
+_v4046_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_defaults = lambda self: _v4046_reference_rule(_v4046_orig_reference_defaults(self))
+ScreenDesigner._reference_load = lambda self: _v4046_reference_rule(_v4046_orig_reference_load(self))
+
+
+
+
+# =====================================================================
+# V40.47 — журнал изделия, МЦД 1 сторона с подсветкой: цепь светодиодов
+# и ленты на схеме стенки (печать на ч/б принтере — всё чёрным).
+#   • Светодиоды соединены последовательно змейкой от правого торца
+#     верхнего ряда (у высоких прямоугольных — от верха правого ряда);
+#     провод между соседними светодиодами — 150 мм.
+#   • Цепь делится на ленты по 20 шт. (последний кусок — отрез);
+#     начало и конец каждой ленты — жирные точки, стык лент — пунктир.
+#   • Круглая стенка: если на переходе между рядами провод не
+#     дотягивается, у крайнего светодиода следующего ряда пунктиром
+#     показано положение при монтаже — повёрнут к концу предыдущего ряда
+#     и при необходимости сдвинут вдоль ряда. Рекомендованное место и
+#     шаг раскладки не меняются.
+# Расчёты не меняются.
+# =====================================================================
+
+V4047_WIRE = 150.0            # провод между соседними светодиодами ленты
+V4047_REACH = 144.0           # до этого расстояния подводится торец при монтаже
+V4047_TURN = 0.9              # доля поворота к концу предыдущего ряда
+V4047_STRIP = 20              # светодиодов в ленте
+V4047_INK = (0, 0, 0)
+V4047_DOT = 8
+
+
+def _v4047_dist(a, b):
+    return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def _v4047_segments(total):
+    total = int(total)
+    sizes = [V4047_STRIP] * (total // V4047_STRIP)
+    if total % V4047_STRIP:
+        sizes.append(total % V4047_STRIP)
+    return sizes
+
+
+def _v4047_rot_ends(c, ang):
+    a = math.radians(ang)
+    ux, uy = math.cos(a) * V4024_LED_L / 2.0, math.sin(a) * V4024_LED_L / 2.0
+    return (c[0] - ux, c[1] - uy), (c[0] + ux, c[1] + uy)
+
+
+def _v4047_rot_corners(c, ang):
+    a = math.radians(ang)
+    ux, uy = math.cos(a), math.sin(a)
+    vx, vy = -uy, ux
+    hl, ht = V4024_LED_L / 2.0, V4024_LED_T / 2.0
+    return [(c[0] + sx * ux * hl + sy * vx * ht, c[1] + sx * uy * hl + sy * vy * ht)
+            for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+
+
+def _v4047_round_chain(plan):
+    """Змейка по круглой стенке (мм от центра, y вверх) с положениями при монтаже."""
+    rows = sorted(plan["rows"], key=lambda r: -r["y"])
+    R = plan["r"]
+    mods = []
+    for i, row in enumerate(rows):
+        step = -1 if i % 2 == 0 else 1                      # верхний ряд — справа налево
+        for x in sorted(row["xs"], reverse=(step < 0)):
+            left, right = (x, row["y"]), (x + V4024_LED_L, row["y"])
+            inp, out = (left, right) if step > 0 else (right, left)
+            mods.append({"x0": x, "y": row["y"], "row": i, "inp": inp, "out": out, "alt": None})
+    grid = [(m["x0"] - 3.0, m["y"] - V4024_LED_T / 2.0 - 3.0,
+             m["x0"] + V4024_LED_L + 3.0, m["y"] + V4024_LED_T / 2.0 + 3.0) for m in mods]
+    for t in range(1, len(mods)):
+        m, prev = mods[t], mods[t - 1]
+        if m["row"] == prev["row"]:
+            continue
+        p = prev["out"]
+        if _v4047_dist(p, m["inp"]) <= V4047_WIRE + 1e-6:
+            continue
+        gc = (m["x0"] + V4024_LED_L / 2.0, m["y"])
+        sgn = 1.0 if p[0] > gc[0] else -1.0
+        nxt = mods[t + 1] if t + 1 < len(mods) and mods[t + 1]["row"] == m["row"] else None
+        for k in range(0, 301):
+            c = (gc[0] + sgn * k * 0.5, gc[1])
+            ang = math.degrees(math.atan2(p[1] - c[1], p[0] - c[0]))
+            if sgn < 0:
+                ang -= 180.0 if ang > 0 else -180.0
+            ang *= V4047_TURN
+            e1, e2 = _v4047_rot_ends(c, ang)
+            near, far = (e2, e1) if sgn > 0 else (e1, e2)
+            if _v4047_dist(near, p) > V4047_REACH:
+                continue
+            if nxt is not None and _v4047_dist(far, nxt["inp"]) > V4047_WIRE:
+                continue
+            corners = _v4047_rot_corners(c, ang)
+            if any(math.hypot(x, y) > R - 2.0 for x, y in corners):
+                continue
+            pts = corners + [c, ((corners[0][0] + corners[1][0]) / 2, (corners[0][1] + corners[1][1]) / 2),
+                             ((corners[2][0] + corners[3][0]) / 2, (corners[2][1] + corners[3][1]) / 2)]
+            if any(b[0] <= x <= b[2] and b[1] <= y <= b[3]
+                   for j, b in enumerate(grid) if j != t for x, y in pts):
+                continue
+            m["alt"] = (c, ang)
+            m["inp"], m["out"] = near, far
+            break
+    return mods
+
+
+def _v4047_round_wires(self, d, board, plan, cx, cy, s):
+    """Провода цепи (рисуются до корпусов)."""
+    try:
+        mods = _v4047_round_chain(plan)
+    except Exception:
+        return None
+
+    def P(pt):
+        return cx + pt[0] * s, cy - pt[1] * s
+
+    for k in range(1, len(mods)):
+        a, b = P(mods[k - 1]["out"]), P(mods[k]["inp"])
+        if k % V4047_STRIP == 0:                                   # стык лент
+            _v4017_dash(d, a[0], a[1], b[0], b[1], V4047_INK, width=2, on=5, off=5)
+        else:
+            d.line((a[0], a[1], b[0], b[1]), fill=V4047_INK, width=2)
+        board.wires.append((a[0], a[1], b[0], b[1]))
+    return mods
+
+
+def _v4047_round_marks(d, board, mods, cx, cy, s):
+    """Положение при монтаже — пунктиром; начало и конец каждой ленты — жирные точки."""
+    if not mods:
+        return
+
+    def P(pt):
+        return cx + pt[0] * s, cy - pt[1] * s
+
+    for m in mods:
+        if not m["alt"]:
+            continue
+        pts = [P(q) for q in _v4047_rot_corners(*m["alt"])]
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            _v4017_dash(d, a[0], a[1], b[0], b[1], V4047_INK, width=2, on=7, off=5)
+        xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+        board.leds.append((min(xs), min(ys), max(xs), max(ys)))
+    _v4047_dots(d, [P(m["inp"]) for m in mods], [P(m["out"]) for m in mods], board.boxes)
+
+
+def _v4047_dots(d, inputs, outputs, boxes):
+    n = len(inputs)
+    pos = 0
+    for size in _v4047_segments(n):
+        for (x, y) in (inputs[pos], outputs[pos + size - 1]):
+            d.ellipse((x - V4047_DOT, y - V4047_DOT, x + V4047_DOT, y + V4047_DOT), fill=V4047_INK)
+            boxes.append((x - V4047_DOT, y - V4047_DOT, x + V4047_DOT, y + V4047_DOT))
+        pos += size
+
+
+def _v4047_rect_chain(d, rows, vertical, to_page, sc, taken):
+    """Прямоугольная стенка: цепь змейкой и точки начала/конца лент."""
+    try:
+        order = sorted(rows, key=lambda r: r["pos"], reverse=bool(vertical))
+        inputs, outputs = [], []
+        for i, row in enumerate(order):
+            starts = sorted(row["starts"])
+            forward = (i % 2 == 1) if not vertical else (i % 2 == 0)
+            if not forward:
+                starts = starts[::-1]
+            for st in starts:
+                a, b = to_page(st, row["pos"]), to_page(st + V4017_LED_W, row["pos"])
+                inputs.append(a if forward else b)
+                outputs.append(b if forward else a)
+        for k in range(1, len(inputs)):
+            a, b = outputs[k - 1], inputs[k]
+            if k % V4047_STRIP == 0:
+                _v4017_dash(d, a[0], a[1], b[0], b[1], V4047_INK, width=2, on=5, off=5)
+            else:
+                d.line((a[0], a[1], b[0], b[1]), fill=V4047_INK, width=2)
+            taken.append((min(a[0], b[0]) - 1, min(a[1], b[1]) - 1, max(a[0], b[0]) + 1, max(a[1], b[1]) + 1))
+        _v4047_dots(d, inputs, outputs, taken)
+    except Exception:
+        pass
+
+
+V4047_RULE_ADD = (
+    " Светодиоды соединяются последовательно змейкой от правого торца верхнего ряда, провод между "
+    "соседними светодиодами — 150 мм; цепь делится на ленты по 20 шт., последний кусок — отрез. "
+    "Если на переходе между рядами провод не дотягивается, крайний светодиод следующего ряда при "
+    "монтаже поворачивается к концу предыдущего ряда и при необходимости сдвигается вдоль ряда "
+    "(на схеме — пунктиром); рекомендованное место и шаг раскладки не меняются.")
+V4046_ROUND_RULE = V4046_ROUND_RULE + V4047_RULE_ADD
+
+
+
+
+# =====================================================================
+# V40.48 — журнал изделия, МЦД 2 стороны с подсветкой (прямоугольный):
+# раскладка торцевых светодиодов на чертеже «СТОРОНА 2».
+#   • Светодиоды 50 × 25 мм стоят внутри контура корпуса, по его сторонам,
+#     только на горизонтальных участках (верх и низ), шаг 90 мм.
+#   • Внутренний контур — 9 мм от наружного (оргстекло W − 18), радиус
+#     R66: на скруглениях светодиоды не ставятся, ряд симметричен
+#     относительно оси изделия.
+#   • Под чертежом — размерная цепь: от кромки до первого светодиода,
+#     шаг 90 мм (один раз), от последнего светодиода до кромки.
+# Расчёты не меняются.
+# =====================================================================
+
+V4048_LED_L = 50.0            # торцевой светодиод вдоль стороны
+V4048_LED_T = 25.0            # поперёк стороны, внутрь контура
+V4048_PITCH = float(MCD_STATIC_2SIDE_LED_PITCH_MM)
+V4048_INSET = 9.0             # внутренний контур: оргстекло W − 18
+V4048_OUTER_R = 75.0
+V4048_INK = (0, 0, 0)
+
+
+def _v4048_row(w):
+    """Начала светодиодов вдоль горизонтальной стороны (мм от левой кромки)."""
+    inner_r = max(0.0, V4048_OUTER_R - V4048_INSET)
+    a = V4048_INSET + inner_r
+    straight = float(w) - 2 * a
+    if straight < V4048_LED_L:
+        return []
+    n = int((straight - V4048_LED_L) // V4048_PITCH) + 1
+    span = (n - 1) * V4048_PITCH + V4048_LED_L
+    first = a + (straight - span) / 2.0
+    return [first + i * V4048_PITCH for i in range(n)]
+
+
+def _v4048_applies(sign, mode, sides, is_round, w, h):
+    if mode != MODE_MCD or is_round or int(sides or 1) != 2:
+        return False
+    if str((sign or {}).get("face_type", "С подсветкой")) != "С подсветкой":
+        return False
+    try:
+        if _v3098_is_special(mode, is_round, sign.get("face_type", "С подсветкой"), w, h):
+            return False
+    except Exception:
+        pass
+    return True
+
+
+def _v4048_side2(self, d, w, h, sc, x1, y1, x2, y2, bottom):
+    starts = _v4048_row(w)
+    if not starts:
+        return
+    k = (x2 - x1) / float(w)                      # пикселей на мм
+    inset = V4048_INSET * k
+    inner_r = max(0.0, (V4048_OUTER_R - V4048_INSET) * k)
+    d.rounded_rectangle((x1 + inset, y1 + inset, x2 - inset, y2 - inset), radius=inner_r,
+                        outline=(120, 120, 120), width=1)
+    cx = (x1 + x2) / 2.0
+    _v4017_dashdot(d, cx, y1 - 12, cx, y2 + 12, V4017_AXIS, width=2)
+    depth = V4048_LED_T * k
+    edge = max(1, int(round(k * 2.5)))
+    for top in (True, False):
+        ya, yb = (y1 + inset, y1 + inset + depth) if top else (y2 - inset - depth, y2 - inset)
+        for st in starts:
+            xa = x1 + st * k
+            d.rectangle((xa, ya, xa + V4048_LED_L * k, yb), fill=(255, 255, 255), outline=V4048_INK, width=edge)
+    # размерная цепь под чертежом
+    font = self._font_for_print(24, False)
+    yd = y2 + 100
+    if bottom is not None and yd + 10 > bottom:
+        return
+    nodes = [x1, x1 + starts[0] * k]
+    if len(starts) > 1:
+        nodes.append(x1 + starts[1] * k)
+    last_end = x1 + (starts[-1] + V4048_LED_L) * k
+    nodes += [last_end, x2]
+    nodes = sorted(set(round(v, 2) for v in nodes))
+    for xv in nodes:
+        d.line((xv, y2 - inset - (0 if xv in (round(x1, 2), round(x2, 2)) else 0), xv, yd + 8),
+               fill=V4018_EXT, width=1)
+    d.line((nodes[0], yd, nodes[-1], yd), fill=V4018_DIM, width=2)
+    for xv in nodes:
+        _v4018_tick(d, xv, yd, True)
+    labels = [(x1, x1 + starts[0] * k, starts[0])]
+    if len(starts) > 1:
+        labels.append((x1 + starts[0] * k, x1 + starts[1] * k, starts[1] - starts[0]))  # V40.49: фактический шаг
+    labels.append((last_end, x2, float(w) - starts[-1] - V4048_LED_L))
+    for xa, xb, val in labels:
+        text = _v4017_fmt(val)
+        tb = d.textbbox((0, 0), text, font=font)
+        tw = tb[2] - tb[0]
+        if xb - xa >= tw + 4:
+            d.text(((xa + xb) / 2.0, yd - 6), text, font=font, fill=V4018_DIM, anchor="md")
+        else:
+            side = 1 if xa < cx else -1  # V40.49: выноска — внутрь цепи
+            ex = (xa + xb) / 2.0 + side * 24
+            d.line(((xa + xb) / 2.0, yd, ex, yd + 26), fill=V4018_DIM, width=2)
+            d.line((ex, yd + 26, ex + side * (tw + 12), yd + 26), fill=V4018_DIM, width=2)
+            d.text((ex + side * 6, yd + 22), text, font=font, fill=V4018_DIM, anchor="ld" if side > 0 else "rd")
+
+
+_v4048_prev_markup = _v4016_markup
+
+
+def _v4048_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    result = _v4048_prev_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                                x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored, right, bottom)
+    if mirrored and _v4048_applies(sign, mode, sides, is_round, w, h):
+        try:
+            _v4048_side2(self, d, w, h, sc, x1, y1, x2, y2, bottom)
+        except Exception:
+            pass
+    return result
+
+
+_v4016_markup = _v4048_markup
+
+
+
+
+# =====================================================================
+# V40.49 — двусторонний МЦД, торцевые светодиоды на «СТОРОНЕ 2»:
+# вариативный шаг 80–100 мм.
+#   • Если на прямой участок стороны можно поставить 10, 20, 30… светодиодов
+#     с шагом от 80 до 100 мм — ставится столько (лента 20 шт. делится
+#     пополам на две стороны без остатка); светодиоды равномерно занимают
+#     весь прямой участок, из подходящих — шаг, ближайший к 90 мм.
+#   • Иначе — норма: шаг 90 мм, ряд по центру прямого участка.
+# Расчёты не меняются.
+# =====================================================================
+
+V4049_PITCH_MIN = 80.0
+V4049_PITCH_MAX = 100.0
+V4049_HALF_STRIP = 10
+
+
+def _v4049_row(w):
+    inner_r = max(0.0, V4048_OUTER_R - V4048_INSET)
+    a = V4048_INSET + inner_r
+    straight = float(w) - 2 * a
+    if straight < V4048_LED_L:
+        return []
+    free = straight - V4048_LED_L
+    best = None
+    n = V4049_HALF_STRIP
+    while n >= 2 and free / (n - 1) >= V4049_PITCH_MIN - 1e-9:
+        pitch = free / (n - 1)
+        if pitch <= V4049_PITCH_MAX + 1e-9:
+            if best is None or abs(pitch - V4048_PITCH) < abs(best[1] - V4048_PITCH):
+                best = (n, pitch)
+        n += V4049_HALF_STRIP
+    if best:
+        n, pitch = best
+        return [a + i * pitch for i in range(n)]
+    return _v4049_prev_row(w)
+
+
+_v4049_prev_row = _v4048_row
+_v4048_row = _v4049_row
+
+
+
+
+# =====================================================================
+# V40.50
+#   1. Двусторонний МЦД с подсветкой — торцевые светодиоды 50 × 25 мм по
+#      раскладке (комплектующие, «ДАННЫЕ УКАЗАТЕЛЯ», мощность, блок питания,
+#      справочник, журнал изделия — «СТОРОНА 2»):
+#      • внутри контура, 9 мм от наружного, только на прямых участках;
+#      • обычное изделие — верх и низ; высокое (высота больше ширины,
+#        ширина от 450 мм) и МЦД 800 × 400 (параллелограмм) — все стороны;
+#      • шаг с подбором: 10, 20, 30… на сторону при шаге 80–100 мм
+#        (лента 20 шт. пополам на две стороны), иначе норма — 90 мм,
+#        у высоких изделий 80 мм (зазор 30 мм); ряд по центру участка;
+#      • круглое изделие — количество по справочнику ceil(π × D / 65),
+#        равномерно по окружности оргстекла Ø(D − 18); начало и конец лент
+#        по 20 шт. — жирные точки.
+#   2. Динамика МЦД: подпись радиуса R75 вместо R200 (геометрия та же).
+#   3. Прокрутка колёсиком мыши, тачпадом и трекпадом на всех вкладках.
+# =====================================================================
+
+V4050_LED_L = 50.0
+V4050_LED_T = 25.0
+V4050_INSET = 9.0
+V4050_PMIN = 80.0
+V4050_PMAX = 100.0
+V4050_NORM = 90.0
+V4050_NORM_TALL = 80.0
+V4050_TALL_MIN_W = 450.0
+V4050_HALF_STRIP = 10
+V4050_STRIP = 20
+V4050_INK = (0, 0, 0)
+
+
+def _v4050_offset(pts, d):
+    n = len(pts)
+    area = sum(pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1] for i in range(n)) / 2.0
+    s = 1.0 if area > 0 else -1.0
+    lines = []
+    for i in range(n):
+        a, b = pts[i], pts[(i + 1) % n]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        nx, ny = -dy / length * s, dx / length * s
+        lines.append(((a[0] + nx * d, a[1] + ny * d), (dx / length, dy / length)))
+    out = []
+    for i in range(n):
+        (p1, u1), (p2, u2) = lines[i - 1], lines[i]
+        den = u1[0] * u2[1] - u1[1] * u2[0]
+        t = ((p2[0] - p1[0]) * u2[1] - (p2[1] - p1[1]) * u2[0]) / den
+        out.append((p1[0] + u1[0] * t, p1[1] + u1[1] * t))
+    return out
+
+
+def _v4050_angle(prev, here, nxt):
+    v1 = (prev[0] - here[0], prev[1] - here[1])
+    v2 = (nxt[0] - here[0], nxt[1] - here[1])
+    c = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.hypot(*v1) * math.hypot(*v2))
+    return math.acos(max(-1.0, min(1.0, c)))
+
+
+def _v4050_row(straight, norm):
+    """Начала светодиодов вдоль прямого участка: подбор под ленту, иначе норма."""
+    free = straight - V4050_LED_L
+    if free < 0:
+        return [], None
+    best, n = None, V4050_HALF_STRIP
+    while n >= 2 and free / (n - 1) >= V4050_PMIN - 1e-9:
+        p = free / (n - 1)
+        if p <= V4050_PMAX + 1e-9 and (best is None or abs(p - V4050_NORM) < abs(best[1] - V4050_NORM)):
+            best = (n, p)
+        n += V4050_HALF_STRIP
+    if best:
+        n, p = best
+        return [i * p for i in range(n)], p
+    n = int(free // norm + 1e-9) + 1
+    span = (n - 1) * norm + V4050_LED_L
+    first = (straight - span) / 2.0
+    return [first + i * norm for i in range(n)], norm
+
+
+def _v4050_is_special(w, h):
+    return abs(float(w) - V3098_SPECIAL_W) < 0.5 and abs(float(h) - V3098_SPECIAL_H) < 0.5
+
+
+def _v4050_layout(w, h):
+    """Раскладка торцевых LED двустороннего прямоугольного МЦД (вид «СТОРОНА 2», мм, y вниз)."""
+    try:
+        w, h = float(w), float(h)
+    except Exception:
+        return None
+    if w <= 0 or h <= 0:
+        return None
+    special = _v4050_is_special(w, h)
+    if special:
+        skew, radius = V3098_SKEW_MM, V3098_RADIUS_MM
+        outer = [(0.0, 0.0), (w - skew, 0.0), (w, h), (skew, h)]
+        all_sides, norm, kind = True, V4050_NORM, "special"
+    else:
+        radius = 75.0
+        outer = [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]
+        tall = h > w and w >= V4050_TALL_MIN_W - 1e-9
+        all_sides = tall
+        norm = V4050_NORM_TALL if tall else V4050_NORM
+        kind = "tall" if tall else "plain"
+    radius = min(radius, w / 2.0, h / 2.0)
+    inner_r = max(0.0, radius - V4050_INSET)
+    inner = _v4050_offset(outer, V4050_INSET)
+    cx = sum(p[0] for p in inner) / 4.0
+    cy = sum(p[1] for p in inner) / 4.0
+    sides, leds = [], []
+    n = len(inner)
+    for i in range(n):
+        a, b = inner[i], inner[(i + 1) % n]
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        u = ((b[0] - a[0]) / length, (b[1] - a[1]) / length)
+        horizontal = abs(u[1]) < 1e-6
+        if not (horizontal or all_sides):
+            continue
+        ca = inner_r / math.tan(_v4050_angle(inner[i - 1], a, b) / 2.0)
+        cb = inner_r / math.tan(_v4050_angle(a, b, inner[(i + 2) % n]) / 2.0)
+        straight = length - ca - cb
+        starts, pitch = _v4050_row(straight, norm)
+        t0 = (a[0] + u[0] * ca, a[1] + u[1] * ca)
+        nx, ny = -u[1], u[0]
+        mx, my = (a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0
+        if (cx - mx) * nx + (cy - my) * ny < 0:
+            nx, ny = -nx, -ny
+        polys = []
+        for s0 in starts:
+            p = (t0[0] + u[0] * s0, t0[1] + u[1] * s0)
+            q = (p[0] + u[0] * V4050_LED_L, p[1] + u[1] * V4050_LED_L)
+            polys.append([p, q, (q[0] + nx * V4050_LED_T, q[1] + ny * V4050_LED_T),
+                          (p[0] + nx * V4050_LED_T, p[1] + ny * V4050_LED_T)])
+        sides.append({"index": i, "horizontal": horizontal, "t0": t0, "u": u, "straight": straight,
+                      "starts": starts, "pitch": pitch, "polys": polys,
+                      "outer_a": outer[i], "outer_b": outer[(i + 1) % n]})
+        leds.extend(polys)
+    return {"kind": kind, "outer": outer, "inner": inner, "radius": radius, "inner_r": inner_r,
+            "sides": sides, "leds": leds, "total": len(leds)}
+
+
+def _v4050_count(w, h):
+    lay = _v4050_layout(w, h)
+    return int(lay["total"]) if lay else 0
+
+
+# комплектующие, мощность, блок питания, «ДАННЫЕ УКАЗАТЕЛЯ» — по раскладке
+_v3069_mcd_2side_edge_leds = _v4050_count
+
+
+# --- справочник -------------------------------------------------------
+V4050_RULE_RECT = (
+    "Торцевой светодиод 50 × 25 мм ставится внутри контура корпуса (9 мм от наружного контура), только "
+    "на прямых участках, на скруглениях не ставится. Обычное изделие — светодиоды на верхней и нижней "
+    "стороне; высокое изделие (высота больше ширины, ширина от 450 мм) и МЦД 800 × 400 (параллелограмм) — "
+    "на всех сторонах. Шаг с подбором: если на сторону входит 10, 20, 30… светодиодов с шагом 80–100 мм, "
+    "они равномерно занимают весь прямой участок (лента 20 шт. делится пополам на две стороны); иначе — "
+    "норма: шаг 90 мм (у высоких изделий — 80 мм, зазор 30 мм), ряд по центру прямого участка. "
+    "Количество = сумма светодиодов на всех сторонах; раскладка — в журнале изделия, «СТОРОНА 2».")
+V4050_RULE_ROUND_ADD = (
+    " Светодиоды ставятся равномерно по окружности оргстекла Ø(D − 18), наружная грань корпуса — хорда "
+    "50 мм; раскладка — в журнале изделия, «СТОРОНА 2», начало и конец лент по 20 шт. — жирные точки.")
+
+
+def _v4050_reference_rule(data):
+    try:
+        for sec, rows in (data or {}).items():
+            name = str(sec)
+            if not (name.startswith("МЦД /") and "2 стороны" in name and "с подсветкой" in name):
+                continue
+            for row in rows or []:
+                if not (isinstance(row, list) and len(row) > 1 and "торцев" in str(row[0]).lower()):
+                    continue
+                if "круглый" in name:
+                    if V4050_RULE_ROUND_ADD.strip() not in str(row[1]):
+                        row[1] = str(row[1]).rstrip() + V4050_RULE_ROUND_ADD
+                else:
+                    row[1] = V4050_RULE_RECT
+    except Exception:
+        pass
+    return data
+
+
+_v4050_orig_reference_defaults = ScreenDesigner._reference_defaults
+_v4050_orig_reference_load = ScreenDesigner._reference_load
+ScreenDesigner._reference_defaults = lambda self: _v4050_reference_rule(_v4050_orig_reference_defaults(self))
+ScreenDesigner._reference_load = lambda self: _v4050_reference_rule(_v4050_orig_reference_load(self))
+
+
+# --- журнал изделия: «СТОРОНА 2» --------------------------------------
+def _v4050_chain(self, d, nodes, labels, fixed, horizontal):
+    """Размерная цепь: nodes — координаты узлов на листе, fixed — y (или x) линии."""
+    font = self._font_for_print(24, False)
+    if horizontal:
+        d.line((nodes[0], fixed, nodes[-1], fixed), fill=V4018_DIM, width=2)
+    else:
+        d.line((fixed, nodes[0], fixed, nodes[-1]), fill=V4018_DIM, width=2)
+    for v in nodes:
+        if horizontal:
+            _v4018_tick(d, v, fixed, True)
+        else:
+            _v4018_tick(d, fixed, v, False)
+    for a, b, text in labels:
+        tb = d.textbbox((0, 0), text, font=font)
+        tw = tb[2] - tb[0]
+        if abs(b - a) >= tw + 4:
+            if horizontal:
+                d.text(((a + b) / 2.0, fixed - 6), text, font=font, fill=V4018_DIM, anchor="md")
+            else:
+                _v4017_vtext(self._v4050_page, fixed + 18, (a + b) / 2.0, text, font, V4018_DIM)
+        else:
+            m = (a + b) / 2.0
+            if horizontal:
+                side = 1 if m < (nodes[0] + nodes[-1]) / 2.0 else -1
+                ex = m + side * 24
+                d.line((m, fixed, ex, fixed + 26), fill=V4018_DIM, width=2)
+                d.line((ex, fixed + 26, ex + side * (tw + 12), fixed + 26), fill=V4018_DIM, width=2)
+                d.text((ex + side * 6, fixed + 22), text, font=font, fill=V4018_DIM,
+                       anchor="ld" if side > 0 else "rd")
+            else:
+                d.line((fixed, m, fixed + 26, m + 18), fill=V4018_DIM, width=2)
+                d.line((fixed + 26, m + 18, fixed + 38 + tw, m + 18), fill=V4018_DIM, width=2)
+                d.text((fixed + 32, m + 14), text, font=font, fill=V4018_DIM, anchor="ld")
+
+
+def _v4050_side2_rect(self, d, w, h, x1, y1, x2, y2, bottom, right):
+    lay = _v4050_layout(w, h)
+    if not lay or not lay["leds"]:
+        return
+    k = (x2 - x1) / float(w)
+
+    def P(p):
+        return x1 + p[0] * k, y1 + p[1] * k
+
+    inner_px = [P(p) for p in lay["inner"]]
+    try:
+        pts = _v3098_round_polygon(inner_px, max(1.0, lay["inner_r"] * k))
+        d.line(list(pts) + [pts[0]], fill=(120, 120, 120), width=1)
+    except Exception:
+        pass
+    cxp = (x1 + x2) / 2.0
+    _v4017_dashdot(d, cxp, y1 - 12, cxp, y2 + 12, V4017_AXIS, width=2)
+    if lay["kind"] != "plain":
+        cyp = (y1 + y2) / 2.0
+        _v4017_dashdot(d, x1 - 12, cyp, x2 + 12, cyp, V4017_AXIS, width=2)
+    edge = max(1, int(round(k * 2.5)))
+    for poly in lay["leds"]:
+        d.polygon([P(p) for p in poly], fill=(255, 255, 255), outline=V4050_INK)
+        if edge > 1:
+            pp = [P(p) for p in poly]
+            d.line(pp + [pp[0]], fill=V4050_INK, width=edge)
+    # размеры: нижняя сторона — цепь под чертежом
+    bottom_side = max((s for s in lay["sides"] if s["horizontal"]), key=lambda s: s["t0"][1], default=None)
+    yd = y2 + 100
+    if bottom_side and bottom_side["polys"] and (bottom is None or yd + 10 <= bottom):
+        xs = sorted(min(p[0] for p in poly) for poly in bottom_side["polys"])
+        xe = max(max(p[0] for p in poly) for poly in bottom_side["polys"])
+        oa, ob = sorted((bottom_side["outer_a"][0], bottom_side["outer_b"][0]))
+        nodes = [x1 + oa * k, x1 + xs[0] * k] + ([x1 + xs[1] * k] if len(xs) > 1 else []) + [x1 + xe * k, x1 + ob * k]
+        for v in nodes:
+            d.line((v, y2 - V4050_INSET * k, v, yd + 8), fill=V4018_EXT, width=1)
+        labels = [(nodes[0], nodes[1], _v4017_fmt(xs[0] - oa))]
+        if len(xs) > 1:
+            labels.append((nodes[1], nodes[2], _v4017_fmt(xs[1] - xs[0])))
+        labels.append((nodes[-2], nodes[-1], _v4017_fmt(ob - xe)))
+        _v4050_chain(self, d, nodes, labels, yd, True)
+    # высокое изделие: правая сторона — цепь справа
+    if lay["kind"] == "tall":
+        right_side = max((s for s in lay["sides"] if not s["horizontal"]), key=lambda s: s["t0"][0], default=None)
+        xd = x2 + 110
+        if right_side and right_side["polys"] and (right is None or xd + 60 <= right):
+            ys = sorted(min(p[1] for p in poly) for poly in right_side["polys"])
+            ye = max(max(p[1] for p in poly) for poly in right_side["polys"])
+            nodes = [y1, y1 + ys[0] * k] + ([y1 + ys[1] * k] if len(ys) > 1 else []) + [y1 + ye * k, y2]
+            for v in nodes:
+                d.line((x2 - V4050_INSET * k, v, xd + 8, v), fill=V4018_EXT, width=1)
+            labels = [(nodes[0], nodes[1], _v4017_fmt(ys[0]))]
+            if len(ys) > 1:
+                labels.append((nodes[1], nodes[2], _v4017_fmt(ys[1] - ys[0])))
+            labels.append((nodes[-2], nodes[-1], _v4017_fmt(float(h) - ye)))
+            _v4050_chain(self, d, nodes, labels, xd, False)
+
+
+def _v4050_round_leds(diameter):
+    r = (float(diameter) - 2 * V4050_INSET) / 2.0
+    if r <= V4050_LED_L:
+        return r, []
+    n = int(math.ceil(math.pi * float(diameter) / 65.0))
+    a_led = 2 * math.asin(V4050_LED_L / 2.0 / r)
+    step = 2 * math.pi / n
+    leds = []
+    for i in range(n):
+        ang = math.pi / 2 - i * step                       # от верха по часовой
+        p1 = (r * math.cos(ang + a_led / 2), r * math.sin(ang + a_led / 2))
+        p2 = (r * math.cos(ang - a_led / 2), r * math.sin(ang - a_led / 2))
+        nx, ny = -math.cos(ang), -math.sin(ang)
+        leds.append([p1, p2, (p2[0] + nx * V4050_LED_T, p2[1] + ny * V4050_LED_T),
+                     (p1[0] + nx * V4050_LED_T, p1[1] + ny * V4050_LED_T)])
+    return r, leds
+
+
+def _v4050_side2_round(self, d, diameter, x1, y1, x2, y2):
+    r, leds = _v4050_round_leds(diameter)
+    if not leds:
+        return
+    k = (x2 - x1) / float(diameter)
+    cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+
+    def P(p):
+        return cx + p[0] * k, cy - p[1] * k
+
+    rp = r * k
+    d.ellipse((cx - rp, cy - rp, cx + rp, cy + rp), outline=(120, 120, 120), width=1)
+    _v4017_dashdot(d, cx, y1 - 12, cx, y2 + 12, V4017_AXIS, width=2)
+    _v4017_dashdot(d, x1 - 12, cy, x2 + 12, cy, V4017_AXIS, width=2)
+    for poly in leds:
+        d.polygon([P(p) for p in poly], fill=(255, 255, 255), outline=V4050_INK)
+    # начало и конец лент по 20 шт. — жирные точки
+    dot = 7
+    pos = 0
+    n = len(leds)
+    while pos < n:
+        size = min(V4050_STRIP, n - pos)
+        for poly, end in ((leds[pos], 0), (leds[pos + size - 1], 1)):
+            p = poly[end]
+            q = (p[0] * (r - V4050_LED_T / 2.0) / r, p[1] * (r - V4050_LED_T / 2.0) / r)
+            x, y = P(q)
+            d.ellipse((x - dot, y - dot, x + dot, y + dot), fill=V4050_INK)
+        pos += size
+
+
+_v4050_prev_markup = _v4048_prev_markup
+
+
+def _v4050_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                  x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored=False, right=None, bottom=None):
+    result = _v4050_prev_markup(self, d, page, sign, mode, sides, is_round, w, h, sc,
+                                x1, y1, x2, y2, ml, mt, gx2, gy2, mirrored, right, bottom)
+    try:
+        two_side_lit = (mode == MODE_MCD and int(sides or 1) == 2
+                        and str((sign or {}).get("face_type", "С подсветкой")) == "С подсветкой")
+    except Exception:
+        two_side_lit = False
+    if mirrored and two_side_lit:
+        self._v4050_page = page
+        try:
+            if is_round:
+                diameter = float(sign.get("diameter") or w or 0)
+                _v4050_side2_round(self, d, diameter, x1, y1, x2, y2)
+            else:
+                _v4050_side2_rect(self, d, w, h, x1, y1, x2, y2, bottom, right)
+        except Exception:
+            try:
+                import traceback
+                self._print_debug_log(traceback.format_exc())
+            except Exception:
+                pass
+    return result
+
+
+_v4016_markup = _v4050_markup
+
+
+# --- прокрутка колёсиком / тачпадом / трекпадом на всех вкладках -------
+V4050_WHEEL_PX = 60.0          # пикселей на один щелчок колеса
+V4050_VALUE_CLASSES = {"TCombobox", "TSpinbox", "Spinbox", "Scale", "TScale"}
+V4050_OWN_SCROLL = {"Treeview", "Text", "Listbox"}
+
+
+def _v4050_wheel_px(event):
+    num = getattr(event, "num", None)
+    if num == 4:
+        return -V4050_WHEEL_PX
+    if num == 5:
+        return V4050_WHEEL_PX
+    try:
+        delta = float(getattr(event, "delta", 0) or 0)
+    except Exception:
+        delta = 0.0
+    if not delta:
+        return 0.0
+    if sys.platform == "darwin":
+        return -delta * 12.0
+    return -delta / 120.0 * V4050_WHEEL_PX
+
+
+def _v4050_can_scroll(widget, px):
+    try:
+        top, bottom = (float(v) for v in widget.yview())
+    except Exception:
+        return False
+    if px < 0:
+        return top > 1e-6
+    return bottom < 1.0 - 1e-6
+
+
+def _v4050_scroll_canvas(canvas, px):
+    try:
+        region = canvas.cget("scrollregion")
+        parts = [float(v) for v in str(region).split()] if region else []
+        if len(parts) == 4:
+            ry1, ry2 = parts[1], parts[3]
+        else:
+            box = canvas.bbox("all")
+            if not box:
+                return False
+            ry1, ry2 = float(box[1]), float(box[3])
+        total = ry2 - ry1
+        view_h = float(canvas.winfo_height())
+        if total <= view_h + 1:
+            return False
+        acc = getattr(canvas, "_v4050_acc", 0.0) + px
+        before = float(canvas.canvasy(0))
+        top, bottom = (float(v) for v in canvas.yview())
+        target = min(max(0.0, top + acc / total), max(0.0, 1.0 - (bottom - top)))
+        canvas.yview_moveto(target)
+        moved = float(canvas.canvasy(0)) - before
+        if abs(moved) < 0.5:
+            try:
+                step = float(canvas.cget("yscrollincrement") or 0)
+            except Exception:
+                step = 0.0
+            if step > 0 and abs(acc) >= step and _v4050_can_scroll(canvas, acc):
+                canvas.yview_scroll(1 if acc > 0 else -1, "units")
+                moved = float(canvas.canvasy(0)) - before
+        acc -= moved
+        if abs(acc) > V4050_WHEEL_PX * 3 or not _v4050_can_scroll(canvas, acc):
+            acc = 0.0
+        canvas._v4050_acc = acc
+        return abs(moved) >= 0.5
+    except Exception:
+        return False
+
+
+def _v4050_wheel(self, event, px=None):
+    if px is None:
+        px = _v4050_wheel_px(event)
+    if not px:
+        return None
+    try:
+        target = self.winfo_containing(event.x_root, event.y_root)
+    except Exception:
+        target = None
+    if target is None:
+        target = getattr(event, "widget", None)
+    widget = target
+    origin = getattr(event, "widget", None)
+    while widget is not None:
+        try:
+            cls = widget.winfo_class()
+        except Exception:
+            return None
+        if cls in V4050_VALUE_CLASSES:
+            return None                                  # колесо меняет значение поля
+        if cls in V4050_OWN_SCROLL:
+            # таблица / текст прокручиваются своим классом; панель двигаем,
+            # только когда они уже стоят у края и событие их не сдвинуло
+            try:
+                now = tuple(round(float(v), 6) for v in widget.yview())
+            except Exception:
+                now = None
+            prev = getattr(widget, "_v4050_last", None)
+            widget._v4050_last = now
+            if now is not None and (prev is None or prev != now or _v4050_can_scroll(widget, px)):
+                return None
+        elif cls == "Canvas":
+            try:
+                own = (widget.bind("<MouseWheel>") or widget.bind("<Button-4>"))
+            except Exception:
+                own = ""
+            if own and widget is target and widget is origin:
+                return None                              # у полотна свой обработчик
+            try:
+                has_scroll = bool(widget.cget("yscrollcommand"))
+            except Exception:
+                has_scroll = False
+            if has_scroll and _v4050_scroll_canvas(widget, px):
+                return "break"
+        try:
+            if widget.winfo_class() in ("Toplevel", "Tk"):
+                return None
+            widget = widget.master
+        except Exception:
+            return None
+    return None
+
+
+def _v4050_touchpad(self, event):
+    try:
+        dx, dy = (float(v) for v in self.tk.call("tk::PreciseScrollDeltas", event.delta))
+    except Exception:
+        return None
+    if not dy:
+        return None
+    return _v4050_wheel(self, event, px=-dy)
+
+
+def _v4050_install_wheel(self):
+    if getattr(self, "_v4050_wheel_on", False):
+        return
+    self._v4050_wheel_on = True
+    handler = lambda e: _v4050_wheel(self, e)  # noqa: E731
+    for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        try:
+            self.bind_all(seq, handler, add="+")
+        except Exception:
+            pass
+    try:
+        self.bind_all("<TouchpadScroll>", lambda e: _v4050_touchpad(self, e), add="+")
+    except Exception:
+        pass
+
+
+_v4050_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4050_build_ui(self):
+    _v4050_orig_build_ui(self)
+    try:
+        _v4050_install_wheel(self)
+    except Exception:
+        pass
+
+
+ScreenDesigner._build_ui = _v4050_build_ui
+
+
+
+
+# =====================================================================
+# V40.51 — двусторонний МЦД: квадратные изделия (ширина = высоте) —
+# торцевые светодиоды на всех сторонах, как у высоких (шаг с подбором
+# 80–100 мм, иначе норма 80 мм — зазор 30 мм).
+# =====================================================================
+
+_v4051_prev_layout = _v4050_layout
+
+
+def _v4051_layout(w, h):
+    try:
+        fw, fh = float(w), float(h)
+    except Exception:
+        return _v4051_prev_layout(w, h)
+    if abs(fw - fh) < 0.5 and not _v4050_is_special(fw, fh):
+        global V4050_TALL_MIN_W
+        saved = V4050_TALL_MIN_W
+        try:
+            # квадрат считается как высокое изделие: все стороны, норма 80 мм
+            V4050_TALL_MIN_W = 0.0
+            lay = _v4051_prev_layout(fw, fh + 1e-6)
+        finally:
+            V4050_TALL_MIN_W = saved
+        return lay
+    return _v4051_prev_layout(w, h)
+
+
+_v4050_layout = _v4051_layout
+
+V4050_RULE_RECT = V4050_RULE_RECT.replace(
+    "высокое изделие (высота больше ширины, ширина от 450 мм)",
+    "высокое изделие (высота больше ширины, ширина от 450 мм), квадратное изделие")
+V4050_RULE_RECT = V4050_RULE_RECT.replace("(у высоких изделий — 80 мм, зазор 30 мм)",
+                                          "(у высоких и квадратных изделий — 80 мм, зазор 30 мм)")
+
+
+
+
+# =====================================================================
+# V40.52 — скорость: переключение вкладок и загрузка таблиц.
+#   Вес каждой строки комплектующих искался по всему справочнику, и для
+#   каждой строки заново собирался встроенный справочник (~20 мс × тысячи
+#   строк — десятки секунд при переходе на «Статические указатели»,
+#   «Журнал проекта», «Комплектующие»). Теперь в пределах одного действия
+#   встроенный справочник собирается один раз, а найденный вес строки
+#   запоминается. После действия кэш сбрасывается, так что правки
+#   справочника видны сразу. Расчёты не меняются.
+# =====================================================================
+
+_v4052_orig_ref_weight = _v4027_prev_reference_weight
+_v4052_orig_reference_defaults = ScreenDesigner._reference_defaults
+
+
+def _v4052_drop_cache(self):
+    self.__dict__.pop("_v4052_wcache", None)
+    self.__dict__.pop("_v4052_defaults", None)
+    self.__dict__.pop("_v4052_clear_job", None)
+
+
+def _v4052_schedule_drop(self):
+    if self.__dict__.get("_v4052_clear_job"):
+        return True
+    try:
+        self._v4052_clear_job = self.after_idle(lambda: _v4052_drop_cache(self))
+        return True
+    except Exception:
+        return False
+
+
+def _v4052_reference_defaults(self):
+    if self.__dict__.get("_v4052_in_weight"):
+        cached = self.__dict__.get("_v4052_defaults")
+        if cached is None:
+            cached = _v4052_orig_reference_defaults(self)
+            self._v4052_defaults = cached
+        return cached
+    return _v4052_orig_reference_defaults(self)
+
+
+ScreenDesigner._reference_defaults = _v4052_reference_defaults
+
+
+def _v4052_ref_weight(self, component_name):
+    if not _v4052_schedule_drop(self):
+        return _v4052_orig_ref_weight(self, component_name)
+    cache = self.__dict__.setdefault("_v4052_wcache", {})
+    key = str(component_name or "")
+    if key in cache:
+        return cache[key]
+    self._v4052_in_weight = True
+    try:
+        value = _v4052_orig_ref_weight(self, component_name)
+    finally:
+        self._v4052_in_weight = False
+    cache[key] = value
+    return value
+
+
+_v4027_prev_reference_weight = _v4052_ref_weight
+
+
+def _v4052_wrap_invalidate(name):
+    original = getattr(ScreenDesigner, name, None)
+    if not callable(original):
+        return
+
+    def wrapper(self, *args, **kwargs):
+        _v4052_drop_cache(self)
+        try:
+            return original(self, *args, **kwargs)
+        finally:
+            _v4052_drop_cache(self)
+
+    setattr(ScreenDesigner, name, wrapper)
+
+
+for _v4052_name in [n for n in dir(ScreenDesigner)
+                    if n.startswith(("_reference_save", "_save_reference", "_reference_apply",
+                                     "_reference_reset", "_apply_reference"))]:
+    _v4052_wrap_invalidate(_v4052_name)
+
+
+# --- нормализация названий: одна и та же строка не разбирается заново
+import functools as _v4052_functools
+
+_v4052_orig_norm = _v3083_norm
+_v4052_norm_cached = _v4052_functools.lru_cache(maxsize=65536)(_v4052_orig_norm)
+
+
+def _v4052_norm(name):
+    try:
+        return _v4052_norm_cached(name)
+    except TypeError:
+        return _v4052_orig_norm(name)
+
+
+_v3083_norm = _v4052_norm
+
+
+# --- смена вкладки: представления пересчитываются только если проект изменился
+def _v4052_project_signature(self):
+    try:
+        parts = {
+            "screens": getattr(self, "saved_screens", []),
+            "static": getattr(self, "saved_static_signs", []),
+            "proc": getattr(self, "procurement_records", []),
+            "cat": getattr(self, "project_supplier_catalog", {}),
+            "assign": getattr(self, "project_supplier_assignments", {}),
+            "hist": getattr(self, "project_component_supplier_history", {}),
+            "inv": getattr(self, "invoices", []),
+            "ref": getattr(self, "_reference_data", {}),
+            "ren": getattr(self, "_reference_renames", {}),
+            "name": getattr(self, "project_name", ""),
+            "path": str(getattr(self, "current_project_path", "") or ""),
+        }
+        return hashlib.md5(repr(parts).encode("utf-8", "replace")).hexdigest()
+    except Exception:
+        return None
+
+
+_v4052_orig_commit = ScreenDesigner._commit_active_product_edits
+
+
+def _v4052_commit(self, refresh_views=True):
+    if not refresh_views:
+        return _v4052_orig_commit(self, refresh_views=False)
+    _v4052_orig_commit(self, refresh_views=False)            # перенос формы в изделие
+    sig = _v4052_project_signature(self)
+    if sig is not None and sig == self.__dict__.get("_v4052_views_sig"):
+        return None                                          # ничего не изменилось
+    result = _v4052_orig_commit(self, refresh_views=True)
+    self._v4052_views_sig = sig
+    self._v4052_components_sig = sig
+    return result
+
+
+ScreenDesigner._commit_active_product_edits = _v4052_commit
+
+
+def _v4052_tab_changed(self, event=None):
+    try:
+        current = self.notebook.select()
+    except Exception:
+        return
+    previous = getattr(self, "_last_notebook_tab", None)
+    if previous and previous != current:
+        if previous in (str(self.designer_tab), str(self.static_tab)):
+            self._commit_active_product_edits(refresh_views=True)
+    try:
+        if current == str(self.components_tab):
+            self._commit_active_product_edits(refresh_views=False)
+            sig = _v4052_project_signature(self)
+            if sig is None or sig != self.__dict__.get("_v4052_components_sig"):
+                self._refresh_components_screen_selector()
+                self._refresh_components_table()
+                self._refresh_cut_map()
+                self._v4052_components_sig = sig
+    except Exception:
+        pass
+    self._last_notebook_tab = current
+
+
+ScreenDesigner._on_main_notebook_tab_changed = _v4052_tab_changed
+
+
+# --- вес строки: индекс справочника собирается один раз за действие
+def _v4052_candidates(self):
+    cands = self.__dict__.get("_v4052_cands")
+    if cands is not None:
+        return cands
+    cands = []
+    for rows in getattr(self, "_reference_data", {}).values():
+        for row in rows:
+            if len(row) >= 5 and row[4] not in (None, ""):
+                cands.append((str(row[0]).strip().lower(), row[4]))
+    try:
+        self._v4052_in_weight = True
+        default_sections = self._reference_defaults()
+    except Exception:
+        default_sections = {}
+    finally:
+        self._v4052_in_weight = False
+    for rows in default_sections.values():
+        for row in rows:
+            if len(row) >= 5 and row[4] not in (None, ""):
+                cands.append((str(row[0]).strip().lower(), row[4]))
+    for rows in CABINET_REFERENCE_V19_70.values():
+        for row in rows:
+            if len(row) >= 5 and row[4] not in (None, ""):
+                cands.append((str(row[0]).strip().lower(), row[4]))
+    self._v4052_cands = cands
+    return cands
+
+
+_v4052_slow_ref_weight = _v4052_orig_ref_weight
+
+
+def _v4052_fast_ref_weight(self, component_name):
+    """То же, что _component_reference_weight, но по готовому индексу справочника."""
+    if not self.__dict__.get("_v4052_clear_job"):
+        return _v4052_slow_ref_weight(self, component_name)
+    raw = str(component_name or "").split("•", 1)[-1].strip()
+    lookup = {"LED-модуль P 2.5 ID": "LED-модуль P 2.5 IN",
+              "LED-модуль P1.25 ID": "LED-модуль P1.25 IN",
+              "LED-модуль P4.0 ID": "LED-модуль P4.0 IN"}.get(raw, raw)
+    # особые случаи (переопределения, профили, гибы) — исходной функцией без поиска
+    special = (raw in ("БП", "Блок питания 200Вт 4,5В 40А", "Магнит крепления LED-модуля", "Молочный Акрил 4 мм",
+                       "Алюкобонд 4 мм", "Уголок перфорированный 70×70×40",
+                       "Профильная труба алюминиевая 40×20×2 мм", "Профиль алюминиевый П-образный 60×20×2 мм",
+                       "Кабель ПВС 3×1,5 мм²", "Фольгированный скотч", "Саморез ПШ 4,2×12 с буром", "Саморез ПШ 4,2×12")
+               or raw.startswith(("Саморез универсальный 3×12 мм белый цинк потай", "Профиль алюминиевый 75 мм — круглый",
+                                  "Уголок алюминиевый 30×20×2 мм — РАДИУС гиба", f"{ROUND_MCD_ANGLE_NAME} — РАДИУС гиба"))
+               or re.match(r"Профиль\s+(75|120|175)мм\s+—\s+[ПГ]-элемент", raw, re.I))
+    if special:
+        return _v4052_slow_ref_weight(self, component_name)
+    low = lookup.lower()
+    cands = _v4052_candidates(self)
+    for name, weight in cands:
+        if name == low:
+            parsed = self._parse_reference_weight(weight)
+            if parsed:
+                return parsed
+    for name, weight in cands:
+        if low.startswith(name):
+            parsed = self._parse_reference_weight(weight)
+            if parsed:
+                return parsed
+    return None
+
+
+_v4052_orig_ref_weight = _v4052_fast_ref_weight
+
+_v4052_prev_drop = _v4052_drop_cache
+
+
+def _v4052_drop_cache(self):
+    _v4052_prev_drop(self)
+    self.__dict__.pop("_v4052_cands", None)
+    self.__dict__.pop("_v4052_oname", None)
+
+
+# --- пользовательское название → исходное: одно и то же имя не разбирается заново
+_v4052_orig_original_name = _v3083_original_name
+
+
+def _v4052_original_name(self, name):
+    renames = getattr(self, "_reference_renames", None)
+    if not renames or not _v4052_schedule_drop(self):
+        return _v4052_orig_original_name(self, name)
+    try:
+        key = (str(name or ""), tuple(renames.items()))
+    except Exception:
+        return _v4052_orig_original_name(self, name)
+    cache = self.__dict__.setdefault("_v4052_oname", {})
+    if key not in cache:
+        cache[key] = _v4052_orig_original_name(self, name)
+    return cache[key]
+
+
+_v3083_original_name = _v4052_original_name
+if getattr(ScreenDesigner, "_v3083_original_name", None) is not None:
+    ScreenDesigner._v3083_original_name = _v4052_original_name
+
+
+# =====================================================================
+# V40.52.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -40865,7 +42045,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.45.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.52.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -40878,7 +42058,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.45.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.52.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 
