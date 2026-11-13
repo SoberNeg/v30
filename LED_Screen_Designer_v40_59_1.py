@@ -1,4 +1,4 @@
-# V40.53.1 = V40.53 + перенесённые исправления сборки Windows:
+# V40.59.1 = V40.59 + перенесённые исправления сборки Windows:
 #   стартовое окно РЖД/МЦД после mainloop; тема «Светлая / Тёмная»;
 #   заливка статических строк в «Комплектующих»
 # V30.49 CUT MAP PRINT — LABELS >200 INSIDE THE BAR
@@ -58,7 +58,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from tkinter import ttk, filedialog, messagebox, simpledialog
 
-# V40.53.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
+# V40.59.1 — Windows: в Tk «Command»/«Option» = Mod1/Mod2, а на Windows Mod1 — включённый
 # NumLock. Привязки <Command-…>/<Option-…> на Windows не регистрируем (для Windows у программы
 # есть варианты с Control/Alt), а «⌘ зажата» проверяем через _TK_CMD_MASK (на Windows = 0).
 _TK_CMD_MASK = 0x0008 if sys.platform == "darwin" else 0
@@ -92,7 +92,7 @@ if sys.platform != "darwin":
     tk.Misc.bind_all = _tk_bind_all
     tk.Misc.bind_class = _tk_bind_class
 
-APP_TITLE = "Конструктор LED-экранов V40.53.1"
+APP_TITLE = "Конструктор LED-экранов V40.59.1"
 
 # V30.50: назначение позиций счетов по изделиям во вкладке «Калькуляция»
 # временно отключено (кнопка «Назначить позиции» скрыта, ячейки изделий,
@@ -2005,7 +2005,7 @@ for _k, _v in {'Винт М3×6': 1.0, 'Винт полусфера М4×30': 3.
         MCD_UNIT_WEIGHTS_G[_k] = _v
 
 
-# V40.53.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
+# V40.59.1 — вес DIN-рейки 200 г/м.п. (раньше «20» без единицы = 2 г на отрезок 0,1 м.п.).
 # Вес кабинета РЖД (fixed_grams) считался по старому весу: +0,1 м.п. × (200 − 20) г = +18 г.
 for _cab_size in list(CABINET_WEIGHT_DATA_V19_71):
     if COMPONENT_RATES.get(_cab_size, {}).get("DIN-рейка"):
@@ -2587,13 +2587,13 @@ class ScreenDesigner(BaseTk):
             self._v3094_maximize()
         except Exception:
             pass
-        # V40.53.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
+        # V40.59.1: стартовое окно РЖД / МЦД открываем только после входа Tk в mainloop
         # (как в v20.27). Модальный Toplevel, созданный прямо в __init__, на Windows
         # мог остаться невидимым, а главное окно — заблокированным grab'ом.
         self.after(150, self._run_startup_choice)
 
     def _log_startup_dialog_error(self, exc):
-        """V40.53.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
+        """V40.59.1: ошибка стартового окна не скрывается — пишем лог и показываем сообщение."""
         import traceback
         text = traceback.format_exc()
         log_paths = []
@@ -2631,7 +2631,7 @@ class ScreenDesigner(BaseTk):
             pass
 
     def _run_startup_choice(self):
-        """V40.53.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
+        """V40.59.1: стартовый выбор РЖД / МЦД / проекта / журнала после старта mainloop."""
         try:
             self.update_idletasks()
         except Exception:
@@ -2645,7 +2645,27 @@ class ScreenDesigner(BaseTk):
             startup_action = self._show_startup_choice_fallback()
         # V30.63: «Журнал проектов» из стартового окна; без выбора — снова стартовое окно.
         log_path = None
-        while startup_action == "LOG":
+        while startup_action in ("LOG", "QUICK"):
+            if startup_action == "QUICK":
+                # V40.58: «Быстрый расчёт» со стартового окна.
+                quick_brand = None
+                try:
+                    quick_brand = self._v4058_quick_from_start()
+                except Exception as exc:
+                    try:
+                        print(f"[STARTUP] Quick calc failed: {exc!r}", file=sys.stderr)
+                    except Exception:
+                        pass
+                if quick_brand in ("РЖД", "МЦД"):
+                    self.project_brand_context = quick_brand
+                    startup_action = quick_brand
+                    self.after(120, self._v4058_show_static_tab)
+                    break
+                try:
+                    startup_action = self._show_startup_choice()
+                except Exception:
+                    startup_action = self._show_startup_choice_fallback()
+                continue
             log_path = self._open_project_log(modal=True)
             if log_path:
                 break
@@ -2930,6 +2950,17 @@ class ScreenDesigner(BaseTk):
         box=tk.Frame(dlg,padx=24,pady=22,bg="#f3f3f3")
         box.pack(fill="both",expand=True)
         tk.Label(box,text="С каким проектом работаем?",font=("Arial",18,"bold"),bg="#f3f3f3").pack(pady=(0,18))
+        # V40.58: быстрый расчёт изделия без создания проекта — над логотипами.
+        _bolt=_v4058_bolt_image(dlg,("Arial",13,"bold"),scale=1.3)
+        dlg._v4058_bolt=_bolt
+        _qkw=(dict(image=_bolt,compound="left",text=" Быстрый расчёт",pady=10) if _bolt is not None
+              else dict(text="⚡ Быстрый расчёт",height=2))
+        tk.Button(box,command=lambda:choose("QUICK"),
+                  font=("Arial",13,"bold"),bg="#1F5FAF",fg="white",
+                  activebackground="#174C8F",activeforeground="white",
+                  relief="flat",bd=0,cursor="hand2",takefocus=1,**_qkw).pack(fill="x",padx=10)
+        tk.Label(box,text="Комплектующие, вес и PDF по размерам изделия — без создания проекта",
+                 font=("Arial",9),fg="#5f6b7a",bg="#f3f3f3").pack(pady=(4,16))
         row=tk.Frame(box,bg="#f3f3f3")
         row.pack()
 
@@ -3032,6 +3063,13 @@ class ScreenDesigner(BaseTk):
             box, text="С каким проектом работаем?",
             font=("Arial", 18, "bold"), bg="#f3f3f3"
         ).pack(pady=(0, 20))
+        # V40.58: быстрый расчёт изделия без создания проекта.
+        tk.Button(
+            box, text="⚡ Быстрый расчёт", command=lambda: choose("QUICK"),
+            font=("Arial", 13, "bold"), bg="#1F5FAF", fg="white",
+            activebackground="#174C8F", activeforeground="white",
+            relief="flat", height=2, cursor="hand2"
+        ).pack(fill="x", padx=10, pady=(0, 16))
 
         row = tk.Frame(box, bg="#f3f3f3")
         row.pack()
@@ -3864,7 +3902,7 @@ class ScreenDesigner(BaseTk):
         comp_xbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.components_tree.xview)
         self.components_tree.configure(yscrollcommand=comp_ybar.set, xscrollcommand=comp_xbar.set)
         # Строки комплектующих статических указателей выделяются мягкой серой градацией.
-        # V40.53.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
+        # V40.59.1: светлые оттенки с заметным шагом (раньше #4a4a4a…#3e3e3e почти не
         # различались); только фон — цвет текста не навязывается, чтобы не спорить
         # с тегом «calc_off» и с тёмной темой.
         self.components_tree.tag_configure("static_gray_1", background="#ececec")
@@ -9926,7 +9964,7 @@ class ScreenDesigner(BaseTk):
 
         # V20.56: алфавитная сортировка только ВНУТРИ существующих подгрупп.
         self._sort_components_within_groups(component_parents)
-        # V40.53.1: градация серого — по порядку строк на экране (после объединения и сортировки).
+        # V40.59.1: градация серого — по порядку строк на экране (после объединения и сортировки).
         self._components_restripe_static()
 
         # Не показываем пустые подгруппы — поведение такое же, как в справочнике.
@@ -9939,7 +9977,7 @@ class ScreenDesigner(BaseTk):
         except Exception:pass
 
     def _components_restripe_static(self):
-        """V40.53.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
+        """V40.59.1: заново раздаёт static_gray_1…4 статическим строкам в порядке отображения."""
         tree=getattr(self,"components_tree",None)
         if tree is None:
             return
@@ -13984,7 +14022,7 @@ class ScreenDesigner(BaseTk):
                 if wtxt:
                     rec["weight"]+=num(wtxt); rec["weight_seen"]=True
                 if source and source not in rec["sources"]: rec["sources"].append(source)
-                # V40.53.1: строка остаётся «статической» (серая заливка), только если
+                # V40.59.1: строка остаётся «статической» (серая заливка), только если
                 # все объединённые позиции пришли от статических указателей.
                 if not any(str(t).startswith("static_gray_") for t in (self.components_tree.item(iid,"tags") or ())):
                     rec["static_all"]=False
@@ -30338,7 +30376,7 @@ def _v4011_supplier_rows(self, supplier_name):
     if not cuts:
         return rows
     strips = len(_v4009_pack(cuts))
-    sheets = max(1, math.ceil(strips / V4011_STRIPS))
+    sheets = _v4055_sheet_count(cuts, strips)                     # V40.55
     out = []
     for row in rows:
         label = str(row.get("name", ""))
@@ -41716,7 +41754,4024 @@ def _v4053_view_a(self, d, diameter, x1, y1, x2, y2):
 
 
 # =====================================================================
-# V40.53.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
+# V40.54 — упрощённое окно «Справочник проекта отличается от вашего».
+# Сводка вместо длинной таблицы: отличия делятся на группы, решать
+# нужно только «Правки в файле проекта». «Посмотреть N» раскрывает
+# таблицу в этом же окне (окно вытягивается вниз), «Показать все N
+# отличий» открывает полное окно, как раньше, со ссылкой назад.
+# Контракт прежний: (принятые [(раздел, позиция)], сохранять_ли) или None.
+# =====================================================================
+
+import tkinter.font as _v4054_tkfont
+
+V4054_GROUPS = (
+    ("write", "Только написание: ё/е, регистр, пробелы", "На расчёт не влияет", "пропущено"),
+    ("legacy", "Позиции под старыми названиями", "Программа уже переименовала их у вас", "пропущено"),
+    ("prog", "Обновления программы", "Правила и позиции новой версии — оставлены ваши", "ваши"),
+)
+V4054_LINK = "#1F5FAF"
+V4054_MUTED = "#6B6B6B"
+V4054_OK = "#2E7D32"
+V4054_WARN = "#C0560F"
+V4054_SEL = "#2F6DB5"
+V4054_LINE = "#B8B8B8"
+V4054_NEW_BG = "#E3F4E5"
+
+_V4054_LAST = {"diffs": None, "mine": None, "theirs": None}
+_v4054_prev_diff = _v3080_reference_diff
+
+
+def _v4054_reference_diff(mine, theirs):
+    diffs = _v4054_prev_diff(mine, theirs)
+    _V4054_LAST.update(diffs=diffs, mine=mine, theirs=theirs)
+    return diffs
+
+
+_v3080_reference_diff = _v4054_reference_diff
+
+
+def _v4054_norm(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip().casefold().replace("ё", "е")
+
+
+def _v4054_classify(self, diffs):
+    """Группа для каждого отличия: write / legacy / prog / decide."""
+    last = _V4054_LAST if _V4054_LAST.get("diffs") is diffs else {}
+    mine = last.get("mine")
+    theirs = last.get("theirs")
+    if mine is None:
+        try:
+            mine = _v3080_sections_snapshot(getattr(self, "_reference_data", {}) or {})
+        except Exception:
+            mine = {}
+    if theirs is None:
+        theirs = {}
+        for d in diffs:
+            if d.get("theirs") is not None:
+                theirs.setdefault(d["section"], {})[d["name"]] = d["theirs"]
+    try:
+        defaults = _v3080_sections_snapshot(self._reference_defaults() or {})
+    except Exception:
+        defaults = {}
+    norm = _v4054_norm
+    out = []
+    for d in diffs:
+        kind = "decide"
+        try:
+            section, name = d["section"], d["name"]
+            if d["fields"]:
+                real = [(f, a, b) for f, a, b in d["fields"] if norm(a) != norm(b)]
+                if not real:
+                    kind = "write"
+                else:
+                    dflt = (defaults.get(section) or {}).get(name)
+                    prog = True
+                    for f, a, b in real:
+                        if f != "правило":
+                            prog = False
+                            break
+                        same_default = bool(dflt) and norm(a) == norm(dflt[1])
+                        tail = norm(b).rstrip(" .…")
+                        extended = bool(tail) and len(tail) >= 20 and norm(a).startswith(tail) \
+                            and len(norm(a)) > len(tail)
+                        if not (same_default or extended):
+                            prog = False
+                            break
+                    if prog:
+                        kind = "prog"
+            elif d.get("mine") is None:
+                mine_names = {norm(x) for x in (mine.get(section) or {})}
+                try:
+                    canon = _v3083_rename_name(self, name)
+                except Exception:
+                    canon = name
+                if norm(name) in mine_names:
+                    kind = "write"
+                elif norm(canon) != norm(name):
+                    kind = "legacy"
+            else:
+                their_names = {norm(x) for x in (theirs.get(section) or {})}
+                if norm(name) in their_names:
+                    kind = "write"
+                elif name in (defaults.get(section) or {}):
+                    kind = "prog"
+        except Exception:
+            kind = "decide"
+        out.append(kind)
+    return out
+
+
+def _v4054_version(title):
+    found = re.findall(r"V\d+(?:\.\d+)*", str(title or ""))
+    return found[-1] if found else str(title or "")
+
+
+def _v4054_plural(n, one, few, many):
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def _v4054_decide_hint(rows):
+    """Короткая подпись к группе «нужно решить»."""
+    groups = []
+    index = {}
+    for d in rows:
+        if d["fields"]:
+            what = ", ".join(f for f, _a, _b in d["fields"])
+        elif d.get("mine") is None:
+            what = "позиция только в файле:"
+        else:
+            what = "позиция только у вас:"
+        key = (what, d["name"].split(" #")[0])
+        if key not in index:
+            index[key] = len(groups)
+            groups.append([key, []])
+        groups[index[key]][1].append(d["section"])
+    parts = []
+    for (what, name), sections in groups[:3]:
+        text = f"{what} «{_v3073_short(name, 46)}»"
+        if len(sections) > 1:
+            n = len(sections)
+            text += f" ({n} {_v4054_plural(n, 'раздел', 'раздела', 'разделов')})"
+        else:
+            text += f" ({sections[0]})"
+        parts.append(text)
+    hint = ", ".join(parts)
+    if len(groups) > 3:
+        hint += f" и ещё {len(groups) - 3}"
+    return hint[:1].upper() + hint[1:]
+
+
+def _v4054_scale(self):
+    try:
+        return max(1.0, float(self.tk.call("tk", "scaling")) / 1.3333)
+    except Exception:
+        return 1.0
+
+
+def _v4054_fonts(win):
+    base = _v4054_tkfont.nametofont("TkDefaultFont")
+    family = base.actual("family")
+    size = abs(int(base.actual("size") or 10)) or 10
+    return {
+        "base": (family, size),
+        "bold": (family, size, "bold"),
+        "title": (family, size + 5, "bold"),
+        "num": (family, size + 9, "bold"),
+        "link": _v4054_tkfont.Font(win, family=family, size=size, underline=True),
+        "small": (family, max(8, size - 1)),
+    }
+
+
+def _v4054_link(parent, text, command, font, bg=None):
+    kw = {"bg": bg} if bg else {}
+    label = tk.Label(parent, text=text, fg=V4054_LINK, cursor="hand2", font=font, **kw)
+    label.bind("<Button-1>", lambda _e: command())
+    return label
+
+
+def _v4054_place(self, win, width, height):
+    try:
+        sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
+        px, py = self.winfo_rootx(), self.winfo_rooty()
+        pw, ph = self.winfo_width(), self.winfo_height()
+        x = px + max(0, (pw - width) // 2)
+        y = py + max(0, (ph - height) // 3)
+        x = max(0, min(x, sw - width))
+        y = max(0, min(y, sh - height - 60))
+        win.geometry(f"{width}x{height}+{x}+{y}")
+    except Exception:
+        win.geometry(f"{width}x{height}")
+
+
+def _v4054_regrow(win, width):
+    """Окно вытягивается вниз под содержимое, не уходя за экран."""
+    win.update_idletasks()
+    height = win.winfo_reqheight()
+    try:
+        sh = win.winfo_screenheight()
+        x, y = win.winfo_x(), win.winfo_y()
+        if y + height > sh - 60:
+            y = max(0, sh - 60 - height)
+        win.geometry(f"{width}x{height}+{x}+{y}")
+    except Exception:
+        win.geometry(f"{width}x{height}")
+
+
+def _v4054_summary_window(self, diffs, history, file_app, kinds, takes, ui):
+    """Сводка. Возвращает (принятые, сохранять) / None / "all"."""
+    S = _v4054_scale(self)
+    px = lambda v: int(round(v * S))  # noqa: E731
+    win = tk.Toplevel(self)
+    win.title("Справочник проекта")
+    win.transient(self)
+    F = _v4054_fonts(win)
+    WIDTH = px(1060)
+    COLS = (px(285), px(80), px(235), px(245), px(1060 - 32 - 4 - 285 - 80 - 235 - 245))
+    WRAPS = (px(268), px(70), px(222), px(230), 0)
+
+    decide = [d for d, k in zip(diffs, kinds) if k == "decide"]
+    counts = {key: sum(1 for k in kinds if k == key) for key, *_ in V4054_GROUPS}
+    result = {"value": None}
+
+    outer = ttk.Frame(win, padding=(px(16), px(12), px(16), px(14)))
+    outer.pack(fill="both", expand=True)
+    ttk.Label(outer, text="Справочник проекта отличается от вашего",
+              font=F["title"]).pack(anchor="w")
+    if file_app and file_app != APP_TITLE:
+        auto = len(diffs) - len(decide)
+        text = f"Файл сохранён в {_v4054_version(file_app)}, у вас {_v4054_version(APP_TITLE)}"
+        text += (" — большинство отличий из-за обновлений программы." if auto > len(decide) else ".")
+        tk.Label(outer, text=text, bg="#FFF6D6", fg="#6B4E00", anchor="w", justify="left",
+                 font=F["base"], padx=px(10), pady=px(6), highlightthickness=1,
+                 highlightbackground="#E8D48A", wraplength=WIDTH - px(60)
+                 ).pack(fill="x", pady=(px(8), 0))
+
+    box = tk.Frame(outer, bg="white", highlightthickness=1, highlightbackground=V4054_LINE)
+    box.pack(fill="x", pady=(px(10), 0))
+
+    def group_row(number, color, title, sub, right_widget_maker, bg="white", bold=False):
+        row = tk.Frame(box, bg=bg)
+        row.pack(fill="x")
+        tk.Label(row, text=str(number), fg=color, bg=bg, font=F["num"], width=3,
+                 anchor="e").pack(side="left", padx=(px(6), px(10)), pady=px(6))
+        mid = tk.Frame(row, bg=bg)
+        mid.pack(side="left", fill="x", expand=True, pady=px(6))
+        tk.Label(mid, text=title, bg=bg, anchor="w", justify="left",
+                 font=F["bold"] if bold else F["base"]).pack(anchor="w")
+        if sub:
+            tk.Label(mid, text=sub, bg=bg, fg=V4054_MUTED, anchor="w", justify="left",
+                     font=F["base"], wraplength=WIDTH - px(330)).pack(anchor="w")
+        right = right_widget_maker(row)
+        if right is not None:
+            right.pack(side="right", padx=px(14))
+        return row
+
+    tag_labels = {}
+    first = True
+    for key, title, sub, tag in V4054_GROUPS:
+        if not counts[key]:
+            continue
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+        first = False
+
+        def make_tag(row, tag=tag, key=key):
+            label = tk.Label(row, text=tag, bg=V4054_NEW_BG, fg=V4054_OK, font=F["small"],
+                             padx=px(10), pady=px(2))
+            tag_labels[key] = (label, tag)
+            return label
+        group_row(counts[key], V4054_OK, title, sub, make_tag)
+
+    # --- группа «нужно решить» и раскрывающаяся таблица
+    table_holder = tk.Frame(outer)
+    link_var = tk.StringVar()
+    decide_row = None
+    if decide:
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+
+        def make_link(row):
+            label = tk.Label(row, textvariable=link_var, fg=V4054_LINK, cursor="hand2",
+                             font=F["link"], bg=row["bg"])
+            label.bind("<Button-1>", lambda _e: toggle())
+            return label
+        decide_row = group_row(len(decide), V4054_WARN, "Правки в файле проекта — нужно решить",
+                               _v4054_decide_hint(decide), make_link, bold=True)
+    else:
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+        group_row(0, V4054_OK, "Правки в файле проекта — решать ничего не нужно",
+                  "Проект посчитается по вашему справочнику", lambda row: None, bold=True)
+
+    count_var = tk.StringVar()
+    apply_var = tk.StringVar()
+    seg_refresh = []
+
+    def taken_keys():
+        return [k for k, v in takes.items() if v == "theirs"]
+
+    def refresh():
+        theirs_n = len(taken_keys())
+        decide_theirs = sum(1 for d in decide if takes.get((d["section"], d["name"])) == "theirs")
+        count_var.set(f"Своё: {len(decide) - decide_theirs} · из файла: {decide_theirs}")
+        apply_var.set(f"Применить (из файла: {theirs_n})")
+        try:
+            apply_btn.configure(state=("normal" if theirs_n else "disabled"))
+        except Exception:
+            pass
+        for key, (label, tag) in tag_labels.items():
+            n = sum(1 for d, k in zip(diffs, kinds)
+                    if k == key and takes.get((d["section"], d["name"])) == "theirs")
+            label.configure(text=(f"из файла: {n}" if n else tag))
+        for fn in seg_refresh:
+            fn()
+
+    def build_table():
+        head = tk.Frame(table_holder, bg="#F0F0F0", highlightthickness=1,
+                        highlightbackground=V4054_LINE)
+        head.grid(row=0, column=0, columnspan=2, sticky="ew")
+        for col, (text, width) in enumerate(zip(("Позиция", "Поле", "У вас", "В файле", "Решение"), COLS)):
+            head.grid_columnconfigure(col, minsize=width)
+            tk.Label(head, text=text, bg="#F0F0F0", font=F["bold"], anchor="w"
+                     ).grid(row=0, column=col, sticky="w", padx=px(8), pady=px(4))
+        canvas = tk.Canvas(table_holder, bg="white", highlightthickness=1,
+                           highlightbackground=V4054_LINE, bd=0)
+        canvas.grid(row=1, column=0, sticky="nsew")
+        inner = tk.Frame(canvas, bg="white")
+        canvas.create_window(0, 0, window=inner, anchor="nw")
+        for col, width in enumerate(COLS):
+            inner.grid_columnconfigure(col, minsize=width)
+
+        grid_row = 0
+        for i, d in enumerate(decide):
+            key = (d["section"], d["name"])
+            if i:
+                tk.Frame(inner, bg="#E2E2E2", height=1).grid(row=grid_row, column=0, columnspan=5, sticky="ew")
+                grid_row += 1
+            if d["fields"]:
+                field = "\n".join(f for f, _a, _b in d["fields"])
+                mine_text = "\n".join((_v3073_short(a, 90) if str(a).strip() else "пусто")
+                                      for _f, a, _b in d["fields"])
+                their_text = "\n".join((_v3073_short(b, 90) if str(b).strip() else "пусто")
+                                       for _f, _a, b in d["fields"])
+            elif d.get("mine") is None:
+                field, mine_text, their_text = "позиция", "— нет —", _v3073_short(d["theirs"][1], 90) or "есть"
+            else:
+                field, mine_text, their_text = "позиция", _v3073_short(d["mine"][1], 90) or "есть", "— нет —"
+            pad = dict(padx=px(8), pady=px(6), sticky="nw")
+            cell = tk.Frame(inner, bg="white")
+            cell.grid(row=grid_row, column=0, **pad)
+            tk.Label(cell, text=d["name"].split(" #")[0], bg="white", font=F["base"], anchor="w",
+                     justify="left", wraplength=WRAPS[0]).pack(anchor="w")
+            tk.Label(cell, text=d["section"], bg="white", fg=V4054_MUTED, font=F["base"], anchor="w",
+                     justify="left", wraplength=WRAPS[0]).pack(anchor="w")
+            tk.Label(inner, text=field, bg="white", font=F["base"], anchor="w", justify="left",
+                     wraplength=WRAPS[1]).grid(row=grid_row, column=1, **pad)
+            tk.Label(inner, text=mine_text, bg="white", font=F["base"], anchor="w", justify="left",
+                     wraplength=WRAPS[2]).grid(row=grid_row, column=2, **pad)
+            cell = tk.Frame(inner, bg="white")
+            cell.grid(row=grid_row, column=3, **pad)
+            tk.Label(cell, text=their_text, bg=V4054_NEW_BG, fg="#1E6B2A", font=F["base"], anchor="w",
+                     justify="left", wraplength=WRAPS[3]).pack(anchor="w")
+            who, when = _v3080_who_when(history, d["section"], d["name"])
+            stamp = " · ".join(x for x in (("правка " + _v3073_when_text(when)) if when else "", who) if x)
+            if stamp:
+                tk.Label(cell, text=stamp, bg="white", fg=V4054_MUTED, font=F["base"], anchor="w",
+                         justify="left", wraplength=WRAPS[3]).pack(anchor="w")
+            seg = tk.Frame(inner, bg=V4054_LINE, padx=1, pady=1)
+            seg.grid(row=grid_row, column=4, padx=px(8), pady=px(6), sticky="nw")
+            own = tk.Label(seg, text="Своё", font=F["base"], padx=px(10), pady=px(2), cursor="hand2")
+            own.pack(side="left")
+            other = tk.Label(seg, text="Из файла", font=F["base"], padx=px(10), pady=px(2), cursor="hand2")
+            other.pack(side="left", padx=(1, 0))
+
+            def paint(key=key, own=own, other=other):
+                theirs = takes.get(key) == "theirs"
+                own.configure(bg=("white" if theirs else V4054_SEL), fg=("black" if theirs else "white"))
+                other.configure(bg=(V4054_SEL if theirs else "white"), fg=("white" if theirs else "black"))
+
+            def choose(value, key=key):
+                takes[key] = value
+                refresh()
+            own.bind("<Button-1>", lambda _e, c=choose: c("mine"))
+            other.bind("<Button-1>", lambda _e, c=choose: c("theirs"))
+            seg_refresh.append(paint)
+            grid_row += 1
+
+        inner.update_idletasks()
+        req_w, req_h = inner.winfo_reqwidth(), inner.winfo_reqheight()
+        canvas.configure(width=req_w, scrollregion=(0, 0, req_w, req_h), yscrollincrement=px(20))
+        # высота таблицы — сколько влезает на экран, дальше прокрутка
+        try:
+            rest = win.winfo_reqheight()
+            avail = win.winfo_screenheight() - rest - px(140)
+        except Exception:
+            avail = px(420)
+        height = min(req_h, max(px(220), avail))
+        canvas.configure(height=height)
+        if req_h > height:
+            sb = ttk.Scrollbar(table_holder, orient="vertical", command=canvas.yview)
+            sb.grid(row=1, column=1, sticky="ns")
+            canvas.configure(yscrollcommand=sb.set,
+                             width=max(px(400), req_w - sb.winfo_reqwidth() - 2))
+
+        foot = ttk.Frame(table_holder)
+        foot.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(px(6), 0))
+        ttk.Label(foot, textvariable=count_var, foreground=V4054_MUTED).pack(side="left")
+
+        def set_all(value):
+            for d in decide:
+                takes[(d["section"], d["name"])] = value
+            refresh()
+        _v4054_link(foot, "Всё из файла", lambda: set_all("theirs"), F["link"]).pack(side="right")
+        _v4054_link(foot, "Всё своё", lambda: set_all("mine"), F["link"]).pack(side="right", padx=(0, px(18)))
+        refresh()
+
+    def toggle(force=None):
+        show = (not ui.get("open")) if force is None else force
+        ui["open"] = show
+        if show:
+            if not table_holder.winfo_children():
+                build_table()
+            table_holder.pack(fill="x", after=box)
+            link_var.set("Свернуть ▲")
+            if decide_row is not None:
+                for w in [decide_row] + list(decide_row.winfo_children()):
+                    _v4054_paint_bg(w, "#EEF3FB")
+        else:
+            table_holder.pack_forget()
+            link_var.set(f"Посмотреть {len(decide)} ›")
+            if decide_row is not None:
+                for w in [decide_row] + list(decide_row.winfo_children()):
+                    _v4054_paint_bg(w, "white")
+        _v4054_regrow(win, WIDTH)
+
+    save_var = tk.BooleanVar(value=bool(ui.get("save")))
+    tk_check = ttk.Checkbutton(outer, text="Сохранить принятое в мой справочник", variable=save_var)
+    tk_check.pack(anchor="w", pady=(px(12), 0))
+
+    bar = ttk.Frame(outer)
+    bar.pack(fill="x", pady=(px(12), 0))
+
+    def show_all():
+        ui["save"] = bool(save_var.get())
+        result["value"] = "all"
+        win.destroy()
+
+    def finish():
+        ui["save"] = bool(save_var.get())
+        taken = [key for key in taken_keys()]
+        result["value"] = (taken, bool(save_var.get()))
+        win.destroy()
+
+    _v4054_link(bar, f"Показать все {len(diffs)} {_v4054_plural(len(diffs), 'отличие', 'отличия', 'отличий')}",
+                show_all, F["link"]).pack(side="left")
+    apply_btn = ttk.Button(bar, textvariable=apply_var, command=finish, default="active")
+    apply_btn.pack(side="right")
+    ttk.Button(bar, text="Считать по своему", command=win.destroy).pack(side="right", padx=(0, px(8)))
+
+    win._v4054_vars = (link_var, count_var, apply_var, save_var)
+    win.bind("<Escape>", lambda e: win.destroy())
+    if decide:
+        toggle(force=bool(ui.get("open")))
+    else:
+        _v4054_regrow(win, WIDTH)
+    refresh()
+    win.update_idletasks()
+    _v4054_place(self, win, WIDTH, win.winfo_reqheight())
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    win.focus_set()
+    self.wait_window(win)
+    return result["value"]
+
+
+def _v4054_paint_bg(widget, color):
+    try:
+        if widget.winfo_class() in ("Frame", "Label"):
+            widget.configure(bg=color)
+    except Exception:
+        pass
+    for child in widget.winfo_children():
+        _v4054_paint_bg(child, color)
+
+
+def _v4054_full_window(self, diffs, history, file_app, takes):
+    """Полное окно отличий (как до V40.54) + «‹ Вернуться к сводке»."""
+    win = tk.Toplevel(self)
+    win.title("Справочник проекта отличается от вашего")
+    win.geometry("1420x700")
+    win.transient(self)
+    result = {"value": None}
+
+    head = ttk.Frame(win, padding=(10, 10, 10, 4))
+    head.pack(fill="x")
+    top = ttk.Frame(head)
+    top.pack(fill="x")
+    ttk.Label(top, text="Справочник в файле проекта отличается от вашего",
+              font=("Arial", 14, "bold")).pack(side="left", anchor="w")
+    link_font = _v4054_tkfont.Font(win, font=_v4054_tkfont.nametofont("TkDefaultFont"))
+    link_font.configure(underline=True, size=abs(int(link_font.actual("size") or 10)) + 2)
+
+    def back():
+        result["value"] = "back"
+        win.destroy()
+    _v4054_link(top, "‹ Вернуться к сводке", back, link_font).pack(side="right")
+    ttk.Label(head, text="Выберите, по каким нормам считать этот проект. "
+                         "Расхождения показаны построчно.", foreground="#555555").pack(anchor="w")
+    if file_app and file_app != APP_TITLE:
+        ttk.Label(head, text=f"Внимание: файл сохранён в «{file_app}», у вас «{APP_TITLE}». "
+                             "Часть правил задана в коде программы, справочник их не покрывает.",
+                  foreground="#A33").pack(anchor="w", pady=(4, 0))
+
+    body = ttk.Frame(win, padding=(10, 4, 10, 4))
+    body.pack(fill="both", expand=True)
+    cols = ("section", "name", "what", "mine", "theirs", "who", "when", "take")
+    tree = ttk.Treeview(body, columns=cols, show="headings", selectmode="extended")
+    for col, text, width, anchor in (
+            ("section", "Раздел", 230, "w"), ("name", "Позиция", 230, "w"),
+            ("what", "Что отличается", 150, "w"), ("mine", "У вас", 240, "w"),
+            ("theirs", "В файле", 240, "w"), ("who", "Кто правил", 130, "w"),
+            ("when", "Когда", 110, "center"), ("take", "Решение", 130, "center")):
+        tree.heading(col, text=text)
+        tree.column(col, width=width, anchor=anchor)
+    vsb = ttk.Scrollbar(body, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+    tree.pack(side="left", fill="both", expand=True)
+    vsb.pack(side="right", fill="y")
+
+    state = {}
+    for i, d in enumerate(diffs):
+        iid = f"r{i}"
+        who, when = _v3080_who_when(history, d["section"], d["name"])
+        if d["fields"]:
+            what = ", ".join(f for f, _a, _b in d["fields"])
+            mine_text = "; ".join(_v3073_short(a, 28) for _f, a, _b in d["fields"])
+            theirs_text = "; ".join(_v3073_short(b, 28) for _f, _a, b in d["fields"])
+        elif d["mine"] is None:
+            what, mine_text, theirs_text = "нет у вас, есть в файле", "— нет —", _v3073_short(d["theirs"][1], 28)
+        else:
+            what, mine_text, theirs_text = "есть у вас, нет в файле", _v3073_short(d["mine"][1], 28), "— нет —"
+        take = takes.get((d["section"], d["name"]), "mine")
+        state[iid] = dict(d, take=take)
+        tree.insert("", "end", iid=iid, values=(
+            d["section"], d["name"], what, mine_text, theirs_text,
+            who or "—", _v3073_when_text(when) or "—",
+            "из файла" if take == "theirs" else "оставить своё"))
+
+    def set_take(iids, value):
+        for iid in iids:
+            if iid in state:
+                state[iid]["take"] = value
+                takes[(state[iid]["section"], state[iid]["name"])] = value
+                values = list(tree.item(iid, "values"))
+                values[7] = "из файла" if value == "theirs" else "оставить своё"
+                tree.item(iid, values=values)
+
+    tree.bind("<Double-1>", lambda e: [set_take([iid], "mine" if state[iid]["take"] == "theirs" else "theirs")
+                                       for iid in tree.selection()])
+    _v4026_tree_tools(tree, set_take, "theirs", "mine")
+
+    save_var = tk.BooleanVar(value=False)
+
+    def finish():
+        taken = [(s["section"], s["name"]) for s in state.values() if s["take"] == "theirs"]
+        result["value"] = (taken, bool(save_var.get()))
+        win.destroy()
+
+    bar = ttk.Frame(win, padding=(10, 4, 10, 10))
+    bar.pack(fill="x")
+    ttk.Button(bar, text="Взять из файла", command=lambda: set_take(tree.selection(), "theirs")).pack(side="left")
+    ttk.Button(bar, text="Оставить своё", command=lambda: set_take(tree.selection(), "mine")).pack(side="left", padx=(6, 0))
+    ttk.Button(bar, text="Всё из файла", command=lambda: set_take(list(state), "theirs")).pack(side="left", padx=(18, 0))
+    ttk.Button(bar, text="Всё своё", command=lambda: set_take(list(state), "mine")).pack(side="left", padx=(6, 0))
+    _v4026_count_label(bar, tree).pack(side="left", padx=(14, 0))
+    ttk.Checkbutton(bar, text="Сохранить принятое в мой справочник", variable=save_var).pack(side="left", padx=(20, 0))
+    ttk.Button(bar, text="Считать по своему", command=win.destroy).pack(side="right")
+    ttk.Button(bar, text="Применить", command=finish).pack(side="right", padx=(0, 8))
+
+    win.bind("<Escape>", lambda e: win.destroy())
+    win._v4054_save_var = save_var
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    self.wait_window(win)
+    return result["value"]
+
+
+_v4054_prev_window = _v3080_reference_window
+
+
+def _v4054_reference_window(self, diffs, history, file_app):
+    """Сводка ⇄ полный список. Возвращает (принятые, сохранять) или None."""
+    try:
+        kinds = _v4054_classify(self, diffs)
+    except Exception:
+        return _v4054_prev_window(self, diffs, history, file_app)
+    takes = {}
+    ui = {"open": False, "save": False}
+    view = "summary"
+    while True:
+        if view == "summary":
+            answer = _v4054_summary_window(self, diffs, history, file_app, kinds, takes, ui)
+        else:
+            answer = _v4054_full_window(self, diffs, history, file_app, takes)
+        if answer == "all":
+            view = "full"
+            continue
+        if answer == "back":
+            view = "summary"
+            continue
+        return answer
+
+
+_v3080_reference_window = _v4054_reference_window
+
+
+# =====================================================================
+# V40.55 — раскрой прижимной планки МПК 8мм: вертикальные планки справа.
+#
+#   Ряды раскладываются как раньше — горизонтально, во всю длину листа.
+#   Справа от рядов, где после планок остаётся пустое место, ставятся
+#   вертикальные полосы («карман»):
+#     • на заполненных листах — по всей высоте листа (длина 1978 мм),
+#       ряды этого листа становятся короче на ширину кармана;
+#     • на последнем листе — сверху ряды во всю длину, ниже — короткие
+#       ряды, справа от них вертикальные полосы. Полосы кончаются на
+#       уровне последнего ряда, поэтому деловой остаток остаётся во всю
+#       ширину листа 3000 мм.
+#   Вертикальные полосы: тот же шаг 24 мм (фреза 6 + зазор 2 + фреза 6),
+#   между планками в полосе 14 мм, от кромки листа 6 мм.
+#   Если карман не уменьшает раскрой (лист или ряды на последнем листе),
+#   раскладка остаётся прежней. Заказ листов — по новой раскладке.
+# =====================================================================
+
+import functools as _v4055_functools
+from collections import Counter
+
+V4055_ORDERS = (("F", "VQ", "Q", "VF"), ("F", "Q", "VF", "VQ"))
+V4055_ALPHAS = (1.1, 1.3)
+
+
+def _v4055_geom():
+    cap = int(round(V4011_SHEET_L - 2 * V4011_END))           # 2988 — длина ряда
+    pitch = int(round(V4011_PITCH))                            # 24
+    gap = int(round(V4011_CROSS))                              # 14
+    plank = int(round(V4011_PLANK_H))                          # 10
+    rows = int(V4011_STRIPS)                                   # 83
+    return cap, pitch, gap, plank, rows
+
+
+def _v4055_used(row):
+    _cap, _p, gap, _h, _n = _v4055_geom()
+    return (sum(row) + gap * (len(row) - 1)) if row else 0
+
+
+def _v4055_vlen(count):
+    """Длина вертикальной полосы на высоту count рядов."""
+    _cap, pitch, _g, plank, _n = _v4055_geom()
+    return pitch * (count - 1) + plank if count > 0 else 0
+
+
+def _v4055_best_pattern(cnt, cap, alpha, cache):
+    gap = _v4055_geom()[2]
+    lens = tuple(sorted((x for x in cnt if cnt[x] > 0 and x <= cap), reverse=True))
+    if not lens:
+        return []
+    key = (cap, alpha, tuple((x, min(cnt[x], (cap + gap) // (x + gap))) for x in lens))
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    best = [-1.0, []]
+    cur = []
+
+    def rec(i, left, score):
+        if score > best[0]:
+            best[0] = score
+            best[1] = cur[:]
+        if i >= len(lens):
+            return
+        length = lens[i]
+        need = length + gap
+        if score + (left / need) * (length ** alpha) <= best[0]:
+            return
+        top = min(cnt[length], left // need)
+        for q in range(top, -1, -1):
+            if q:
+                cur.extend([length] * q)
+            rec(i + 1, left - q * need, score + q * (length ** alpha))
+            if q:
+                del cur[len(cur) - q:]
+
+    rec(0, cap + gap, 0.0)
+    cache[key] = best[1]
+    return best[1]
+
+
+def _v4055_fill(cnt, cap, count, alpha, cache):
+    out = []
+    while (count is None or len(out) < count) and +cnt:
+        pattern = _v4055_best_pattern(cnt, cap, alpha, cache)
+        if not pattern:
+            break
+        need = Counter(pattern)
+        times = min(cnt[x] // q for x, q in need.items())
+        if count is not None:
+            times = min(times, count - len(out))
+        for x, q in need.items():
+            cnt[x] -= q * times
+        out += [list(pattern) for _ in range(times)]
+    return out
+
+
+def _v4055_run(items, sheets, k, m, b, order, alpha, cache):
+    cap, pitch, _g, _h, rows_n = _v4055_geom()
+    pools = {"F": (cap - pitch * k, rows_n * (sheets - 1)), "Q": (cap - pitch * m, b),
+             "VF": (_v4055_vlen(rows_n), k * (sheets - 1)), "VQ": (_v4055_vlen(b), m)}
+    cnt = Counter(items)
+    res = {}
+    for name in order:
+        pcap, count = pools[name]
+        res[name] = _v4055_fill(cnt, pcap, count, alpha, cache) if count else []
+    res["T"] = _v4055_fill(cnt, cap, None, alpha, cache)
+    if +cnt:
+        return None
+    return res
+
+
+def _v4055_row_key(row):
+    return (-max(row), -_v4055_used(row))
+
+
+@_v4055_functools.lru_cache(maxsize=16)
+def _v4055_nest(lengths):
+    """lengths — кортеж длин. -> [{'rows', 'pocket'}] по листам."""
+    cap, pitch, gap, _h, rows_n = _v4055_geom()
+    items = [int(round(float(x))) for x in lengths]
+    base = [[int(round(float(x))) for x in row] for row in _v4009_pack(items)]
+    count0 = max(1, math.ceil(len(base) / rows_n))
+    last0 = len(base) - rows_n * (count0 - 1)
+    baseline = [{"rows": base[i * rows_n:(i + 1) * rows_n], "pocket": None} for i in range(count0)]
+    if not items:
+        return baseline
+    best_key = (count0, last0, 0)
+    best = None
+    cache = {}
+    longest = max(items)
+    full_v = _v4055_vlen(rows_n)
+    smalls = sorted(x for x in set(items) if x <= full_v)
+    b_cands = sorted({math.ceil((x + 2 * gap) / pitch) for x in smalls}
+                     | {math.ceil((x + y + 3 * gap) / pitch)
+                        for i, x in enumerate(smalls) for y in smalls[i:] if x + y + gap <= full_v})
+    for sheets in sorted({count0, count0 - 1}):
+        if sheets < 1:
+            continue
+        kmax = min(16, max(0, (cap - longest) // pitch)) if sheets > 1 else 0
+        for k in sorted({kmax, max(0, kmax - 1), 0}, reverse=True):
+            for m in range(0, 24):
+                for b in (b_cands if m else [0]):
+                    if b > rows_n or b > best_key[1]:
+                        continue
+                    for order in V4055_ORDERS:
+                        for alpha in V4055_ALPHAS:
+                            res = _v4055_run(items, sheets, k, m, b, order, alpha, cache)
+                            if res is None:
+                                continue
+                            if sheets > 1 and len(res["F"]) < rows_n * (sheets - 1):
+                                continue
+                            last = len(res["T"]) + b
+                            if last < 1 or last > rows_n:
+                                continue
+                            verts = sum(1 for s in res["VF"] + res["VQ"] if s)
+                            key = (sheets, last, verts)
+                            if key < best_key:
+                                best_key, best = key, (sheets, k, m, b, res)
+    if best is None:
+        return baseline
+    layout = _v4055_layout(*best)
+    return layout if _v4055_valid(layout, items) else baseline
+
+
+def _v4055_layout(sheets, k, m, b, res):
+    cap, pitch, _g, _h, rows_n = _v4055_geom()
+    out = []
+    full_rows = res["F"]
+    full_strips = res["VF"]
+    for s in range(sheets - 1):
+        rows = sorted(full_rows[s * rows_n:(s + 1) * rows_n], key=_v4055_row_key)
+        strips = [x for x in full_strips[s * k:(s + 1) * k] if x]
+        pocket = ({"m": len(strips), "row": 0, "rows": rows_n, "length": _v4055_vlen(rows_n),
+                   "strips": strips} if strips else None)
+        out.append({"rows": rows, "pocket": pocket})
+    top = sorted(res["T"], key=_v4055_row_key)
+    low = sorted(res["Q"], key=_v4055_row_key)
+    strips = [x for x in res["VQ"] if x]
+    pocket = ({"m": len(strips), "row": len(top), "rows": b, "length": _v4055_vlen(b),
+               "strips": strips} if strips else None)
+    out.append({"rows": top + low, "pocket": pocket})
+    return out
+
+
+def _v4055_valid(layout, items):
+    """Проверка: все планки на месте, ряды и полосы в своих границах."""
+    cap, pitch, _g, _h, rows_n = _v4055_geom()
+    seen = Counter()
+    for sheet in layout:
+        rows = sheet["rows"]
+        pocket = sheet["pocket"]
+        if len(rows) > rows_n:
+            return False
+        for index, row in enumerate(rows):
+            seen.update(row)
+            limit = cap
+            if pocket and pocket["row"] <= index < pocket["row"] + pocket["rows"]:
+                limit = cap - pitch * pocket["m"]
+            if _v4055_used(row) > limit:
+                return False
+        if pocket:
+            if pocket["row"] + pocket["rows"] > rows_n or pocket["m"] * pitch > cap:
+                return False
+            for strip in pocket["strips"]:
+                seen.update(strip)
+                if _v4055_used(strip) > pocket["length"]:
+                    return False
+    return seen == Counter(items)
+
+
+def _v4055_rows_used(sheet):
+    """Рядов по высоте листа (с учётом высоты кармана)."""
+    pocket = sheet.get("pocket")
+    rows = len(sheet["rows"])
+    if pocket:
+        rows = max(rows, pocket["row"] + pocket["rows"])
+    return rows
+
+
+def _v4055_vertical_boxes(sheet):
+    """[(x1, x2, y_top, y_bottom, length)] — вертикальные планки, мм от левого верхнего угла."""
+    pocket = sheet.get("pocket")
+    if not pocket:
+        return []
+    _cap, pitch, gap, plank, _n = _v4055_geom()
+    boxes = []
+    for i, strip in enumerate(pocket["strips"]):
+        x2 = V4011_SHEET_L - V4011_END - pitch * i
+        x1 = x2 - plank
+        y = _v4011_plank_top(pocket["row"])
+        for length in strip:
+            boxes.append((x1, x2, y, y + length, length))
+            y += length + gap
+    return boxes
+
+
+def _v4055_sheet_count(cuts, strips=None):
+    try:
+        return len(_v4055_nest(tuple(sorted(int(round(float(c))) for c in cuts))))
+    except Exception:
+        return max(1, math.ceil((strips or 0) / V4011_STRIPS))
+
+
+# --- листы вкладки «Чертежи DXF» ---------------------------------------
+_v4055_prev_plank_sheets = _v4030_plank_sheets
+
+
+def _v4055_plank_sheets(self):
+    old = _v4055_prev_plank_sheets(self)
+    if not old:
+        return old
+    lengths = tuple(sorted(int(round(float(x))) for s in old for row in s["rows"] for x in row))
+    layout = _v4055_nest(lengths)
+    project = _v4030_project(self)
+    count = len(layout)
+    products = old[0].get("products", 0)
+    sheets = []
+    for index, part in enumerate(layout):
+        rows = [list(r) for r in part["rows"]]
+        pocket = part["pocket"]
+        verts = len(pocket["strips"]) if pocket else 0
+        meters = (sum(sum(r) for r in rows)
+                  + (sum(sum(s) for s in pocket["strips"]) if pocket else 0)) / 1000.0
+        sheets.append({"rows": rows, "pocket": pocket, "index": index + 1, "count": count,
+                       "strips": f"{len(rows)} + {verts} верт." if verts else len(rows),
+                       "meters": meters, "products": products, "kind": "plank",
+                       "file": f"{project}_МПК8_лист_{index + 1}_из_{count}.dxf"})
+    return sheets
+
+
+_v4030_plank_sheets = _v4055_plank_sheets
+
+
+# --- DXF: вертикальные планки добавляются к рядам ------------------------
+def _v4055_text_v(layer, x, y, height, text):
+    return "".join((_v4012_pair(0, "TEXT"), _v4012_pair(8, layer),
+                    _v4012_pair(10, f"{x:.3f}"), _v4012_pair(20, f"{y:.3f}"),
+                    _v4012_pair(40, f"{height:.3f}"), _v4012_pair(50, "90.0"), _v4012_pair(1, text)))
+
+
+def _v4055_plank_dxf(sheet, project):
+    rows = [list(r) for r in sheet["rows"]]
+    rows += [[] for _ in range(_v4055_rows_used(sheet) - len(rows))]   # высота кармана
+    text = _v4012_sheet_dxf(rows, sheet["index"], sheet["count"], project)
+    boxes = _v4055_vertical_boxes(sheet)
+    if not boxes:
+        return text
+    extra = []
+    for x1, x2, y_top, y_bot, length in boxes:
+        y2 = V4011_SHEET_W - y_top
+        y1 = V4011_SHEET_W - y_bot
+        extra.append(_v4012_rect("PLANK", x1, y1, x2, y2))
+        extra.append(_v4055_text_v("TEXT", x2 - 1.0, y1 + 12.0, 8.0, f"{int(length)}"))
+    marker = _v4012_pair(0, "ENDSEC") + _v4012_pair(0, "EOF")
+    if text.endswith(marker):
+        return text[:-len(marker)] + "".join(extra) + marker
+    return text
+
+
+_v4030_plank_dxf = _v4055_plank_dxf
+
+
+# --- PDF листа МПК: ряды + вертикальные полосы ---------------------------
+def _v4055_strip_groups(sheet):
+    """Группы одинаковых соседних вертикальных полос: [(первая, последняя, длины)]."""
+    pocket = sheet.get("pocket")
+    groups = []
+    for i, strip in enumerate((pocket or {}).get("strips") or []):
+        lengths = tuple(int(round(float(x))) for x in strip)
+        if groups and groups[-1][2] == lengths:
+            groups[-1][1] = i
+        else:
+            groups.append([i, i, lengths])
+    return groups
+
+
+def _v4055_rows_text(sheet, rows):
+    count = sum(1 for r in rows if r)
+    pocket = sheet.get("pocket")
+    if pocket and pocket.get("strips"):
+        return f"{count} + {len(pocket['strips'])} верт."
+    return f"{count}"
+
+
+def _v4055_note(sheet):
+    pocket = sheet.get("pocket")
+    if not pocket or not pocket.get("strips"):
+        return ""
+    return (f" Справа — вертикальные полосы В1–В{len(pocket['strips'])} (В1 у кромки листа), "
+            f"длина полосы до {_v4042_num(pocket['length'])} мм.")
+
+
+def _v4055_table_entries(sheet):
+    pocket = sheet.get("pocket")
+    out = []
+    for first, last, lengths in _v4055_strip_groups(sheet):
+        span = f"В{first + 1}" if first == last else f"В{first + 1}–В{last + 1}"
+        total = sum(lengths)
+        rest = float(pocket["length"]) - _v4055_used(list(lengths))
+        out.append((span, str(last - first + 1), " + ".join(str(x) for x in lengths), str(total),
+                    _v4042_num(max(0.0, rest))))
+    return out
+
+
+def _v4055_pdf_verticals(sheet, sheet_data, left, top, k):
+    """Вертикальные планки кармана на чертеже листа МПК."""
+    pocket = sheet_data.get("pocket")
+    if not pocket or not pocket.get("strips"):
+        return
+    pitch = _v4055_geom()[1]
+    boxes = _v4055_vertical_boxes(sheet_data)
+    for x1, x2, y_t, y_b, _length in boxes:
+        sheet.rect(left + x1 * k, top + y_t * k, left + x2 * k, top + y_b * k,
+                   V4042_W_GRID * 0.6, V4042_GRID_INK)
+    cap = V4042_DIM_CAP
+    gap = _v4055_geom()[2]
+    for first, last, lengths in _v4055_strip_groups(sheet_data):
+        xr = V4011_SHEET_L - V4011_END - pitch * first
+        xl = V4011_SHEET_L - V4011_END - pitch * last - _v4055_geom()[3]
+        bx1, bx2 = left + xl * k, left + xr * k
+        if bx2 - bx1 < cap + 1.2:
+            continue
+        cx = (bx1 + bx2) / 2.0
+        y = _v4011_plank_top(pocket["row"])
+        for length in lengths:
+            height = float(length) * k
+            label = str(length)
+            tw = _v4042_text_w(label, cap)
+            cy = top + (y + float(length) / 2.0) * k
+            if tw + 2.0 <= height:
+                sheet.rect(cx - cap / 2.0 - 0.6, cy - tw / 2.0 - 0.6, cx + cap / 2.0 + 0.8, cy + tw / 2.0 + 0.6,
+                           0.0, None, (1.0, 1.0, 1.0))
+                sheet.text(cx + cap / 2.0, cy, label, cap, "c", rotate=90)
+            y += float(length) + gap
+    # номера полос В1 … Вn
+    n = len(pocket["strips"])
+    small = V4042_TB_CAP
+    bottom_mm = max(b[3] for b in boxes)
+    if pocket["row"] == 0:
+        ty = top - 1.2
+    else:
+        ty = top + bottom_mm * k + small + 1.2
+    for i in sorted({0, n - 1}):
+        x_mid = left + (V4011_SHEET_L - V4011_END - pitch * i - _v4055_geom()[3] / 2.0) * k
+        sheet.text(x_mid, ty, f"В{i + 1}", small, "c", color=V4042_DIM_INK)
+
+
+def _v4055_pdf_sheets(self, sheet_data):
+    """Лист МПК (V40.42) + вертикальные полосы кармана (V40.55)."""
+    rows = [list(r) for r in sheet_data["rows"]]
+    rows += [[] for _ in range(_v4055_rows_used(sheet_data) - len(rows))]
+    scale = 10
+    sheet = _V4042Sheet("A3", scale)
+    frame = _v4042_frame(sheet)
+    k = 1.0 / scale
+    L, Wd = float(V4011_SHEET_L), float(V4011_SHEET_W)
+    left = frame[0] + 30.0
+    top = frame[1] + 18.0
+    right, bottom = left + L * k, top + Wd * k
+    sheet.rect(left, top, right, bottom, V4042_W_CONTOUR)
+    groups = _v4042_plank_groups(rows)
+    for index, row in enumerate(rows):
+        y_top = top + _v4011_plank_top(index) * k
+        y_bot = y_top + V4011_PLANK_H * k
+        x = left + V4011_END * k
+        for length in row:
+            sheet.rect(x, y_top, x + float(length) * k, y_bot, V4042_W_GRID * 0.6, V4042_GRID_INK)
+            x += (float(length) + V4011_CROSS) * k
+    _v4055_pdf_verticals(sheet, sheet_data, left, top, k)
+    # подписи длин — на полосе групп одинаковых полос, где хватает места
+    cap = V4042_DIM_CAP
+    for group in groups:
+        y1 = top + _v4011_plank_top(group["first"]) * k
+        y2 = top + (_v4011_plank_top(group["last"]) + V4011_PLANK_H) * k
+        if y2 - y1 < cap + 1.2:
+            continue
+        x = left + V4011_END * k
+        base = (y1 + y2) / 2.0 + cap / 2.0
+        for length in group["lengths"]:
+            width = float(length) * k
+            label = str(length)
+            tw = _v4042_text_w(label, cap)
+            if tw + 2.0 <= width:
+                cx = x + width / 2.0
+                sheet.rect(cx - tw / 2.0 - 0.6, base - cap - 0.6, cx + tw / 2.0 + 0.6, base + 0.8, 0.0,
+                           None, (1.0, 1.0, 1.0))
+                sheet.text(cx, base, label, cap, "c")
+            x += (float(length) + V4011_CROSS) * k
+    # номера полос слева: 1, 5, 10, …
+    for index in range(len(rows)):
+        number = index + 1
+        if number == 1 or number % 5 == 0 or number == len(rows):
+            y_mid = top + (_v4011_plank_top(index) + V4011_PLANK_H / 2.0) * k
+            if number == len(rows) and number % 5 and number - (number // 5) * 5 < 2 and number > 5:
+                continue
+            sheet.line((left - 1.5, y_mid), (left, y_mid), V4042_W_THIN)
+            sheet.text(left - 2.2, y_mid + cap / 2.0, str(number), cap, "r")
+    sheet.text(left - 2.2, top - 2.0, "Полоса", V4042_TB_CAP, "r", color=(0.3, 0.3, 0.3))
+    # остаток
+    used = _v4011_used_height(len(rows))
+    rest = Wd - used
+    if rest > 0:
+        ry = top + used * k
+        sheet.rect(left, ry, right, bottom, V4042_W_THIN, V4042_DIM_INK, (0.93, 0.96, 1.0))
+        if (bottom - ry) > cap + 2.0:
+            sheet.text((left + right) / 2.0, (ry + bottom) / 2.0 + cap / 2.0,
+                       f"Остаток {_v4042_num(L)} × {_v4042_num(rest)}", cap, "c", color=V4042_DIM_INK)
+        _v4042_chain(sheet, "v", [ry, bottom], [_v4042_num(rest)], right, right + 9.0, 1)
+    _v4042_chain(sheet, "h", [left, right], [_v4042_num(L)], bottom, bottom + 9.0, 1)
+    _v4042_chain(sheet, "v", [top, bottom], [_v4042_num(Wd)], left, left - 18.0, -1)
+    sheet.text(frame[0] + 4.0, frame[1] + 4.0 + 5.0,
+               f"Прижимная планка МПК 8мм — раскрой листа {_v4042_num(L)} × {_v4042_num(Wd)} · "
+               f"лист {sheet_data['index']} из {sheet_data['count']}", 5.0, bold=True)
+    note = (f"Планка {V4011_PLANK_H:g} мм, фреза {V4011_MILL:g} мм, зазор {V4011_GAP:g} мм; от торца "
+            f"полосы {V4011_END:g} мм, между планками {V4011_CROSS:g} мм. Длины всех планок — "
+            "в таблице на следующем листе.")
+    _v4042_notes(sheet, frame, note + _v4055_note(sheet_data))
+    planks = sum(len(r) for r in rows) + sum(len(s) for s in ((sheet_data.get("pocket") or {}).get("strips") or []))
+    stamp = _v4042_stamp_rows(
+        self, sheet_data["file"], f"МПК 8 мм {_v4042_num(L)} × {_v4042_num(Wd)}",
+        f"Изделий с планкой: {sheet_data.get('products', '—')}; планок на листе: {planks}; "
+        + f"{float(sheet_data.get('meters', 0) or 0):.1f}".replace(".", ",") + " м.п.",
+        f"{_v4055_rows_text(sheet_data, rows)}; остаток {_v4042_num(L)} × {_v4042_num(rest)} мм", scale, kind="Лист")
+    _v4042_title_block(sheet, frame, stamp)
+    pages = [sheet]
+    # таблица полос
+    table = _V4042Sheet("A3", scale)
+    frame2 = _v4042_frame(table)
+    table.text(frame2[0] + 4.0, frame2[1] + 9.0,
+               f"Раскрой листа МПК 8мм {sheet_data['index']} из {sheet_data['count']} — длины планок по полосам",
+               5.0, bold=True)
+    columns = (("Полосы", 30.0), ("Кол-во полос", 40.0), ("Планки в полосе, мм", 0.0),
+               ("Сумма, мм", 30.0), ("Остаток полосы, мм", 52.0))
+    col_gap = 8.0
+    usable_w = frame2[2] - frame2[0] - 8.0
+    row_h = V4042_DIM_CAP + 3.0
+    y_start = frame2[1] + 16.0
+    y_limit = frame2[3] - sum(V4042_TB_ROWS) - 4.0
+    per_block = int((y_limit - y_start - row_h) // row_h)
+    two_blocks = len(groups) > per_block
+    block_w = (usable_w - col_gap) / 2.0 if two_blocks else min(usable_w, 300.0)
+    fixed = sum(w for _n, w in columns)
+    widths = [w if w else block_w - fixed for _n, w in columns]
+    entries = []
+    for group in groups:
+        if not group["lengths"]:
+            continue
+        span = (f"{group['first'] + 1}" if group["first"] == group["last"]
+                else f"{group['first'] + 1}–{group['last'] + 1}")
+        total = sum(group["lengths"])
+        rest_strip = L - 2 * V4011_END - total - V4011_CROSS * max(0, len(group["lengths"]) - 1)
+        entries.append((span, str(group["last"] - group["first"] + 1),
+                        " + ".join(str(x) for x in group["lengths"]), str(total), _v4042_num(max(0.0, rest_strip))))
+    entries += _v4055_table_entries(sheet_data)
+    pages_tables = [table]
+    per_page = per_block * (2 if two_blocks else 1)
+
+    def header(sheet_, x0):
+        y = y_start
+        sheet_.rect(x0, y, x0 + block_w, y + row_h, V4042_W_THIN, V4042_INK, (0.92, 0.92, 0.92))
+        cx = x0
+        for (name, _w), w in zip(columns, widths):
+            text, size = _v4042_fit_text(name, V4042_TB_CAP, w - 2.0, bold=True)
+            sheet_.text(cx + 1.0, y + (row_h + size) / 2.0, text, size, bold=True)
+            cx += w
+
+    for i, entry_row in enumerate(entries):
+        page_no, rest_i = divmod(i, per_page)
+        block, line_no = divmod(rest_i, per_block)
+        while len(pages_tables) <= page_no:
+            extra = _V4042Sheet("A3", scale)
+            _v4042_frame(extra)
+            pages_tables.append(extra)
+        current = pages_tables[page_no]
+        x0 = V4042_FRAME[0] + 4.0 + block * (block_w + col_gap)
+        if line_no == 0:
+            header(current, x0)
+        y = y_start + row_h * (line_no + 1)
+        current.rect(x0, y, x0 + block_w, y + row_h, V4042_W_THIN)
+        cx = x0
+        for value, w in zip(entry_row, widths):
+            text, size = _v4042_fit_text(value, V4042_DIM_CAP, w - 2.0, min_cap=V4042_TB_CAP)
+            current.text(cx + 1.0, y + (row_h + size) / 2.0, text, size)
+            cx += w
+    for n, page in enumerate(pages_tables):
+        fr = (V4042_FRAME[0], V4042_FRAME[1], page.size[0] - V4042_FRAME[2], page.size[1] - V4042_FRAME[3])
+        rows_text = list(stamp)
+        rows_text[-1] = ("", (f"Таблица {n + 1}", f"Дата {datetime.now().strftime('%d.%m.%Y')}",
+                              APP_TITLE.replace("Конструктор ", "")), 1)
+        _v4042_title_block(page, fr, rows_text)
+    return pages + pages_tables
+
+_v4042_plank_sheets = _v4055_pdf_sheets
+
+
+# --- таблица «Прижимная планка МПК 8мм»: колонка «Полос» шире -----------
+_v4055_prev_build_tab = ScreenDesigner._v4030_build_tab
+
+
+def _v4055_build_tab(self, parent):
+    _v4055_prev_build_tab(self, parent)
+    try:
+        tree = getattr(self, "_v4030_plank_tree", None)
+        if tree is not None:
+            tree.column("strips", width=118, minwidth=64)
+    except Exception:
+        pass
+
+
+ScreenDesigner._v4030_build_tab = _v4055_build_tab
+
+
+# =====================================================================
+# V40.56 — окно «Справочник проекта отличается от вашего»:
+#   • таблица правок разбита на параграфы: шапка параграфа — наименование
+#     позиции, под ней — её разделы с отличающимися данными;
+#   • в шапке параграфа переключатель «Своё / Из файла» сразу для всех
+#     разделов позиции (если решения разные — не подсвечен ни один);
+#   • цвет текста на светлом фоне задан явно — в тёмной теме macOS
+#     наименования, поля и значения больше не пропадают.
+# =====================================================================
+
+V4056_TEXT = "#1A1A1A"
+V4056_GROUP_BG = "#EEF2F7"
+V4056_GROUP_LINE = "#C9CED6"
+V4056_ROW_LINE = "#E6E6E6"
+V4056_HEAD_BG = "#F0F0F0"
+
+
+def _v4056_groups(decide):
+    """[(наименование, [отличия])] — по алфавиту, разделы в исходном порядке."""
+    groups = {}
+    for d in decide:
+        groups.setdefault(str(d["name"]).split(" #")[0], []).append(d)
+    return sorted(groups.items(), key=lambda kv: kv[0].casefold())
+
+
+def _v4056_cells(d):
+    if d["fields"]:
+        field = "\n".join(f for f, _a, _b in d["fields"])
+        mine = "\n".join((_v3073_short(a, 90) if str(a).strip() else "пусто") for _f, a, _b in d["fields"])
+        theirs = "\n".join((_v3073_short(b, 90) if str(b).strip() else "пусто") for _f, _a, b in d["fields"])
+    elif d.get("mine") is None:
+        field, mine, theirs = "позиция", "— нет —", _v3073_short(d["theirs"][1], 90) or "есть"
+    else:
+        field, mine, theirs = "позиция", _v3073_short(d["mine"][1], 90) or "есть", "— нет —"
+    return field, mine, theirs
+
+
+def _v4056_regrow(win, width):
+    """Как V40.54, но окно не уже содержимого (крупный шрифт macOS)."""
+    win.update_idletasks()
+    _v4054_regrow(win, max(int(width), win.winfo_reqwidth()))
+
+
+def _v4056_summary_window(self, diffs, history, file_app, kinds, takes, ui):
+    """Сводка (V40.54), таблица правок по параграфам позиций (V40.56).
+    Возвращает (принятые, сохранять) / None / "all"."""
+    S = _v4054_scale(self)
+    px = lambda v: int(round(v * S))  # noqa: E731
+    win = tk.Toplevel(self)
+    win.title("Справочник проекта")
+    win.transient(self)
+    F = _v4054_fonts(win)
+    WIDTH = px(1060)
+    COLS = (px(285), px(80), px(235), px(245), px(1060 - 32 - 4 - 285 - 80 - 235 - 245))
+    WRAPS = (px(268), px(70), px(222), px(230), 0)
+
+    decide = [d for d, k in zip(diffs, kinds) if k == "decide"]
+    counts = {key: sum(1 for k in kinds if k == key) for key, *_ in V4054_GROUPS}
+    result = {"value": None}
+
+    outer = ttk.Frame(win, padding=(px(16), px(12), px(16), px(14)))
+    outer.pack(fill="both", expand=True)
+    ttk.Label(outer, text="Справочник проекта отличается от вашего",
+              font=F["title"]).pack(anchor="w")
+    if file_app and file_app != APP_TITLE:
+        auto = len(diffs) - len(decide)
+        text = f"Файл сохранён в {_v4054_version(file_app)}, у вас {_v4054_version(APP_TITLE)}"
+        text += (" — большинство отличий из-за обновлений программы." if auto > len(decide) else ".")
+        tk.Label(outer, text=text, bg="#FFF6D6", fg="#6B4E00", anchor="w", justify="left",
+                 font=F["base"], padx=px(10), pady=px(6), highlightthickness=1,
+                 highlightbackground="#E8D48A", wraplength=WIDTH - px(60)
+                 ).pack(fill="x", pady=(px(8), 0))
+
+    box = tk.Frame(outer, bg="white", highlightthickness=1, highlightbackground=V4054_LINE)
+    box.pack(fill="x", pady=(px(10), 0))
+
+    def group_row(number, color, title, sub, right_widget_maker, bg="white", bold=False):
+        row = tk.Frame(box, bg=bg)
+        row.pack(fill="x")
+        tk.Label(row, text=str(number), fg=color, bg=bg, font=F["num"], width=3,
+                 anchor="e").pack(side="left", padx=(px(6), px(10)), pady=px(6))
+        mid = tk.Frame(row, bg=bg)
+        mid.pack(side="left", fill="x", expand=True, pady=px(6))
+        tk.Label(mid, text=title, bg=bg, fg=V4056_TEXT, anchor="w", justify="left",
+                 font=F["bold"] if bold else F["base"]).pack(anchor="w")
+        if sub:
+            tk.Label(mid, text=sub, bg=bg, fg=V4054_MUTED, anchor="w", justify="left",
+                     font=F["base"], wraplength=WIDTH - px(330)).pack(anchor="w")
+        right = right_widget_maker(row)
+        if right is not None:
+            right.pack(side="right", padx=px(14))
+        return row
+
+    tag_labels = {}
+    first = True
+    for key, title, sub, tag in V4054_GROUPS:
+        if not counts[key]:
+            continue
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+        first = False
+
+        def make_tag(row, tag=tag, key=key):
+            label = tk.Label(row, text=tag, bg=V4054_NEW_BG, fg=V4054_OK, font=F["small"],
+                             padx=px(10), pady=px(2))
+            tag_labels[key] = (label, tag)
+            return label
+        group_row(counts[key], V4054_OK, title, sub, make_tag)
+
+    # --- группа «нужно решить» и раскрывающаяся таблица
+    table_holder = tk.Frame(outer)
+    link_var = tk.StringVar()
+    decide_row = None
+    if decide:
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+
+        def make_link(row):
+            label = tk.Label(row, textvariable=link_var, fg=V4054_LINK, cursor="hand2",
+                             font=F["link"], bg=row["bg"])
+            label.bind("<Button-1>", lambda _e: toggle())
+            return label
+        decide_row = group_row(len(decide), V4054_WARN, "Правки в файле проекта — нужно решить",
+                               _v4054_decide_hint(decide), make_link, bold=True)
+    else:
+        if not first:
+            tk.Frame(box, bg="#E2E2E2", height=1).pack(fill="x")
+        group_row(0, V4054_OK, "Правки в файле проекта — решать ничего не нужно",
+                  "Проект посчитается по вашему справочнику", lambda row: None, bold=True)
+
+    count_var = tk.StringVar()
+    apply_var = tk.StringVar()
+    seg_refresh = []
+
+    def taken_keys():
+        return [k for k, v in takes.items() if v == "theirs"]
+
+    def refresh():
+        theirs_n = len(taken_keys())
+        decide_theirs = sum(1 for d in decide if takes.get((d["section"], d["name"])) == "theirs")
+        count_var.set(f"Своё: {len(decide) - decide_theirs} · из файла: {decide_theirs}")
+        apply_var.set(f"Применить (из файла: {theirs_n})")
+        try:
+            apply_btn.configure(state=("normal" if theirs_n else "disabled"))
+        except Exception:
+            pass
+        for key, (label, tag) in tag_labels.items():
+            n = sum(1 for d, k in zip(diffs, kinds)
+                    if k == key and takes.get((d["section"], d["name"])) == "theirs")
+            label.configure(text=(f"из файла: {n}" if n else tag))
+        for fn in seg_refresh:
+            fn()
+
+    def build_table():
+        head = tk.Frame(table_holder, bg=V4056_HEAD_BG, highlightthickness=1,
+                        highlightbackground=V4054_LINE)
+        head.grid(row=0, column=0, columnspan=2, sticky="ew")
+        for col, (text, width) in enumerate(zip(("Раздел", "Поле", "У вас", "В файле", "Решение"), COLS)):
+            head.grid_columnconfigure(col, minsize=width)
+            tk.Label(head, text=text, bg=V4056_HEAD_BG, fg=V4056_TEXT, font=F["bold"], anchor="w"
+                     ).grid(row=0, column=col, sticky="w", padx=px(8), pady=px(4))
+        canvas = tk.Canvas(table_holder, bg="white", highlightthickness=1,
+                           highlightbackground=V4054_LINE, bd=0)
+        canvas.grid(row=1, column=0, sticky="nsew")
+        inner = tk.Frame(canvas, bg="white")
+        canvas.create_window(0, 0, window=inner, anchor="nw")
+        for col, width in enumerate(COLS):
+            inner.grid_columnconfigure(col, minsize=width)
+
+        def make_seg(parent, keys):
+            seg = tk.Frame(parent, bg=V4054_LINE, padx=1, pady=1)
+            own = tk.Label(seg, text="Своё", font=F["base"], padx=px(10), pady=px(2), cursor="hand2")
+            own.pack(side="left")
+            other = tk.Label(seg, text="Из файла", font=F["base"], padx=px(10), pady=px(2), cursor="hand2")
+            other.pack(side="left", padx=(1, 0))
+
+            def paint(keys=keys, own=own, other=other):
+                values = {("theirs" if takes.get(k) == "theirs" else "mine") for k in keys}
+                own_on, other_on = values == {"mine"}, values == {"theirs"}
+                own.configure(bg=(V4054_SEL if own_on else "white"), fg=("white" if own_on else "black"))
+                other.configure(bg=(V4054_SEL if other_on else "white"), fg=("white" if other_on else "black"))
+
+            def choose(value, keys=keys):
+                for k in keys:
+                    takes[k] = value
+                refresh()
+            own.bind("<Button-1>", lambda _e, c=choose: c("mine"))
+            other.bind("<Button-1>", lambda _e, c=choose: c("theirs"))
+            seg_refresh.append(paint)
+            return seg
+
+        grid_row = 0
+        for gi, (gname, rows_g) in enumerate(_v4056_groups(decide)):
+            keys = [(d["section"], d["name"]) for d in rows_g]
+            if gi:
+                tk.Frame(inner, bg=V4056_GROUP_LINE, height=1).grid(
+                    row=grid_row, column=0, columnspan=5, sticky="ew")
+                grid_row += 1
+            # шапка параграфа — наименование позиции
+            band = tk.Frame(inner, bg=V4056_GROUP_BG)
+            band.grid(row=grid_row, column=0, columnspan=5, sticky="nsew")
+            title = tk.Frame(inner, bg=V4056_GROUP_BG)
+            title.grid(row=grid_row, column=0, columnspan=4, sticky="w", padx=px(8), pady=px(6))
+            tk.Label(title, text=gname, bg=V4056_GROUP_BG, fg=V4056_TEXT, font=F["bold"], anchor="w",
+                     justify="left", wraplength=sum(COLS[:4]) - px(170)).pack(side="left")
+            n = len(rows_g)
+            tk.Label(title, text=f"  · {n} {_v4054_plural(n, 'раздел', 'раздела', 'разделов')}",
+                     bg=V4056_GROUP_BG, fg=V4054_MUTED, font=F["base"]).pack(side="left")
+            if n > 1:
+                make_seg(inner, keys).grid(row=grid_row, column=4, padx=px(8),
+                                                          pady=px(6), sticky="nw")
+            grid_row += 1
+            # разделы позиции
+            for ri, d in enumerate(rows_g):
+                key = (d["section"], d["name"])
+                if ri:
+                    tk.Frame(inner, bg=V4056_ROW_LINE, height=1).grid(
+                        row=grid_row, column=0, columnspan=5, sticky="ew", padx=(px(20), 0))
+                    grid_row += 1
+                field, mine_text, their_text = _v4056_cells(d)
+                pad = dict(padx=px(8), pady=px(6), sticky="nw")
+                tk.Label(inner, text=d["section"], bg="white", fg=V4056_TEXT, font=F["base"], anchor="w",
+                         justify="left", wraplength=WRAPS[0] - px(14)).grid(
+                    row=grid_row, column=0, padx=(px(22), px(8)), pady=px(6), sticky="nw")
+                tk.Label(inner, text=field, bg="white", fg=V4056_TEXT, font=F["base"], anchor="w",
+                         justify="left", wraplength=WRAPS[1]).grid(row=grid_row, column=1, **pad)
+                tk.Label(inner, text=mine_text, bg="white", fg=V4056_TEXT, font=F["base"], anchor="w",
+                         justify="left", wraplength=WRAPS[2]).grid(row=grid_row, column=2, **pad)
+                cell = tk.Frame(inner, bg="white")
+                cell.grid(row=grid_row, column=3, **pad)
+                tk.Label(cell, text=their_text, bg=V4054_NEW_BG, fg="#1E6B2A", font=F["base"], anchor="w",
+                         justify="left", wraplength=WRAPS[3]).pack(anchor="w")
+                who, when = _v3080_who_when(history, d["section"], d["name"])
+                stamp = " · ".join(x for x in (("правка " + _v3073_when_text(when)) if when else "", who) if x)
+                if stamp:
+                    tk.Label(cell, text=stamp, bg="white", fg=V4054_MUTED, font=F["base"], anchor="w",
+                             justify="left", wraplength=WRAPS[3]).pack(anchor="w")
+                make_seg(inner, [key]).grid(row=grid_row, column=4, padx=px(8), pady=px(6),
+                                                     sticky="nw")
+                grid_row += 1
+
+        inner.update_idletasks()
+        req_w, req_h = inner.winfo_reqwidth(), inner.winfo_reqheight()
+        canvas.configure(width=req_w, scrollregion=(0, 0, req_w, req_h), yscrollincrement=px(20))
+        # высота таблицы — сколько влезает на экран, дальше прокрутка
+        try:
+            rest = win.winfo_reqheight()
+            avail = win.winfo_screenheight() - rest - px(140)
+        except Exception:
+            avail = px(420)
+        height = min(req_h, max(px(220), avail))
+        canvas.configure(height=height)
+        if req_h > height:
+            sb = ttk.Scrollbar(table_holder, orient="vertical", command=canvas.yview)
+            sb.grid(row=1, column=1, sticky="ns")
+            canvas.configure(yscrollcommand=sb.set,
+                             width=max(px(400), req_w - sb.winfo_reqwidth() - 2))
+
+        foot = ttk.Frame(table_holder)
+        foot.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(px(6), 0))
+        ttk.Label(foot, textvariable=count_var, foreground=V4054_MUTED).pack(side="left")
+
+        def set_all(value):
+            for d in decide:
+                takes[(d["section"], d["name"])] = value
+            refresh()
+        _v4054_link(foot, "Всё из файла", lambda: set_all("theirs"), F["link"]).pack(side="right")
+        _v4054_link(foot, "Всё своё", lambda: set_all("mine"), F["link"]).pack(side="right", padx=(0, px(18)))
+        refresh()
+
+    def toggle(force=None):
+        show = (not ui.get("open")) if force is None else force
+        ui["open"] = show
+        if show:
+            if not table_holder.winfo_children():
+                build_table()
+            table_holder.pack(fill="x", after=box)
+            link_var.set("Свернуть ▲")
+            if decide_row is not None:
+                for w in [decide_row] + list(decide_row.winfo_children()):
+                    _v4054_paint_bg(w, "#EEF3FB")
+        else:
+            table_holder.pack_forget()
+            link_var.set(f"Посмотреть {len(decide)} ›")
+            if decide_row is not None:
+                for w in [decide_row] + list(decide_row.winfo_children()):
+                    _v4054_paint_bg(w, "white")
+        _v4056_regrow(win, WIDTH)
+
+    save_var = tk.BooleanVar(value=bool(ui.get("save")))
+    tk_check = ttk.Checkbutton(outer, text="Сохранить принятое в мой справочник", variable=save_var)
+    tk_check.pack(anchor="w", pady=(px(12), 0))
+
+    bar = ttk.Frame(outer)
+    bar.pack(fill="x", pady=(px(12), 0))
+
+    def show_all():
+        ui["save"] = bool(save_var.get())
+        result["value"] = "all"
+        win.destroy()
+
+    def finish():
+        ui["save"] = bool(save_var.get())
+        taken = [key for key in taken_keys()]
+        result["value"] = (taken, bool(save_var.get()))
+        win.destroy()
+
+    _v4054_link(bar, f"Показать все {len(diffs)} {_v4054_plural(len(diffs), 'отличие', 'отличия', 'отличий')}",
+                show_all, F["link"]).pack(side="left")
+    apply_btn = ttk.Button(bar, textvariable=apply_var, command=finish, default="active")
+    apply_btn.pack(side="right")
+    ttk.Button(bar, text="Считать по своему", command=win.destroy).pack(side="right", padx=(0, px(8)))
+
+    win._v4054_vars = (link_var, count_var, apply_var, save_var)
+    win.bind("<Escape>", lambda e: win.destroy())
+    if decide:
+        toggle(force=bool(ui.get("open")))
+    else:
+        _v4056_regrow(win, WIDTH)
+    refresh()
+    win.update_idletasks()
+    _v4054_place(self, win, max(WIDTH, win.winfo_reqwidth()), win.winfo_reqheight())
+    try:
+        win.grab_set()
+    except Exception:
+        pass
+    win.focus_set()
+    self.wait_window(win)
+    return result["value"]
+
+_v4054_summary_window = _v4056_summary_window
+
+
+# =====================================================================
+# V40.57 — «Быстрый расчёт»: мастер из 4 шагов (вариант 5).
+#   Тип → Размер → Исполнение → Результат.
+#   Кнопка «⚡ Быстрый расчёт» — в строке «Объект» над вкладками.
+#   Считает теми же функциями, что «Комплектующие» (статика МЦД —
+#   прямоугольная и круглая, статика РЖД), поэтому цифры совпадают.
+#   Результат: вид спереди с разбивкой корпуса, сечение, плитки (вес,
+#   мощность/БП, корпус, листы), комплектующие по разделам на 1 шт.
+#   и на партию с весом, PDF расчёта, «Добавить в проект».
+#   Динамика МЦД и LED-экраны — в следующей версии (плитки неактивны).
+#   Цена — отдельным этапом после выбора источника цен.
+# =====================================================================
+
+V4057_TITLE = "Быстрый расчёт — мастер"
+V4057_BUTTON = "⚡ Быстрый расчёт"
+V4057_STEPS = ("Тип", "Размер", "Исполнение", "Результат")
+V4057_GROUPS = ("Корпус", "Листовые материалы", "Электрика", "Монтаж и расходники")
+V4057_TEXT = "#1A1A1A"
+V4057_MUTED = "#6B6B6B"
+V4057_BG = "#E9E9E9"
+V4057_CARD = "#FFFFFF"
+V4057_LINE = "#C4C4C4"
+V4057_SEL = "#2A62B0"
+V4057_SEL_BG = "#EEF4FC"
+V4057_DONE_BG = "#E7F2EA"
+V4057_DONE_FG = "#2B7A3D"
+V4057_IDLE_BG = "#DCDCDC"
+V4057_DRAW = "#33465F"
+V4057_SPLIT = "#A0781A"
+V4057_DIM = "#2A62B0"
+V4057_HINT_BG = "#FFF6DC"
+V4057_HINT_FG = "#6B5100"
+V4057_SIZES_RECT = ("1250×600", "2000×400", "2500×400", "2850×1000")
+V4057_SIZES_ROUND = ("Ø600", "Ø1200", "Ø2000")
+V4057_INFO_ROWS = ("led фактически установлено", "установлено led", "расчётная мощность", "расчетная мощность")
+V4057_HISTORY_FILE = "LED_Screen_Designer_quick_history.json"
+
+
+# ---------------------------------------------------------------------
+# Расчёт
+# ---------------------------------------------------------------------
+def _v4057_norm(text):
+    return str(text or "").strip().casefold().replace("ё", "е")
+
+
+def _v4057_group(name):
+    n = _v4057_norm(name)
+    if n.startswith(("профиль", "профильная труба", "монтажная пластина", "перемычка",
+                     "площадка для шпильки", "резьбовая заклепка", "уголок перфорированный",
+                     "заклепка")):
+        return "Корпус"
+    if n.startswith(("оргстекло", "молочный акрил", "алюкобонд", "прижимная планка", "композит",
+                     "пвх", "пленка", "световозвращ")):
+        return "Листовые материалы"
+    if ("светодиод" in n or n.startswith(("блок питания", "кабель", "клемма", "соединитель",
+                                           "наконечник", "провод"))):
+        return "Электрика"
+    return "Монтаж и расходники"
+
+
+def _v4057_is_info(name):
+    n = _v4057_norm(name)
+    return n.startswith(V4057_INFO_ROWS)
+
+
+def _v4057_names(state):
+    """Наименование и артикул — по тем же правилам, что автозаполнение вкладки."""
+    mode = MODE_RZD if state["type"] == "rzd" else MODE_MCD
+    sides = 2 if int(state.get("sides", 1)) == 2 else 1
+    face = str(state.get("face") or "С подсветкой")
+    key = _v4057_norm(face)
+    reflective = key.startswith("светоотраж")
+    lit = key == "с подсветкой"
+    rnd = bool(state.get("round")) and mode == MODE_MCD
+    w = int(state.get("w") or 0)
+    h = int(state.get("h") or 0)
+    if mode == MODE_MCD:
+        family = ("ASD-ST" if sides == 2 else "ASD-L") if rnd else ("ASD-L II" if sides == 2 else "ASD-L")
+    else:
+        base = "AS-LS" if reflective else "AS-L"
+        family = f"{base} II" if sides == 2 else base
+    parts = ["Статический навигационный указатель."]
+    if lit:
+        parts.append("Световой.")
+    elif reflective:
+        parts.extend(["Несветовой.", "Световозвращающий материал."])
+    dims = (f"D={w}" if w > 0 else "") if rnd else (f"{w}x{h}" if w > 0 and h > 0 else "")
+    side_word = "Двусторонний" if sides == 2 else "Односторонний"
+    parts.append(f"{side_word} {family}" + (f" {dims}" if dims else ""))
+    return " ".join(parts), family + (f" {dims}" if dims else "")
+
+
+def _v4057_record(state, qty=None):
+    """Запись изделия в формате вкладки «Статические указатели»."""
+    mode = MODE_RZD if state["type"] == "rzd" else MODE_MCD
+    rnd = bool(state.get("round")) and mode == MODE_MCD
+    sides = 2 if int(state.get("sides", 1)) == 2 else 1
+    w = int(state.get("w") or 0)
+    h = w if rnd else int(state.get("h") or 0)
+    name, article = _v4057_names(dict(state, h=h))
+    if mode == MODE_RZD:
+        profile = "60×20×2 мм"
+    else:
+        profile = "120 мм" if sides == 2 else "75 мм"
+    return {"name": name, "article": article, "layout_no": "", "mode": mode, "width": w, "height": h,
+            "sides": sides, "profile": profile, "frame_profile": "40×20×2 мм", "mount_type": "",
+            "quantity": str(int(qty if qty is not None else state.get("qty", 1) or 1)),
+            "autofill": True, "face_type": str(state.get("face") or "С подсветкой"),
+            "round": rnd, "diameter": (w if rnd else "")}
+
+
+def _v4057_valid(state):
+    try:
+        w = int(state.get("w") or 0)
+        h = int(state.get("h") or 0)
+    except Exception:
+        return False
+    if state.get("type") not in ("mcd", "rzd"):
+        return False
+    if state.get("round") and state.get("type") == "mcd":
+        return 100 <= w <= 6000
+    return 100 <= w <= 12000 and 100 <= h <= 12000
+
+
+def _v4057_rows(self, record):
+    fn = self._static_rzd_component_rows if record["mode"] == MODE_RZD else self._static_mcd_component_rows
+    return list(fn([record]))
+
+
+def _v4057_fmt(value, digits=2):
+    try:
+        v = float(value)
+    except Exception:
+        return str(value)
+    if digits == 2 and 0 < abs(v) < 0.005:
+        return "<0,01"
+    if abs(v - round(v)) < 1e-9:
+        return f"{int(round(v)):,}".replace(",", " ")
+    return (f"{v:.{digits}f}".rstrip("0").rstrip(".")).replace(".", ",")
+
+
+def _v4057_calc(self, state):
+    """Полный расчёт одного варианта. None — если данных не хватает."""
+    if not _v4057_valid(state):
+        return None
+    qty = max(1, int(state.get("qty") or 1))
+    one = _v4057_record(state, 1)
+    batch = _v4057_record(state, qty)
+    rows1 = _v4057_rows(self, one)
+    rows_n = {(n, u): q for n, u, q in _v4057_rows(self, batch)}
+    items = []
+    info = {}
+    psus = []
+    led = 0
+    for name, unit, q in rows1:
+        if _v4057_is_info(name):
+            info[_v4057_norm(name)] = q
+            continue
+        try:
+            if q is None or abs(float(q)) < 1e-12:
+                continue
+        except Exception:
+            continue
+        try:
+            weight = self._component_weight_kg(name, unit, q)
+        except Exception:
+            weight = None
+        group = _v4057_group(name)
+        items.append({"group": group, "name": name, "unit": unit, "q1": q,
+                      "qn": rows_n.get((name, unit), q * qty), "w": weight})
+        m = re.match(r"Блок питания\s+(\d+)\s*Вт", str(name))
+        if m:
+            psus.append((int(m.group(1)), q))
+        if "светодиод" in _v4057_norm(name):
+            led += float(q)
+    order = {g: i for i, g in enumerate(V4057_GROUPS)}
+    items.sort(key=lambda it: order.get(it["group"], 99))
+    power = None
+    installed = None
+    for key, value in info.items():
+        if key.startswith(("расчётная мощность", "расчетная мощность")):
+            power = value
+        else:
+            installed = value
+    try:
+        weight1 = self._static_sign_weight_kg(one)
+    except Exception:
+        weight1 = None
+    if weight1 is None:
+        known = [it["w"] for it in items if it["w"] is not None]
+        weight1 = sum(known) if known else None
+    name, article = _v4057_names(dict(state, h=one["height"]))
+    return {"state": dict(state), "record": one, "qty": qty, "items": items, "power": power,
+            "led": int(round(installed if installed is not None else led)), "psus": psus,
+            "weight": weight1, "name": name, "article": article,
+            "corpus": _v4057_corpus(one, items), "sheets": _v4057_sheets(items),
+            "leds_kind": _v4057_led_kind(items)}
+
+
+def _v4057_led_kind(items):
+    for it in items:
+        n = _v4057_norm(it["name"])
+        if "светодиод" in n:
+            return "торцевые" if "торцев" in n else "фронтальные"
+    return ""
+
+
+def _v4057_corpus(record, items):
+    """(значение плитки, подпись) для корпуса."""
+    w, h = float(record["width"]), float(record["height"])
+    for it in items:
+        name = str(it["name"])
+        m = re.match(r"Профиль\s*(\d+)\s*мм\s*—\s*([ПГ])-элемент\s*—\s*([\d.,]+×[\d.,]+)\s*мм", name)
+        if m:
+            per = 2.0 * (w + h) / 1000.0
+            return (f"{_v4057_fmt(it['q1'])} {m.group(2)}-элем.",
+                    f"профиль {m.group(1)} мм · {m.group(3)} · {_v4057_fmt(per)} м.п.")
+        m = re.match(r"Профиль алюминиевый\s*(\d+)\s*мм\s*—\s*круглый.*?(R\s*\d+)", name)
+        if m:
+            return (f"Кольцо {m.group(2).replace(' ', '')}",
+                    f"профиль {m.group(1)} мм · {_v4057_fmt(it['q1'])} м.п.")
+        if _v4057_norm(name).startswith("профиль алюминиевый п-образный"):
+            size = re.search(r"(\d+×\d+×\d+)", name)
+            frame = next((x for x in items if _v4057_norm(x["name"]).startswith("профильная труба")), None)
+            sub = f"{size.group(1) if size else ''} · {_v4057_fmt(it['q1'])} м.п."
+            if frame:
+                fsize = re.search(r"(\d+×\d+×\d+)", str(frame["name"]))
+                sub += f" · рамка {fsize.group(1) if fsize else ''} {_v4057_fmt(frame['q1'])} м.п."
+            return ("П-профиль", sub)
+    first = next((it for it in items if it["group"] == "Корпус"), None)
+    if first:
+        return ("—", f"{first['name']}")
+    return ("—", "")
+
+
+def _v4057_sheets(items):
+    counts, subs = [], []
+    for it in items:
+        if it["group"] != "Листовые материалы":
+            continue
+        n = _v4057_norm(it["name"])
+        if n.startswith("прижимная планка"):
+            continue
+        short = ("оргстекло" if n.startswith("оргстекло") else "акрил" if "акрил" in n
+                 else "алюкобонд" if n.startswith("алюкобонд") else str(it["name"]).split()[0].lower())
+        size = re.search(r"(Ø\s*\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?×\d+(?:[.,]\d+)?)", str(it["name"]))
+        if str(it["unit"]).startswith("шт"):
+            counts.append(_v4057_fmt(it["q1"]))
+            subs.append(f"{short} {size.group(1) if size else ''} ×{_v4057_fmt(it['q1'])}".replace("  ", " "))
+        else:
+            subs.append(f"{short} {_v4057_fmt(it['q1'])} {it['unit']}")
+    return (" + ".join(counts) if counts else ("—" if not subs else "м²"), " · ".join(subs))
+
+
+# ---------------------------------------------------------------------
+# История расчётов
+# ---------------------------------------------------------------------
+def _v4057_history_path():
+    try:
+        return Path(sys.argv[0]).resolve().parent / V4057_HISTORY_FILE
+    except Exception:
+        return Path.home() / V4057_HISTORY_FILE
+
+
+def _v4057_history_load():
+    try:
+        data = json.loads(_v4057_history_path().read_text(encoding="utf-8"))
+        return [s for s in data if isinstance(s, dict) and _v4057_valid(s)][:8]
+    except Exception:
+        return []
+
+
+def _v4057_history_add(state):
+    keep = {k: state.get(k) for k in ("type", "round", "w", "h", "qty", "sides", "face")}
+    items = [s for s in _v4057_history_load()
+             if {k: s.get(k) for k in keep} != keep]
+    items.insert(0, keep)
+    try:
+        _v4057_history_path().write_text(json.dumps(items[:8], ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _v4057_history_label(state):
+    _name, article = _v4057_names(state)
+    return f"{article} ×{int(state.get('qty') or 1)}"
+
+
+# ---------------------------------------------------------------------
+# Рисунки (Tk Canvas)
+# ---------------------------------------------------------------------
+def _v4057_dashed(canvas, x1, y1, x2, y2, color):
+    canvas.create_line(x1, y1, x2, y2, fill=color, dash=(6, 4), width=1.5)
+
+
+def _v4057_draw_front(canvas, state, width, height, labels=True):
+    """Вид спереди в масштабе: корпус, разбивка на элементы, размеры."""
+    canvas.delete("all")
+    rnd = bool(state.get("round")) and state.get("type") == "mcd"
+    try:
+        w = float(state.get("w") or 0)
+        h = w if rnd else float(state.get("h") or 0)
+    except Exception:
+        w = h = 0
+    if w <= 0 or h <= 0:
+        canvas.create_text(width / 2, height / 2, text="Укажите размер изделия", fill=V4057_MUTED)
+        return
+    pad_l, pad_t, pad_r, pad_b = 46, 16, 20, 40
+    k = min((width - pad_l - pad_r) / w, (height - pad_t - pad_b) / h)
+    dw, dh = w * k, h * k
+    x0 = pad_l + (width - pad_l - pad_r - dw) / 2
+    y0 = pad_t + (height - pad_t - pad_b - dh) / 2
+    x1, y1 = x0 + dw, y0 + dh
+    if rnd:
+        canvas.create_oval(x0, y0, x1, y1, outline=V4057_DRAW, width=2, fill="#F7F9FC")
+        if labels:
+            canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2, text="кольцо профиля", fill=V4057_SPLIT)
+        canvas.create_line(x0, y1 + 14, x1, y1 + 14, fill=V4057_DIM)
+        canvas.create_text((x0 + x1) / 2, y1 + 27, text=f"Ø{int(w)}", fill=V4057_DIM)
+        return
+    canvas.create_rectangle(x0, y0, x1, y1, outline=V4057_DRAW, width=2, fill="#F7F9FC")
+    if state.get("type") == "mcd":
+        if w > 2999 or h > 2999:
+            _v4057_dashed(canvas, (x0 + x1) / 2, y0, (x0 + x1) / 2, y1, V4057_SPLIT)
+            _v4057_dashed(canvas, x0, (y0 + y1) / 2, x1, (y0 + y1) / 2, V4057_SPLIT)
+            if labels:
+                canvas.create_text((x0 + x1) / 2 + 6, (y0 + y1) / 2 - 6, text="4 × Г-элемент",
+                                   anchor="sw", fill=V4057_SPLIT)
+        else:
+            ym = (y0 + y1) / 2
+            _v4057_dashed(canvas, x0, ym, x1, ym, V4057_SPLIT)
+            if labels:
+                if dh >= 44:
+                    half = f"{int(w)}×{_v4057_fmt(h / 2)}"
+                    canvas.create_text((x0 + x1) / 2, ym - 9, text=f"П-элемент {half}", fill=V4057_SPLIT)
+                    canvas.create_text((x0 + x1) / 2, ym + 10, text=f"П-элемент {half}", fill=V4057_SPLIT)
+                else:
+                    canvas.create_text((x0 + x1) / 2, ym - 7, text="2 × П-элемент", fill=V4057_SPLIT)
+    elif labels:
+        canvas.create_text((x0 + x1) / 2, (y0 + y1) / 2, text="П-профиль 60×20×2 по периметру",
+                           fill=V4057_SPLIT)
+    canvas.create_line(x0, y1 + 14, x1, y1 + 14, fill=V4057_DIM)
+    canvas.create_text((x0 + x1) / 2, y1 + 27, text=str(int(w)), fill=V4057_DIM)
+    canvas.create_line(x0 - 16, y0, x0 - 16, y1, fill=V4057_DIM)
+    canvas.create_text(x0 - 26, (y0 + y1) / 2, text=str(int(h)), fill=V4057_DIM, angle=90)
+
+
+def _v4057_section_lines(res):
+    st = res["state"]
+    sides = int(st.get("sides", 1))
+    glass = sum(float(it["q1"]) for it in res["items"] if _v4057_norm(it["name"]).startswith("оргстекло"))
+    acrylic = any("акрил" in _v4057_norm(it["name"]) for it in res["items"])
+    wall = any(_v4057_norm(it["name"]).startswith("алюкобонд") for it in res["items"])
+    value, sub = res["corpus"]
+    first = sub.split(" · ")[0] if sub else value
+    if st["type"] == "rzd":
+        first = "П-профиль " + (sub.split(" · ")[0] if sub else "60×20×2")
+    line2 = []
+    if glass:
+        line2.append(f"{_v4057_fmt(glass)} × оргстекло 8 мм")
+    if acrylic:
+        line2.append("акрил 4 мм")
+    if wall:
+        line2.append("стенка алюкобонд")
+    line3 = f"{res['leds_kind']} LED {res['led']} шт." if res["led"] else "без светодиодов"
+    return [first, " + ".join(line2) or "—", line3], sides
+
+
+def _v4057_draw_section(canvas, res):
+    canvas.delete("all")
+    lines, sides = _v4057_section_lines(res)
+    canvas.create_text(4, 10, text="Сечение", anchor="w", fill=V4057_TEXT, font=("TkDefaultFont", 10, "bold"))
+    canvas.create_rectangle(6, 24, 66, 88, outline=V4057_DRAW, width=2)
+    canvas.create_line(12, 32, 60, 32, fill="#7AA5D8", width=3)
+    if sides == 2:
+        canvas.create_line(12, 80, 60, 80, fill="#7AA5D8", width=3)
+    else:
+        canvas.create_line(10, 82, 62, 82, fill="#8C8C8C", width=4)
+    for i, text in enumerate(lines):
+        canvas.create_text(78, 36 + i * 20, text=text, anchor="w", fill=V4057_TEXT)
+
+
+# ---------------------------------------------------------------------
+# Окно мастера
+# ---------------------------------------------------------------------
+class _V4057Wizard:
+    def __init__(self, app):
+        self.app = app
+        self.S = _v4054_scale(app)
+        self.state = {"type": "mcd", "round": False, "w": "", "h": "", "qty": 1, "sides": 1,
+                      "face": "С подсветкой"}
+        self.step = 0
+        self.max_step = 0
+        self.result = None
+        self._after = None
+        win = tk.Toplevel(app)
+        self.win = win
+        win.title(V4057_TITLE)
+        win.configure(bg=V4057_BG)
+        win.transient(app)
+        self.F = _v4054_fonts(win)
+        f = self.F
+        family, size = f["base"][0], f["base"][1]
+        self.F_big = (family, size + 6)
+        self.F_kpi = (family, size + 6, "bold")
+        self.F_head = (family, size + 1, "bold")
+        self.outer = tk.Frame(win, bg=V4057_BG, padx=self.px(14), pady=self.px(12))
+        self.outer.pack(fill="both", expand=True)
+        self.stepper = tk.Frame(self.outer, bg=V4057_BG)
+        self.stepper.pack(fill="x")
+        self.body = tk.Frame(self.outer, bg=V4057_BG)
+        self.body.pack(fill="both", expand=True, pady=(self.px(10), 0))
+        self.live = tk.Frame(self.outer, bg=V4057_CARD, highlightthickness=1, highlightbackground=V4057_LINE)
+        self.live_text = tk.Label(self.live, bg=V4057_CARD, fg=V4057_TEXT, anchor="w", font=f["base"])
+        self.live_text.pack(side="left", padx=self.px(10), pady=self.px(6))
+        jump = tk.Label(self.live, text="Сразу к результату ›", bg=V4057_CARD, fg=V4054_LINK,
+                        cursor="hand2", font=f["link"])
+        jump.pack(side="right", padx=self.px(10))
+        jump.bind("<Button-1>", lambda _e: self.go(3))
+        self.bar = tk.Frame(self.outer, bg=V4057_BG)
+        self.bar.pack(fill="x", side="bottom", pady=(self.px(10), 0))
+        win.bind("<Escape>", lambda _e: self.close())
+        win.bind("<Return>", self._on_return)
+        win.protocol("WM_DELETE_WINDOW", self.close)
+        width, height = self.px(1180), self.px(780)
+        try:
+            sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
+            width, height = min(width, sw - 40), min(height, sh - 80)
+            x = app.winfo_rootx() + max(0, (app.winfo_width() - width) // 2)
+            y = app.winfo_rooty() + max(0, (app.winfo_height() - height) // 3)
+            win.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            win.geometry(f"{width}x{height}")
+        win.minsize(self.px(980), self.px(620))
+        self.go(0)
+
+    # --- общее --------------------------------------------------------
+    def px(self, v):
+        return int(round(v * self.S))
+
+    def close(self):
+        try:
+            self.win.destroy()
+        except Exception:
+            pass
+        if getattr(self.app, "_v4057_wizard", None) is self:
+            self.app._v4057_wizard = None
+
+    def _on_return(self, _event=None):
+        if self.step < 3:
+            self.go(self.step + 1)
+
+    def card(self, parent, title=None):
+        frame = tk.Frame(parent, bg=V4057_CARD, highlightthickness=1, highlightbackground=V4057_LINE,
+                         padx=self.px(10), pady=self.px(8))
+        if title:
+            tk.Label(frame, text=title.upper(), bg=V4057_CARD, fg=V4057_MUTED, font=self.F["small"],
+                     anchor="w").pack(anchor="w", pady=(0, self.px(4)))
+        return frame
+
+    def seg(self, parent, options, current, command, disabled=()):
+        box = tk.Frame(parent, bg="#9A9A9A", padx=1, pady=1)
+        for i, (value, text) in enumerate(options):
+            on = value == current
+            off = value in disabled
+            lab = tk.Label(box, text=text, font=self.F["base"], padx=self.px(10), pady=self.px(3),
+                           bg=(V4057_SEL if on else ("#F0F0F0" if off else "white")),
+                           fg=("white" if on else ("#A0A0A0" if off else "black")),
+                           cursor=("arrow" if off else "hand2"))
+            lab.pack(side="left", padx=((1 if i else 0), 0))
+            if not off:
+                lab.bind("<Button-1>", lambda _e, v=value: command(v))
+        return box
+
+    def chips(self, parent, labels, command, current=None):
+        row = tk.Frame(parent, bg=parent["bg"])
+        for text in labels:
+            on = text == current
+            lab = tk.Label(row, text=text, font=self.F["base"], padx=self.px(9), pady=self.px(2),
+                           bg=(V4057_SEL if on else "white"), fg=("white" if on else "black"),
+                           highlightthickness=1, highlightbackground="#B5B5B5", cursor="hand2")
+            lab.pack(side="left", padx=(0, self.px(5)), pady=self.px(2))
+            lab.bind("<Button-1>", lambda _e, t=text: command(t))
+        return row
+
+    def type_title(self):
+        return {"mcd": "Статика МЦД", "rzd": "Статика РЖД"}.get(self.state["type"], "")
+
+    def size_text(self):
+        st = self.state
+        if st.get("round") and st["type"] == "mcd":
+            return f"Ø{st.get('w')} · {st.get('qty')} шт."
+        return f"{st.get('w')}×{st.get('h')} · {st.get('qty')} шт."
+
+    def exec_text(self):
+        st = self.state
+        sides = "2 стороны" if int(st.get("sides", 1)) == 2 else "1 сторона"
+        face = _v4057_norm(st.get("face"))
+        return sides if face == "с подсветкой" else f"{sides} · {st.get('face', '').lower()}"
+
+    def draw_stepper(self):
+        for child in self.stepper.winfo_children():
+            child.destroy()
+        values = (self.type_title(), self.size_text(), self.exec_text(), "")
+        for i, name in enumerate(V4057_STEPS):
+            done = i < self.step or (i <= self.max_step and i != self.step)
+            text = f"{i + 1} · {name}" + (f" ✓ {values[i]}" if done and values[i] else "")
+            if i == self.step:
+                bg, fg, font = V4057_SEL, "white", self.F["bold"]
+            elif done:
+                bg, fg, font = V4057_DONE_BG, V4057_DONE_FG, self.F["base"]
+            else:
+                bg, fg, font = V4057_IDLE_BG, "#555555", self.F["base"]
+            lab = tk.Label(self.stepper, text=text, bg=bg, fg=fg, font=font, pady=self.px(7),
+                           highlightthickness=1, highlightbackground="#B9B9B9",
+                           cursor=("hand2" if done else "arrow"))
+            lab.pack(side="left", fill="x", expand=True)
+            if done:
+                lab.bind("<Button-1>", lambda _e, s=i: self.go(s))
+
+    def buttons(self, back=True, next_text="Дальше ›", next_cmd=None, extra=()):
+        for child in self.bar.winfo_children():
+            child.destroy()
+        if back:
+            ttk.Button(self.bar, text="‹ Назад", command=lambda: self.go(self.step - 1)).pack(side="left")
+        else:
+            ttk.Button(self.bar, text="Отмена", command=self.close).pack(side="left")
+        for text, cmd in extra:
+            if text == "|":
+                tk.Frame(self.bar, bg=V4057_BG).pack(side="left", fill="x", expand=True)
+                continue
+            ttk.Button(self.bar, text=text, command=cmd).pack(side="left", padx=(self.px(8), 0))
+        if next_text:
+            ttk.Button(self.bar, text=next_text, command=next_cmd or (lambda: self.go(self.step + 1)),
+                       default="active").pack(side="right")
+
+    def update_live(self):
+        if self.step in (1, 2):
+            res = _v4057_calc(self.app, self.state) if _v4057_valid(self.state) else None
+            if res:
+                psu = ", ".join(f"{n} Вт × {_v4057_fmt(c)}" for n, c in res["psus"]) or "—"
+                power = f"{_v4057_fmt(res['power'], 1)} Вт" if res["power"] else "—"
+                weight = f"{_v4057_fmt(res['weight'], 1)} кг" if res["weight"] is not None else "—"
+                self.live_text.configure(
+                    text=f"Предварительно:   вес {weight}    мощность +20% {power} · БП {psu}"
+                         f"    LED {res['led']}    корпус {res['corpus'][0]}")
+            else:
+                self.live_text.configure(text="Предварительно: укажите размер изделия")
+            self.live.pack(fill="x", before=self.bar, pady=(self.px(10), 0))
+        else:
+            self.live.pack_forget()
+
+    def go(self, step):
+        step = max(0, min(3, int(step)))
+        if step >= 1 and self.state["type"] not in ("mcd", "rzd"):
+            return
+        if step >= 2 and not _v4057_valid(self.state):
+            step = 1
+            if self.step == 1:
+                try:
+                    self.app.bell()
+                except Exception:
+                    pass
+        self.step = step
+        self.max_step = max(self.max_step, step)
+        for child in self.body.winfo_children():
+            child.destroy()
+        (self.page_type, self.page_size, self.page_exec, self.page_result)[step]()
+        self.draw_stepper()
+        self.update_live()
+
+    def set(self, key, value, redraw=True):
+        self.state[key] = value
+        if key == "type" and value == "rzd":
+            self.state["round"] = False
+        if key == "type" and value == "mcd":
+            self.state["face"] = "С подсветкой"
+        if redraw:
+            self.go(self.step)
+
+    # --- шаг 1: тип ---------------------------------------------------
+    def page_type(self):
+        body = self.body
+        tk.Label(body, text="Что считаем?", bg=V4057_BG, fg=V4057_TEXT, font=self.F_head).pack(anchor="w")
+        row = tk.Frame(body, bg=V4057_BG)
+        row.pack(fill="x", pady=(self.px(6), 0))
+        tiles = (("mcd", "Статика МЦД", "ASD-L · с подсветкой", True),
+                 ("rzd", "Статика РЖД", "AS-L · П-профиль 60×20×2", True),
+                 ("dyn", "Динамика МЦД", "в следующей версии", False),
+                 ("led", "LED-экран", "в следующей версии", False))
+        for i, (key, title, desc, enabled) in enumerate(tiles):
+            on = self.state["type"] == key
+            bg = V4057_SEL_BG if on else (V4057_CARD if enabled else "#F2F2F2")
+            tile = tk.Frame(row, bg=bg, highlightthickness=2,
+                            highlightbackground=(V4057_SEL if on else V4057_LINE), cursor=("hand2" if enabled else "arrow"))
+            tile.pack(side="left", fill="both", expand=True, padx=((self.px(10) if i else 0), 0))
+            icon = tk.Canvas(tile, width=self.px(120), height=self.px(60), bg=bg, highlightthickness=0)
+            icon.pack(pady=(self.px(12), 0))
+            self.icon(icon, key, enabled)
+            tk.Label(tile, text=title, bg=bg, fg=(V4057_TEXT if enabled else "#9A9A9A"),
+                     font=self.F_head).pack(pady=(self.px(4), 0))
+            tk.Label(tile, text=desc, bg=bg, fg=(V4057_MUTED if enabled else "#A8A8A8"),
+                     font=self.F["base"]).pack(pady=(0, self.px(12)))
+            if enabled:
+                for w in (tile, icon) + tuple(tile.winfo_children()):
+                    w.bind("<Button-1>", lambda _e, k=key: self.set("type", k))
+        low = tk.Frame(body, bg=V4057_BG)
+        low.pack(fill="x", pady=(self.px(12), 0))
+        form = self.card(low, "Форма")
+        form.pack(side="left", fill="y")
+        disabled = ("round",) if self.state["type"] == "rzd" else ()
+        self.seg(form, (("rect", "Прямоугольный"), ("round", "Круглый")),
+                 "round" if self.state.get("round") else "rect",
+                 lambda v: self.set("round", v == "round"), disabled).pack(anchor="w")
+        if disabled:
+            tk.Label(form, text="Круглые — только МЦД", bg=V4057_CARD, fg=V4057_MUTED,
+                     font=self.F["small"]).pack(anchor="w", pady=(self.px(4), 0))
+        recent = self.card(low, "Недавние расчёты")
+        recent.pack(side="left", fill="both", expand=True, padx=(self.px(10), 0))
+        history = _v4057_history_load()
+        if history:
+            labels = [_v4057_history_label(s) for s in history]
+            by_label = dict(zip(labels, history))
+            wrap = tk.Frame(recent, bg=V4057_CARD)
+            wrap.pack(anchor="w", fill="x")
+            for start in range(0, len(labels), 4):
+                self.chips(wrap, labels[start:start + 4], lambda t: self.open_recent(by_label[t])).pack(anchor="w")
+        else:
+            tk.Label(recent, text="Здесь появятся последние расчёты — открываются сразу на результате.",
+                     bg=V4057_CARD, fg=V4057_MUTED, font=self.F["base"]).pack(anchor="w")
+        tk.Label(body, text="Клавиши: Enter — дальше, Esc — закрыть. Недавний расчёт открывается сразу на шаге «Результат».",
+                 bg=V4057_BG, fg=V4057_MUTED, font=self.F["small"]).pack(anchor="w", pady=(self.px(8), 0))
+        self.buttons(back=False)
+
+    def icon(self, c, key, enabled):
+        k = self.S
+        if key == "mcd":
+            c.create_rectangle(10 * k, 12 * k, 110 * k, 48 * k, outline=V4057_DRAW, width=2, fill="#F7F9FC")
+            c.create_rectangle(18 * k, 20 * k, 102 * k, 40 * k, outline="", fill="#DFE9F6")
+            c.create_text(60 * k, 30 * k, text="МЦД", fill=V4057_DRAW)
+        elif key == "rzd":
+            c.create_rectangle(10 * k, 12 * k, 110 * k, 48 * k, outline="#7A1F1F", width=2, fill="#F7F9FC")
+            c.create_rectangle(18 * k, 20 * k, 102 * k, 40 * k, outline="", fill="#F6E0E0")
+            c.create_text(60 * k, 30 * k, text="РЖД", fill="#7A1F1F")
+        elif key == "dyn":
+            c.create_rectangle(10 * k, 10 * k, 110 * k, 50 * k, outline="#9A9A9A", width=2,
+                               fill=("#1D2633" if enabled else "#CFCFCF"))
+            c.create_text(60 * k, 30 * k, text="12:45 ▸", fill=("#F2B632" if enabled else "#F7F7F7"))
+        else:
+            c.create_rectangle(14 * k, 8 * k, 106 * k, 52 * k, outline="", fill=("#1D2633" if enabled else "#CFCFCF"))
+            for i in range(1, 4):
+                c.create_line((14 + i * 23) * k, 8 * k, (14 + i * 23) * k, 52 * k, fill="#F2F2F2")
+            c.create_line(14 * k, 30 * k, 106 * k, 30 * k, fill="#F2F2F2")
+
+    def open_recent(self, state):
+        self.state.update(state)
+        self.max_step = 3
+        self.go(3)
+
+    # --- шаг 2: размер --------------------------------------------------
+    def page_size(self):
+        body = self.body
+        rnd = bool(self.state.get("round")) and self.state["type"] == "mcd"
+        row = tk.Frame(body, bg=V4057_BG)
+        row.pack(fill="both", expand=True)
+        left = tk.Frame(row, bg=V4057_BG, width=self.px(420))
+        left.pack(side="left", fill="y")
+        size = self.card(left, "Диаметр, мм" if rnd else "Габарит, мм")
+        size.pack(fill="x")
+        line = tk.Frame(size, bg=V4057_CARD)
+        line.pack(anchor="w")
+        self.var_w = tk.StringVar(value=str(self.state.get("w") or ""))
+        self.var_h = tk.StringVar(value=str(self.state.get("h") or ""))
+        self.var_q = tk.StringVar(value=str(self.state.get("qty") or 1))
+        ew = self.entry(line, self.var_w, 7)
+        ew.pack(side="left")
+        if not rnd:
+            tk.Label(line, text=" × ", bg=V4057_CARD, fg=V4057_TEXT, font=self.F_big).pack(side="left")
+            self.entry(line, self.var_h, 7).pack(side="left")
+        tk.Label(size, text=("Диаметр изделия." if rnd else "Ширина × высота. Можно вставить «2500х400» целиком."),
+                 bg=V4057_CARD, fg=V4057_MUTED, font=self.F["small"]).pack(anchor="w", pady=(self.px(4), 0))
+        qty = self.card(left, "Количество изделий")
+        qty.pack(fill="x", pady=(self.px(8), 0))
+        ql = tk.Frame(qty, bg=V4057_CARD)
+        ql.pack(anchor="w")
+        self.entry(ql, self.var_q, 5).pack(side="left")
+        tk.Label(ql, text=" шт.", bg=V4057_CARD, fg=V4057_TEXT, font=self.F["base"]).pack(side="left")
+        typical = self.card(left, "Типовые размеры")
+        typical.pack(fill="x", pady=(self.px(8), 0))
+        cur = (f"Ø{self.state.get('w')}" if rnd else f"{self.state.get('w')}×{self.state.get('h')}")
+        self.chips(typical, V4057_SIZES_ROUND if rnd else V4057_SIZES_RECT, self.pick_size, cur).pack(anchor="w")
+        self.hint = tk.Label(left, text="", bg=V4057_HINT_BG, fg=V4057_HINT_FG, font=self.F["base"],
+                             justify="left", anchor="w", wraplength=self.px(400), padx=self.px(10),
+                             pady=self.px(6), highlightthickness=1, highlightbackground="#E3C96B")
+        self.hint.pack(fill="x", pady=(self.px(8), 0))
+        right = self.card(row)
+        right.pack(side="left", fill="both", expand=True, padx=(self.px(12), 0))
+        self.preview = tk.Canvas(right, bg=V4057_CARD, highlightthickness=0, height=self.px(260))
+        self.preview.pack(fill="both", expand=True)
+        self.preview_note = tk.Label(right, text="", bg=V4057_CARD, fg=V4057_MUTED, font=self.F["base"],
+                                     justify="left", anchor="w")
+        self.preview_note.pack(fill="x")
+        self.preview.bind("<Configure>", lambda _e: self.refresh_size())
+        for var in (self.var_w, self.var_h, self.var_q):
+            var.trace_add("write", lambda *_a: self.size_changed())
+        ew.focus_set()
+        ew.select_range(0, "end")
+        self.buttons()
+        self.refresh_size()
+
+    def entry(self, parent, var, width):
+        e = tk.Entry(parent, textvariable=var, width=width, font=self.F_big, justify="right",
+                     bg="white", fg="black", insertbackground="black", relief="solid", bd=1,
+                     highlightthickness=2, highlightcolor=V4057_SEL, highlightbackground=V4057_SEL)
+        return e
+
+    def pick_size(self, text):
+        if text.startswith("Ø"):
+            self.var_w.set(text[1:])
+        else:
+            a, b = text.split("×")
+            self.var_w.set(a)
+            self.var_h.set(b)
+
+    def size_changed(self):
+        raw_w = self.var_w.get().strip()
+        m = re.match(r"^\s*(\d+)\s*[xх×*]\s*(\d+)\s*$", raw_w, re.I)
+        if m:
+            self.var_w.set(m.group(1))
+            self.var_h.set(m.group(2))
+            return
+        for key, var in (("w", self.var_w), ("h", self.var_h), ("qty", self.var_q)):
+            digits = re.sub(r"[^\d]", "", var.get())
+            self.state[key] = int(digits) if digits else ""
+        if not self.state["qty"]:
+            self.state["qty"] = 1
+        if self._after:
+            try:
+                self.win.after_cancel(self._after)
+            except Exception:
+                pass
+        self._after = self.win.after(150, self.refresh_size)
+
+    def refresh_size(self):
+        self._after = None
+        if not hasattr(self, "preview") or not self.preview.winfo_exists():
+            return
+        self.preview.update_idletasks()
+        _v4057_draw_front(self.preview, self.state, self.preview.winfo_width(), self.preview.winfo_height())
+        rnd = bool(self.state.get("round")) and self.state["type"] == "mcd"
+        note = ""
+        res = _v4057_calc(self.app, self.state) if _v4057_valid(self.state) else None
+        if res:
+            lines = []
+            if self.state["type"] == "mcd" and not rnd:
+                w, h = int(self.state["w"]), int(self.state["h"])
+                lines.append("сторона больше 2999 мм — 4 Г-элемента" if (w > 2999 or h > 2999)
+                             else "обе стороны не больше 2999 мм — 2 П-элемента, деление по высоте")
+            if res["sheets"][1]:
+                lines.append(res["sheets"][1])
+            note = "\n".join(lines)
+        self.preview_note.configure(text=note)
+        if self.state["type"] == "mcd" and not rnd:
+            try:
+                big = int(self.state.get("w") or 0) > 2999 or int(self.state.get("h") or 0) > 2999
+            except Exception:
+                big = False
+            self.hint.configure(text=("Сторона больше 2999 мм — корпус собирается из 4 Г-элементов."
+                                      if big else "Если ширина или высота больше 2999 мм, корпус "
+                                                  "перейдёт на 4 Г-элемента."))
+        else:
+            self.hint.configure(text=("Круглый корпус — одно кольцо профиля по окружности изделия."
+                                      if rnd else "Корпус РЖД — П-профиль 60×20×2 по периметру и рамка 40×20×2."))
+        self.update_live()
+        self.draw_stepper()
+
+    # --- шаг 3: исполнение ----------------------------------------------
+    def page_exec(self):
+        body = self.body
+        st = self.state
+        top = tk.Frame(body, bg=V4057_BG)
+        top.pack(fill="x")
+        sides = self.card(top, "Стороны")
+        sides.pack(side="left", fill="both", expand=True)
+        self.seg(sides, ((1, "1 сторона"), (2, "2 стороны")), int(st.get("sides", 1)),
+                 lambda v: self.set("sides", v)).pack(anchor="w")
+        note = ("2 стороны: торцевые LED, профиль 120 мм, перемычка М10, стенки нет"
+                if st["type"] == "mcd" and not st.get("round") else
+                "2 стороны: два лицевых поля")
+        if int(st.get("sides", 1)) == 1:
+            note = ("1 сторона: фронтальные LED на стенке, профиль 75 мм" if st["type"] == "mcd" and not st.get("round")
+                    else "1 сторона: одно лицевое поле")
+        tk.Label(sides, text=note, bg=V4057_CARD, fg=V4057_MUTED, font=self.F["small"], wraplength=self.px(330),
+                 justify="left").pack(anchor="w", pady=(self.px(4), 0))
+        face = self.card(top, "Подсветка")
+        face.pack(side="left", fill="both", expand=True, padx=(self.px(10), 0))
+        faces = (("С подсветкой", "С подсветкой"), ("Без подсветки", "Без подсветки"),
+                 ("Светоотражающее", "Светоотражающее"))
+        disabled = ("Без подсветки", "Светоотражающее") if st["type"] == "mcd" else ()
+        self.seg(face, faces, st.get("face"), lambda v: self.set("face", v), disabled).pack(anchor="w")
+        if disabled:
+            tk.Label(face, text="МЦД считается с подсветкой", bg=V4057_CARD, fg=V4057_MUTED,
+                     font=self.F["small"]).pack(anchor="w", pady=(self.px(4), 0))
+        corpus = self.card(top, "Корпус")
+        corpus.pack(side="left", fill="both", expand=True, padx=(self.px(10), 0))
+        record = _v4057_record(st, 1)
+        auto = (f"П-профиль {record['profile']}" if st["type"] == "rzd"
+                else ("профиль 75 мм, кольцо" if record["round"] else f"профиль {record['profile']}"))
+        tk.Label(corpus, text=f"Авто: {auto}", bg=V4057_CARD, fg=V4057_TEXT, font=self.F["bold"]).pack(anchor="w")
+        tk.Label(corpus, text="по справочнику для выбранного типа и числа сторон", bg=V4057_CARD,
+                 fg=V4057_MUTED, font=self.F["small"]).pack(anchor="w", pady=(self.px(4), 0))
+        cmp_card = self.card(body, "Что меняется от выбора")
+        cmp_card.pack(fill="x", pady=(self.px(10), 0))
+        self.compare(cmp_card)
+        name, _article = _v4057_names(dict(st, h=record["height"]))
+        nl = tk.Frame(body, bg=V4057_BG)
+        nl.pack(fill="x", pady=(self.px(8), 0))
+        tk.Label(nl, text="Наименование:", bg=V4057_BG, fg=V4057_TEXT, font=self.F["bold"]).pack(side="left")
+        tk.Label(nl, text=name, bg=V4057_BG, fg=V4057_TEXT, font=self.F["base"], wraplength=self.px(950),
+                 justify="left").pack(side="left", padx=(self.px(6), 0))
+        self.buttons(next_text="Рассчитать ›")
+
+    def compare(self, parent):
+        results = {}
+        for sides in (1, 2):
+            results[sides] = _v4057_calc(self.app, dict(self.state, sides=sides))
+        grid = tk.Frame(parent, bg=V4057_CARD)
+        grid.pack(fill="x")
+        cur = int(self.state.get("sides", 1))
+        heads = ("", "1 сторона" + (" (выбрано)" if cur == 1 else ""), "2 стороны" + (" (выбрано)" if cur == 2 else ""))
+        for c, text in enumerate(heads):
+            tk.Label(grid, text=text, bg="#EFEFEF", fg=V4057_TEXT, font=self.F["bold"], anchor="w",
+                     padx=self.px(8), pady=self.px(4)).grid(row=0, column=c, sticky="ew")
+        grid.grid_columnconfigure(1, weight=1)
+        grid.grid_columnconfigure(2, weight=1)
+
+        def cell(res, what):
+            if not res:
+                return "—"
+            if what == "w":
+                return f"{_v4057_fmt(res['weight'], 1)} кг" if res["weight"] is not None else "—"
+            if what == "led":
+                return f"{res['led']} {res['leds_kind']}".strip() if res["led"] else "нет"
+            if what == "c":
+                return f"{res['corpus'][0]} · {res['corpus'][1].split(' · ')[0]}"
+            return res["sheets"][1] or res["sheets"][0]
+
+        rows = (("Вес изделия", "w"), ("Светодиоды", "led"), ("Корпус", "c"), ("Листы", "s"))
+        for r, (label, what) in enumerate(rows, start=1):
+            tk.Label(grid, text=label, bg=V4057_CARD, fg=V4057_TEXT, font=self.F["base"], anchor="w",
+                     padx=self.px(8), pady=self.px(4)).grid(row=r, column=0, sticky="w")
+            for c, sides in ((1, 1), (2, 2)):
+                text = cell(results[sides], what)
+                if what == "w" and sides == cur and results[1] and results[2] and \
+                        results[1]["weight"] is not None and results[2]["weight"] is not None:
+                    diff = results[cur]["weight"] - results[3 - cur]["weight"]
+                    text += f"   ({'+' if diff >= 0 else '−'}{_v4057_fmt(abs(diff), 1)})"
+                tk.Label(grid, text=text, bg=V4057_CARD, fg=V4057_TEXT,
+                         font=(self.F["bold"] if sides == cur else self.F["base"]), anchor="w",
+                         justify="left", padx=self.px(8), pady=self.px(4),
+                         wraplength=self.px(420)).grid(row=r, column=c, sticky="w")
+
+    # --- шаг 4: результат -----------------------------------------------
+    def page_result(self):
+        res = _v4057_calc(self.app, self.state)
+        self.result = res
+        if not res:
+            self.go(1)
+            return
+        _v4057_history_add(self.state)
+        body = self.body
+        row = tk.Frame(body, bg=V4057_BG)
+        row.pack(fill="both", expand=True)
+        left = self.card(row)
+        left.pack(side="left", fill="y")
+        tk.Label(left, text=f"{res['article']} · вид спереди", bg=V4057_CARD, fg=V4057_TEXT,
+                 font=self.F_head).pack(anchor="w")
+        front = tk.Canvas(left, bg=V4057_CARD, highlightthickness=0, width=self.px(370), height=self.px(230))
+        front.pack()
+        front.bind("<Configure>", lambda _e: _v4057_draw_front(front, self.state, front.winfo_width(),
+                                                               front.winfo_height()))
+        section = tk.Canvas(left, bg=V4057_CARD, highlightthickness=0, width=self.px(370), height=self.px(100))
+        section.pack(anchor="w", pady=(self.px(6), 0))
+        _v4057_draw_section(section, res)
+        right = tk.Frame(row, bg=V4057_BG)
+        right.pack(side="left", fill="both", expand=True, padx=(self.px(12), 0))
+        kpis = tk.Frame(right, bg=V4057_BG)
+        kpis.pack(fill="x")
+        qty = res["qty"]
+        weight = res["weight"]
+        psu = ", ".join(f"{n} Вт × {_v4057_fmt(c)}" for n, c in res["psus"]) or "—"
+        tiles = (("Вес изделия", f"{_v4057_fmt(weight, 1)} кг" if weight is not None else "—",
+                  (f"партия {qty} шт. — {_v4057_fmt(weight * qty, 1)} кг" if weight is not None and qty > 1
+                   else "1 шт.")),
+                 ("Мощность +20% / БП", f"{_v4057_fmt(res['power'], 1)} Вт" if res["power"] else "—",
+                  f"БП {psu} · LED {res['led']} шт." if res["led"] else "без подсветки"),
+                 ("Корпус", res["corpus"][0], res["corpus"][1]),
+                 ("Листы", res["sheets"][0], res["sheets"][1]))
+        for i, (title, value, sub) in enumerate(tiles):
+            t = self.card(kpis, title)
+            t.pack(side="left", fill="both", expand=True, padx=((self.px(8) if i else 0), 0))
+            tk.Label(t, text=value, bg=V4057_CARD, fg=V4057_TEXT, font=self.F_kpi, anchor="w").pack(anchor="w")
+            tk.Label(t, text=sub, bg=V4057_CARD, fg=V4057_MUTED, font=self.F["small"], anchor="w",
+                     justify="left", wraplength=self.px(150)).pack(anchor="w")
+        table = tk.Frame(right, bg=V4057_BG)
+        table.pack(fill="both", expand=True, pady=(self.px(10), 0))
+        cols = ("unit", "q1", "qn", "w")
+        tree = ttk.Treeview(table, columns=cols, show="tree headings", selectmode="browse")
+        tree.heading("#0", text="Комплектующая", anchor="w")
+        tree.heading("unit", text="Ед.", anchor="w")
+        tree.heading("q1", text="На 1 шт.", anchor="e")
+        tree.heading("qn", text=f"На партию ({qty} шт.)", anchor="e")
+        tree.heading("w", text="Вес, кг", anchor="e")
+        tree.column("#0", width=self.px(300), minwidth=self.px(200), stretch=True)
+        tree.column("unit", width=self.px(54), anchor="w", stretch=False)
+        tree.column("q1", width=self.px(84), anchor="e", stretch=False)
+        tree.column("qn", width=self.px(130), anchor="e", stretch=False)
+        tree.column("w", width=self.px(74), anchor="e", stretch=False)
+        if qty == 1:
+            tree.configure(displaycolumns=("unit", "q1", "w"))
+        tree.tag_configure("grp", background="#EEF2F7", foreground="#2B3B52", font=self.F["bold"])
+        groups = {}
+        for it in res["items"]:
+            groups.setdefault(it["group"], []).append(it)
+        for gname in V4057_GROUPS:
+            items = groups.get(gname)
+            if not items:
+                continue
+            gw = sum(it["w"] for it in items if it["w"] is not None)
+            parent = tree.insert("", "end", text=gname, open=True, tags=("grp",),
+                                 values=("", "", "", _v4057_fmt(gw, 2)))
+            for it in items:
+                tree.insert(parent, "end", text=str(it["name"]),
+                            values=(it["unit"], _v4057_fmt(it["q1"]), _v4057_fmt(it["qn"]),
+                                    _v4057_fmt(it["w"], 2) if it["w"] is not None else "—"))
+        sb = ttk.Scrollbar(table, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=sb.set)
+        tree.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        self.tree = tree
+        self.buttons(extra=(("Новый расчёт", self.new_calc), ("|", None), ("PDF", self.pdf)),
+                     next_text="Добавить в проект", next_cmd=self.add_to_project)
+
+    def new_calc(self):
+        keep_type = self.state.get("type", "mcd")
+        self.state = {"type": keep_type, "round": False, "w": "", "h": "", "qty": 1, "sides": 1,
+                      "face": "С подсветкой"}
+        self.max_step = 0
+        self.go(0)
+
+    def pdf(self):
+        if not self.result:
+            return
+        try:
+            path = _v4057_pdf(self.app, self.result)
+        except Exception as exc:
+            messagebox.showerror(V4057_TITLE, f"Не удалось сформировать PDF:\n{exc}", parent=self.win)
+            return
+        try:
+            self.app._open_pdf_path(path)
+        except Exception as exc:
+            messagebox.showinfo(V4057_TITLE, f"PDF сохранён:\n{path}\n\nОткрыть не удалось: {exc}", parent=self.win)
+
+    def add_to_project(self):
+        if not self.result:
+            return
+        rec = _v4057_record(self.state)
+        app = self.app
+        app.saved_static_signs.append(rec)
+        for name in ("_mark_project_dirty", "_refresh_static_saved_tree", "_refresh_project_journal",
+                     "_refresh_components_screen_selector", "_refresh_components_table",
+                     "_update_static_product_buttons"):
+            try:
+                getattr(app, name)()
+            except Exception:
+                pass
+        try:
+            _v4043_remember(app, "signs", rec)
+            _v4043_dup_state(app)
+        except Exception:
+            pass
+        messagebox.showinfo(V4057_TITLE, f"Добавлено в проект: {rec['article']}, {rec['quantity']} шт.\n"
+                                         "Изделие появилось на вкладке «Статические указатели».", parent=self.win)
+
+
+def _v4057_open(self):
+    wiz = getattr(self, "_v4057_wizard", None)
+    if wiz is not None:
+        try:
+            if wiz.win.winfo_exists():
+                wiz.win.deiconify()
+                wiz.win.lift()
+                wiz.win.focus_set()
+                return wiz
+        except Exception:
+            pass
+    self._v4057_wizard = _V4057Wizard(self)
+    return self._v4057_wizard
+
+
+ScreenDesigner._v4057_open_quick = _v4057_open
+
+
+# ---------------------------------------------------------------------
+# PDF расчёта (тот же векторный движок, что чертежи DXF)
+# ---------------------------------------------------------------------
+def _v4057_pdf_front(sheet, state, x1, y1, x2, y2):
+    rnd = bool(state.get("round")) and state.get("type") == "mcd"
+    w = float(state.get("w") or 0)
+    h = w if rnd else float(state.get("h") or 0)
+    if w <= 0 or h <= 0:
+        return
+    k = min((x2 - x1 - 16.0) / w, (y2 - y1 - 14.0) / h)
+    dw, dh = w * k, h * k
+    ox = x1 + 12.0 + (x2 - x1 - 16.0 - dw) / 2.0
+    oy = y1 + (y2 - y1 - 14.0 - dh) / 2.0
+    ink = (0.2, 0.27, 0.37)
+    split = (0.63, 0.47, 0.10)
+    if rnd:
+        steps = 72
+        pts = [(ox + dw / 2 + dw / 2 * math.cos(2 * math.pi * i / steps),
+                oy + dh / 2 + dh / 2 * math.sin(2 * math.pi * i / steps)) for i in range(steps + 1)]
+        for a, b in zip(pts, pts[1:]):
+            sheet.line(a, b, V4042_W_CONTOUR, ink)
+        sheet.text(ox + dw / 2, oy + dh + 8.0, f"Ø{int(w)}", V4042_DIM_CAP, "c", color=V4042_DIM_INK)
+        return
+    sheet.rect(ox, oy, ox + dw, oy + dh, V4042_W_CONTOUR, ink)
+
+    def dashed(a, b):
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(length / 3.0))
+        for i in range(0, n, 2):
+            t1, t2 = i / n, min(1.0, (i + 1) / n)
+            sheet.line((a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1),
+                       (a[0] + (b[0] - a[0]) * t2, a[1] + (b[1] - a[1]) * t2), V4042_W_THIN, split)
+    if state.get("type") == "mcd":
+        if w > 2999 or h > 2999:
+            dashed((ox + dw / 2, oy), (ox + dw / 2, oy + dh))
+            dashed((ox, oy + dh / 2), (ox + dw, oy + dh / 2))
+            sheet.text(ox + dw / 2 + 1.5, oy + dh / 2 - 1.5, "4 × Г-элемент", 2.5, color=split)
+        else:
+            dashed((ox, oy + dh / 2), (ox + dw, oy + dh / 2))
+            sheet.text(ox + dw / 2, oy + dh / 2 - 1.5, "2 × П-элемент", 2.5, "c", color=split)
+    sheet.line((ox, oy + dh + 4.0), (ox + dw, oy + dh + 4.0), V4042_W_DIM, V4042_DIM_INK)
+    sheet.text(ox + dw / 2, oy + dh + 9.0, str(int(w)), V4042_DIM_CAP, "c", color=V4042_DIM_INK)
+    sheet.line((ox - 4.0, oy), (ox - 4.0, oy + dh), V4042_W_DIM, V4042_DIM_INK)
+    sheet.text(ox - 5.5, oy + dh / 2, str(int(h)), V4042_DIM_CAP, "c", rotate=90, color=V4042_DIM_INK)
+
+
+def _v4057_pdf(self, res):
+    st = res["state"]
+    qty = res["qty"]
+    try:
+        project = self.project_name_var.get().strip()
+    except Exception:
+        project = ""
+    pages = []
+    sheet = _V4042Sheet("A4", 1)
+    frame = _v4042_frame(sheet)
+    l, t, r, b = frame
+    title, tsize = _v4042_fit_text(f"{res['article']} — {qty} шт.", 5.0, 124.0, True, 3.5)
+    sheet.text(l + 4.0, t + 8.0, title, tsize, bold=True)
+    for n, part in enumerate(_v4042_wrap_text(res["name"], 2.8, 124.0, 2)):
+        sheet.text(l + 4.0, t + 13.5 + n * 4.2, part, 2.8, color=(0.3, 0.3, 0.3))
+    _v4057_pdf_front(sheet, st, l + 4.0, t + 24.0, l + 128.0, t + 94.0)
+    weight = res["weight"]
+    psu = ", ".join(f"{n} Вт × {_v4057_fmt(c)}" for n, c in res["psus"]) or "—"
+    lines = [("Вес изделия", f"{_v4057_fmt(weight, 1)} кг" if weight is not None else "—"),
+             ("Вес партии", f"{_v4057_fmt(weight * qty, 1)} кг" if weight is not None else "—"),
+             ("Мощность +20%", f"{_v4057_fmt(res['power'], 1)} Вт" if res["power"] else "—"),
+             ("Блоки питания", psu),
+             ("Светодиоды", f"{res['led']} {res['leds_kind']}".strip() if res["led"] else "—"),
+             ("Корпус", f"{res['corpus'][0]} · {res['corpus'][1]}"),
+             ("Листы", res["sheets"][1] or res["sheets"][0])]
+    y = t + 102.0
+    for label, value in lines:
+        sheet.text(l + 4.0, y, label, 3.0, color=(0.3, 0.3, 0.3))
+        parts = _v4042_wrap_text(value, 3.0, 82.0, 2) or [""]
+        for part in parts:
+            sheet.text(l + 42.0, y, part, 3.0, bold=label in ("Вес изделия", "Корпус"))
+            y += 5.0
+        y += 0.6
+    # таблица комплектующих
+    cols = ((l + 134.0, "Комплектующая", "l"), (r - 60.0, "Ед.", "l"), (r - 38.0, "1 шт.", "r"),
+            (r - 18.0, f"{qty} шт.", "r"), (r - 3.0, "Вес, кг", "r"))
+    name_w = (r - 61.5) - (l + 135.5)
+
+    def header(sh, top):
+        for x, text, anchor in cols:
+            sh.text(x, top, text, 2.5, anchor, bold=True)
+        sh.line((l + 133.0, top + 1.6), (r - 2.0, top + 1.6), V4042_W_THIN)
+        return top + 6.0
+
+    limit = b - sum(V4042_TB_ROWS) - 3.0
+    y = header(sheet, t + 8.0)
+    groups = {}
+    for it in res["items"]:
+        groups.setdefault(it["group"], []).append(it)
+    current = sheet
+    for gname in V4057_GROUPS:
+        items = groups.get(gname)
+        if not items:
+            continue
+        rows = [(gname, None)] + [(it["name"], it) for it in items]
+        for text, it in rows:
+            if y > limit:
+                pages.append(current)
+                current = _V4042Sheet("A4", 1)
+                _v4042_frame(current)
+                y = header(current, t + 8.0)
+                limit = b - 4.0
+            if it is None:
+                gw = sum(x["w"] for x in items if x["w"] is not None)
+                current.rect(l + 133.0, y - 3.4, r - 2.0, y + 1.0, 0.0, None, (0.93, 0.95, 0.97))
+                current.text(l + 134.0, y, text, 2.8, bold=True, color=(0.17, 0.23, 0.32))
+                current.text(r - 3.0, y, _v4057_fmt(gw, 2), 2.8, "r", bold=True, color=(0.17, 0.23, 0.32))
+            else:
+                fitted, size = _v4042_fit_text(str(text), 2.5, name_w)
+                current.text(l + 135.5, y, fitted, size)
+                current.text(r - 60.0, y, str(it["unit"]), 2.5)
+                current.text(r - 38.0, y, _v4057_fmt(it["q1"]), 2.5, "r")
+                current.text(r - 18.0, y, _v4057_fmt(it["qn"]), 2.5, "r")
+                current.text(r - 3.0, y, _v4057_fmt(it["w"], 2) if it["w"] is not None else "—", 2.5, "r")
+            y += 4.3
+    pages.append(current)
+    stamp = [("Объект", project or "—", 1), ("Артикул", res["article"], 1),
+             ("Исполнение", f"{'2 стороны' if int(st.get('sides', 1)) == 2 else '1 сторона'} · "
+                            f"{st.get('face', '')}", 1),
+             ("Изделие", res["name"], 2), ("Количество", f"{qty} шт.", 1),
+             ("", ("Быстрый расчёт", f"Дата {datetime.now().strftime('%d.%m.%Y')}",
+                   APP_TITLE.replace("Конструктор ", "")), 1)]
+    _v4042_title_block(pages[0], frame, stamp)
+    path = _v4042_pdf_path(self, f"Быстрый_расчёт_{res['article']}_{qty}шт")
+    _v4042_write_pdf(pages, path)
+    return path
+
+
+# ---------------------------------------------------------------------
+# Кнопка в строке «Объект»
+# ---------------------------------------------------------------------
+_v4057_prev_build_ui = ScreenDesigner._build_ui
+
+
+def _v4057_build_ui(self, *args, **kwargs):
+    result = _v4057_prev_build_ui(self, *args, **kwargs)
+    try:
+        bar = self.project_name_entry.master
+        ttk.Button(bar, text=V4057_BUTTON, command=self._v4057_open_quick).pack(side="left", padx=(8, 0))
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._build_ui = _v4057_build_ui
+
+
+# =====================================================================
+# V40.58 — «Быстрый расчёт» прямо из стартового окна
+# ---------------------------------------------------------------------
+# * В окне «С каким проектом работаем?» над логотипами РЖД / МЦД —
+#   кнопка «⚡ Быстрый расчёт» (и в резервном окне без логотипов).
+# * Мастер открывается модально поверх пустого главного окна.
+#   - Ничего не добавили в проект → закрыли мастер → снова стартовое окно.
+#   - Нажали «Добавить в проект» → после закрытия мастера проект
+#     открывается в бренде добавленного изделия (РЖД / МЦД) на вкладке
+#     «Статические указатели».
+# =====================================================================
+V4058_QUICK = "⚡ Быстрый расчёт"
+V4058_HINT = "Комплектующие, вес и PDF по размерам изделия — без создания проекта"
+
+_v4058_prev_add = _V4057Wizard.add_to_project
+
+
+def _v4058_add_to_project(self):
+    app = self.app
+    before = len(getattr(app, "saved_static_signs", None) or [])
+    _v4058_prev_add(self)
+    try:
+        signs = app.saved_static_signs
+        if len(signs) > before:
+            modes = list(getattr(self, "added_modes", []) or [])
+            modes.append(signs[-1].get("mode"))
+            self.added_modes = modes
+    except Exception:
+        pass
+
+
+_V4057Wizard.add_to_project = _v4058_add_to_project
+
+
+def _v4058_quick_from_start(self):
+    """Мастер быстрого расчёта со стартового окна.
+
+    Возвращает «РЖД» / «МЦД» — бренд последнего добавленного в проект
+    изделия, или None, если в проект ничего не добавили.
+    """
+    wiz = self._v4057_open_quick()
+    wiz.from_start = True
+    win = wiz.win
+    try:
+        win.update_idletasks()
+        win.deiconify()
+        win.lift()
+        win.attributes("-topmost", True)
+        win.update_idletasks()
+        win.attributes("-topmost", False)
+        win.focus_force()
+        win.grab_set()
+    except Exception:
+        try:
+            win.grab_set()
+        except Exception:
+            pass
+    try:
+        self.wait_window(win)
+    except Exception:
+        pass
+    modes = list(getattr(wiz, "added_modes", []) or [])
+    if not modes:
+        return None
+    return "РЖД" if modes[-1] == MODE_RZD else "МЦД"
+
+
+ScreenDesigner._v4058_quick_from_start = _v4058_quick_from_start
+
+
+def _v4058_show_static_tab(self):
+    try:
+        nb = self.notebook
+        for tab in nb.tabs():
+            if nb.tab(tab, "text") == "Статические указатели":
+                nb.select(tab)
+                break
+    except Exception:
+        pass
+    for name in ("_refresh_static_saved_tree", "_refresh_project_journal"):
+        try:
+            getattr(self, name)()
+        except Exception:
+            pass
+
+
+ScreenDesigner._v4058_show_static_tab = _v4058_show_static_tab
+
+
+# ---------------------------------------------------------------------
+# Значок-молния: рисуем сами (PIL), чтобы не зависеть от шрифта.
+# Без PIL — остаётся текстовый «⚡».
+# ---------------------------------------------------------------------
+def _v4058_bolt_image(master, font_spec, color="#FFD54A", scale=1.05):
+    try:
+        from PIL import Image, ImageDraw, ImageTk
+        import tkinter.font as _tkfont
+        try:
+            line = int(_tkfont.Font(master=master, font=font_spec).metrics("linespace"))
+        except Exception:
+            line = 20
+        h = max(14, int(round(line * scale)))
+        w = max(10, int(round(h * 0.68)))
+        k = 4
+        img = Image.new("RGBA", (w * k, h * k), (0, 0, 0, 0))
+        pts = [(6.6, 0.0), (1.0, 8.0), (4.9, 8.0), (3.4, 14.0), (9.0, 5.6), (5.2, 5.6), (7.6, 0.0)]
+        sx, sy = (w * k - 1) / 10.0, (h * k - 1) / 14.0
+        ImageDraw.Draw(img).polygon([(x * sx, y * sy) for x, y in pts], fill=color)
+        img = img.resize((w, h), Image.Resampling.LANCZOS)
+        return ImageTk.PhotoImage(img, master=master)
+    except Exception:
+        return None
+
+
+_v4058_prev_build_ui = ScreenDesigner._build_ui
+
+
+def _v4058_build_ui(self, *args, **kwargs):
+    result = _v4058_prev_build_ui(self, *args, **kwargs)
+    try:
+        bar = self.project_name_entry.master
+        for w in bar.winfo_children():
+            if w.winfo_class() == "TButton" and str(w.cget("text")) == V4057_BUTTON:
+                bolt = _v4058_bolt_image(w, "TkDefaultFont", color="#E0A800")
+                if bolt is not None:
+                    w._v4058_bolt = bolt
+                    w.configure(image=bolt, compound="left", text="Быстрый расчёт")
+                break
+    except Exception:
+        pass
+    return result
+
+
+ScreenDesigner._build_ui = _v4058_build_ui
+
+
+# V40.59 — ОНЛАЙН-ПЛАТФОРМА ЦЕХА (перенесено из прототипа V40.57 «Онлайн-платформа»): вкладка «Онлайн-платформа» после «Счетов».
+# «Проверить связь», «Отправить в цех», «Статус из цеха», «Сохранить JSON…»,
+# «Сравнить с образцом…». На сервер уходит только белый список полей проекта
+# (формат MCD_SYNC v1) — без счетов, цен, поставщиков, спецификации, журнала
+# изменений, справочника и паспортных данных.
+# Адрес сервера и ключ — в настройках пользователя (online_platform.json рядом
+# с базой поставщиков), не в .ledproj и не в журналах. Идентификатор проекта на
+# платформе — верхний ключ "sync" в .ledproj (project_uid, server, last_sent_at,
+# last_sent_revision); в журнал изменений проекта он не попадает.
+# «Сохранить как» под другим названием сбрасывает идентификатор.
+# Основа — прототип «Отправка в цех» V0.1 (те же настройки и тот же формат).
+# ---------------------------------------------------------------------
+import ssl as _v4059_ssl
+import socket as _v4059_socket
+import http.client as _v4059_http_client
+import urllib.error as _v4059_urlerror
+import urllib.parse as _v4059_urlparse
+import urllib.request as _v4059_urlrequest
+
+V4059_SYNC_VERSION = "40.59"
+V4059_SYNC_TITLE = "Онлайн-платформа цеха (V40.59)"
+V4059_DEFAULT_SERVER = "https://kosta8.pythonanywhere.com"
+V4059_TIMEOUT_S = 20
+V4059_SETTINGS_NAME = "online_platform.json"
+V4059_LOG_NAME = "online_platform.log"
+V4059_LOG_LIMIT_BYTES = 1_000_000
+
+# ---------------------------------------------------------------------
+# Белый список полей (п. 4 промпта). Значения — как в .ledproj, без пересчёта.
+# Поле, которого нет в записи проекта, не отправляется.
+# ---------------------------------------------------------------------
+V4059_STATIC_FIELDS = ("article", "name", "width", "height", "sides", "quantity",
+                 "round", "spec_position", "journal_order")
+V4059_SCREEN_FIELDS = ("spec_position", "module_article", "screen_article", "width", "height",
+                 "sides", "quantity", "calc_enabled", "pixel_pitch", "environment")
+V4059_MANUAL_FIELDS = ("spec_position", "journal_order", "article", "name", "type",
+                 "quantity", "size", "product_comment", "sides")
+V4059_SECTIONS = (("static_signs", V4059_STATIC_FIELDS), ("screens", V4059_SCREEN_FIELDS),
+            ("manual_items", V4059_MANUAL_FIELDS))
+
+V4059_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+V4059_MSG_401 = "Ключ не подошёл. Проверьте ключ в настройках «Онлайн-платформа»."
+V4059_MSG_403 = "На сервере не включён приём проектов. Выполните на сервере: python3 pa_setup.py --token"
+V4059_MSG_429 = "Слишком много неверных попыток. Подождите 15 минут."
+V4059_MSG_NET = "Нет связи с сервером {server}. Проверьте интернет."
+V4059_MSG_PING_OK = "Связь есть, ключ принят"
+V4059_MSG_NOT_SENT = "Проект ещё не отправлялся в цех"
+V4059_MSG_HIDDEN = "Цеху проект пока не показан: показать его могут начальник или начальник 2"
+V4059_MSG_SHOWN = "Цеху проект показан."
+V4059_MSG_NO_KEY = "Не указан ключ. Введите ключ в настройках «Онлайн-платформа»."
+V4059_KIND_TITLES = {"st": "Статика", "dyn": "Динамика", "oth": "Прочее"}
+
+
+class V4059SyncError(Exception):
+    """Ошибка с понятным пользователю текстом; detail — только для журнала."""
+
+    def __init__(self, message, detail="", status=None):
+        super().__init__(message)
+        self.message = message
+        self.detail = detail
+        self.status = status
+
+
+# ---------------------------------------------------------------------
+# Настройки пользователя и журнал программы
+# ---------------------------------------------------------------------
+def _v4059_user_data_dir():
+    """Та же папка, что у базы поставщиков Конструктора."""
+    override = os.environ.get("LED_SYNC_SETTINGS_DIR")
+    if override:
+        folder = Path(override)
+    else:
+        if sys.platform.startswith("win"):
+            root = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+        elif sys.platform == "darwin":
+            root = Path.home() / "Library" / "Application Support"
+        else:
+            root = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
+        folder = root / "LED Screen Designer"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _v4059_settings_path():
+    return _v4059_user_data_dir() / V4059_SETTINGS_NAME
+
+
+def _v4059_default_settings():
+    # write_sync_to_file выключен: Конструктор V40.56 ключ sync не сохраняет, а запись
+    # в открытый в нём файл вызывает окно «Проект изменён другим пользователем».
+    return {"server": V4059_DEFAULT_SERVER, "token": "", "write_sync_to_file": False,
+            "last_project": "", "projects": {}}
+
+
+def _v4059_load_settings():
+    data = _v4059_default_settings()
+    try:
+        raw = json.loads(_v4059_settings_path().read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            data.update({k: v for k, v in raw.items() if k in data})
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
+    if not isinstance(data.get("projects"), dict):
+        data["projects"] = {}
+    return data
+
+
+def _v4059_save_settings(settings):
+    path = _v4059_settings_path()
+    _v4059_atomic_write_text(path, json.dumps(settings, ensure_ascii=False, indent=2))
+    if os.name == "posix":
+        try:
+            os.chmod(path, 0o600)       # ключ — только для владельца
+        except OSError:
+            pass
+
+
+def _v4059_normalize_server(address):
+    text = str(address or "").strip().rstrip("/")
+    if not text:
+        return V4059_DEFAULT_SERVER
+    if "://" not in text:
+        text = "https://" + text
+    return text
+
+
+class V4059SyncLog:
+    """Журнал программы. Ключ в журнал не попадает: он заменяется на «•••»."""
+
+    def __init__(self, path=None, secrets=()):
+        self.path = Path(path) if path else _v4059_user_data_dir() / V4059_LOG_NAME
+        self.secrets = [s for s in secrets if s]
+        self.listeners = []
+        self._lock = threading.Lock()
+
+    def set_secrets(self, *secrets):
+        self.secrets = [str(s) for s in secrets if s and len(str(s)) >= 4]
+
+    def mask(self, text):
+        out = str(text)
+        for s in self.secrets:
+            out = out.replace(s, "•••")
+        return out
+
+    def write(self, text, full=None):
+        """full — полный текст только для файла журнала (в окне — text)."""
+        line = f"{datetime.now():%Y-%m-%d %H:%M:%S}  {self.mask(text)}"
+        file_line = line if full is None else f"{datetime.now():%Y-%m-%d %H:%M:%S}  {self.mask(full)}"
+        with self._lock:
+            try:
+                if self.path.exists() and self.path.stat().st_size > V4059_LOG_LIMIT_BYTES:
+                    tail = self.path.read_bytes()[-V4059_LOG_LIMIT_BYTES // 2:]
+                    self.path.write_bytes(tail)
+                with open(self.path, "a", encoding="utf-8") as fh:
+                    fh.write(file_line + "\n")
+            except Exception:
+                pass
+        for cb in list(self.listeners):
+            try:
+                cb(line)
+            except Exception:
+                pass
+        return line
+
+
+# ---------------------------------------------------------------------
+# Файл проекта
+# ---------------------------------------------------------------------
+def _v4059_atomic_write_text(path, text, encoding="utf-8"):
+    """Как в Конструкторе (V30.38): временный файл + os.replace."""
+    path = Path(path)
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding=encoding) as fh:
+        fh.write(text)
+        fh.flush()
+        try:
+            os.fsync(fh.fileno())
+        except OSError:
+            pass
+    os.replace(tmp, path)
+
+
+def _v4059_read_project(path):
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise V4059SyncError(f"Файл проекта не найден:\n{path}") from None
+    except Exception as exc:
+        raise V4059SyncError(f"Не удалось прочитать файл проекта:\n{exc}") from exc
+    if not isinstance(payload, dict) or payload.get("format") != "LED_SCREEN_PROJECT":
+        raise V4059SyncError("Файл не является проектом LED Screen Designer.")
+    return payload
+
+
+def _v4059_valid_uid(value):
+    return isinstance(value, str) and len(value) == 36 and bool(V4059_UUID_RE.match(value))
+
+
+def _v4059_path_key(path):
+    try:
+        return str(Path(path).resolve())
+    except Exception:
+        return str(path)
+
+
+def _v4059_sync_info(payload, path, settings):
+    """Сведения об отправке: из ключа sync файла, иначе из настроек программы.
+
+    Конструктор V40.56 ключ sync ещё не знает и при сохранении его не пишет,
+    поэтому идентификатор дублируется и в настройках программы (по пути файла).
+    """
+    block = payload.get("sync") if isinstance(payload.get("sync"), dict) else {}
+    if _v4059_valid_uid(block.get("project_uid")):
+        return dict(block), "файл проекта"
+    saved = (settings.get("projects") or {}).get(_v4059_path_key(path)) or {}
+    if _v4059_valid_uid(saved.get("project_uid")):
+        return {k: saved.get(k) for k in ("project_uid", "server", "last_sent_at", "last_sent_revision")}, \
+            "настройки программы"
+    return {}, ""
+
+
+def _v4059_write_sync_block(path, sync):
+    """Дописывает верхний ключ sync в .ledproj. Остальное содержимое не меняется."""
+    fresh_text = Path(path).read_text(encoding="utf-8")
+    data = json.loads(fresh_text)
+    if not isinstance(data, dict) or data.get("format") != "LED_SCREEN_PROJECT":
+        raise V4059SyncError("Файл не является проектом LED Screen Designer.")
+    before = {k: v for k, v in data.items() if k != "sync"}
+    data["sync"] = dict(sync)
+    text = json.dumps(data, ensure_ascii=False, indent=2)
+    check = json.loads(text)
+    if {k: v for k, v in check.items() if k != "sync"} != before or check.get("sync") != data["sync"]:
+        raise V4059SyncError("Проверка записи не прошла — файл проекта не изменён.")
+    _v4059_atomic_write_text(path, text)
+
+
+def _v4059_remember_project(settings, path, sync, name):
+    projects = settings.setdefault("projects", {})
+    entry = dict(sync)
+    entry["name"] = name
+    projects[_v4059_path_key(path)] = entry
+
+
+# ---------------------------------------------------------------------
+# Тело отправки (п. 4)
+# ---------------------------------------------------------------------
+def _v4059_pick(record, fields):
+    return {k: record[k] for k in fields if k in record}
+
+
+def _v4059_build_sync_body(payload, uid):
+    meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    body = {
+        "format": "MCD_SYNC", "v": 1,
+        "project": {
+            "uid": uid,
+            "name": payload.get("project_name"),
+            "brand": payload.get("project_brand"),
+            "revision": payload.get("revision"),
+            "saved_at": payload.get("saved_at"),
+            "planned_delivery": meta.get("planned_delivery"),
+            "app": payload.get("app"),
+        },
+    }
+    for section, fields in V4059_SECTIONS:
+        body[section] = [_v4059_pick(r, fields) for r in (payload.get(section) or []) if isinstance(r, dict)]
+    return body
+
+
+def _v4059_body_bytes(body):
+    return json.dumps(body, ensure_ascii=False).encode("utf-8")
+
+
+def _v4059_qty(value, default=1):
+    try:
+        text = str(value).strip().replace(",", ".")
+        return int(float(text)) if text else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _v4059_summarize(payload):
+    """Числа для окна подтверждения: поз. и шт. по разделам."""
+    st = [r for r in (payload.get("static_signs") or []) if isinstance(r, dict)]
+    dyn = [r for r in (payload.get("screens") or []) if isinstance(r, dict)]
+    oth = [r for r in (payload.get("manual_items") or []) if isinstance(r, dict)]
+    # Динамика на платформе собирается по позиции спецификации и артикулу модуля.
+    dyn_groups = {(str(r.get("spec_position") or "").strip(), str(r.get("module_article") or "").strip())
+                  for r in dyn}
+    return {
+        "st_pos": len(st), "st_qty": sum(_v4059_qty(r.get("quantity")) for r in st),
+        "dyn_pos": len(dyn_groups), "dyn_qty": sum(_v4059_qty(r.get("quantity")) for r in dyn),
+        "dyn_records": len(dyn),
+        "oth_pos": len(oth),
+    }
+
+
+def _v4059_summary_text(counts):
+    return (f"Статика: {counts['st_pos']} поз., {counts['st_qty']} шт · "
+            f"Динамика: {counts['dyn_pos']} поз., {counts['dyn_qty']} шт · "
+            f"Прочее: {counts['oth_pos']} поз.")
+
+
+def _v4059_format_when(value):
+    try:
+        return datetime.fromisoformat(str(value)).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return str(value or "")
+
+
+# ---------------------------------------------------------------------
+# Связь с сервером
+# ---------------------------------------------------------------------
+def _v4059_ssl_context():
+    ctx = _v4059_ssl.create_default_context()
+    try:
+        import certifi  # noqa: WPS433 — необязательный пакет
+        ctx.load_verify_locations(cafile=certifi.where())
+    except Exception:
+        pass
+    return ctx
+
+
+class V4059SyncClient:
+    def __init__(self, server, token, timeout=V4059_TIMEOUT_S, log=None):
+        self.server = _v4059_normalize_server(server)
+        self.token = "".join(str(token or "").split())     # без пробелов и переводов строк
+        self.timeout = timeout
+        self.log = log or V4059SyncLog(secrets=(self.token,))
+        self.log.set_secrets(self.token)
+
+    # --- запрос -------------------------------------------------------
+    def _request(self, method, path, body=None, query=None):
+        if not self.token:
+            raise V4059SyncError(V4059_MSG_NO_KEY)
+        if not self.token.isascii() or not self.token.isprintable():
+            # Ключ сервера — латиница и цифры; русские буквы в заголовок HTTP не пройдут.
+            self.log.write("ключ содержит недопустимые символы (русские буквы?) — запрос не отправлен")
+            raise V4059SyncError(V4059_MSG_401)
+        url = self.server + path
+        if query:
+            url += "?" + _v4059_urlparse.urlencode(query)
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "X-Sync-Token": self.token,               # запасной заголовок (п. 3)
+            "Accept": "application/json",
+            "User-Agent": f"LED-Screen-Designer-sync/{V4059_SYNC_VERSION}",
+        }
+        data = None
+        if body is not None:
+            data = body if isinstance(body, bytes) else _v4059_body_bytes(body)
+            headers["Content-Type"] = "application/json; charset=utf-8"
+        req = _v4059_urlrequest.Request(url, data=data, headers=headers, method=method)
+        size = f", {len(data) / 1024:.1f} КБ" if data else ""
+        self.log.write(f"→ {method} {url}{size}")
+        try:
+            kwargs = {"timeout": self.timeout}
+            if url.lower().startswith("https://"):
+                kwargs["context"] = _v4059_ssl_context()
+            with _v4059_urlrequest.urlopen(req, **kwargs) as resp:
+                status, raw = resp.status, resp.read()
+        except _v4059_urlerror.HTTPError as exc:
+            status = exc.code
+            try:
+                raw = exc.read()
+            except Exception:
+                raw = b""
+        except (_v4059_urlerror.URLError, _v4059_socket.timeout, TimeoutError, ConnectionError,
+                _v4059_http_client.HTTPException, _v4059_ssl.SSLError, OSError) as exc:
+            reason = getattr(exc, "reason", exc)
+            self.log.write(f"← нет связи: {type(reason).__name__}: {reason}")
+            raise V4059SyncError(V4059_MSG_NET.format(server=self.server), detail=repr(reason)) from exc
+        text = raw.decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(text) if text.strip() else {}
+        except ValueError:
+            parsed = None
+        short = text if len(text) <= 400 else text[:400] + "…"
+        self.log.write(f"← {status} {short}", full=f"← {status} {text[:200_000]}")
+        return status, parsed, text
+
+    @staticmethod
+    def _error_text(parsed, text):
+        if isinstance(parsed, dict) and parsed.get("error"):
+            return str(parsed.get("error"))
+        clean = re.sub(r"<[^>]+>", " ", text or "")
+        clean = re.sub(r"\s+", " ", clean).strip()
+        return clean[:200]
+
+    def _raise_for(self, status, parsed, text, not_found=None):
+        if status == 401:
+            raise V4059SyncError(V4059_MSG_401, status=status)
+        if status == 403:
+            raise V4059SyncError(V4059_MSG_403, detail=self._error_text(parsed, text), status=status)
+        if status == 429:
+            raise V4059SyncError(V4059_MSG_429, status=status)
+        if status == 400:
+            raise V4059SyncError(self._error_text(parsed, text) or "Сервер отклонил запрос (400).", status=status)
+        if status == 404 and not_found:
+            raise V4059SyncError(not_found, status=status)
+        err = self._error_text(parsed, text)
+        raise V4059SyncError(f"Сервер {self.server} ответил ошибкой {status}" + (f": {err}" if err else "."),
+                        status=status)
+
+    def _ok_json(self, status, parsed, text, not_found=None):
+        if status != 200:
+            self._raise_for(status, parsed, text, not_found=not_found)
+        if not isinstance(parsed, dict):
+            raise V4059SyncError(f"Сервер {self.server} ответил не так, как ожидалось (не JSON).")
+        if parsed.get("ok") is False:
+            raise V4059SyncError(self._error_text(parsed, text) or "Сервер не принял запрос.")
+        return parsed
+
+    # --- операции -----------------------------------------------------
+    def ping(self):
+        status, parsed, text = self._request("GET", "/api/sync/ping")
+        data = self._ok_json(status, parsed, text,
+                             not_found=f"По адресу {self.server} не найдена онлайн-платформа цеха (404).")
+        if data.get("server") != "mcd-server":
+            raise V4059SyncError(f"По адресу {self.server} отвечает не онлайн-платформа цеха.")
+        return data
+
+    def send(self, body):
+        status, parsed, text = self._request("POST", "/api/sync/project", body=body)
+        return self._ok_json(status, parsed, text,
+                             not_found=f"По адресу {self.server} не найдена онлайн-платформа цеха (404).")
+
+    def status(self, uid):
+        status, parsed, text = self._request("GET", "/api/sync/status", query={"uid": uid})
+        return self._ok_json(status, parsed, text, not_found=V4059_MSG_NOT_SENT)
+
+
+# ---------------------------------------------------------------------
+# Отправка целиком: файл → тело → сервер → sync в файл и в настройки
+# ---------------------------------------------------------------------
+def _v4059_prepare(path, settings):
+    """Читает сохранённый проект и готовит всё для окна подтверждения."""
+    payload = _v4059_read_project(path)
+    info, source = _v4059_sync_info(payload, path, settings)
+    return {"payload": payload, "sync": info, "sync_source": source,
+            "counts": _v4059_summarize(payload), "name": str(payload.get("project_name") or Path(path).stem)}
+
+
+def _v4059_send_project(path, settings, client, write_to_file=True):
+    prep = _v4059_prepare(path, settings)
+    payload = prep["payload"]
+    uid = prep["sync"].get("project_uid") or str(uuid.uuid4())
+    body = _v4059_build_sync_body(payload, uid)
+    resp = client.send(body)
+    sync = {
+        "project_uid": uid,
+        "server": client.server,
+        "last_sent_at": datetime.now().isoformat(timespec="seconds"),
+        "last_sent_revision": payload.get("revision"),
+    }
+    _v4059_remember_project(settings, path, sync, prep["name"])
+    file_note = ""
+    if write_to_file:
+        try:
+            _v4059_write_sync_block(path, sync)
+            client.log.write(f"ключ sync записан в файл проекта: {Path(path).name}")
+        except V4059SyncError as exc:
+            file_note = exc.message
+        except Exception as exc:
+            file_note = f"Не удалось записать идентификатор в файл проекта: {exc}"
+        if file_note:
+            client.log.write(file_note)
+            file_note += "\nИдентификатор сохранён в настройках программы."
+    return {"response": resp, "sync": sync, "name": prep["name"], "file_note": file_note,
+            "body_size": len(_v4059_body_bytes(body))}
+
+
+def _v4059_success_message(name, resp):
+    counts = resp.get("counts") or {}
+    state = "новый" if resp.get("created") else "обновлён"
+    lines = [f"Проект «{name}» отправлен в цех ({state}). "
+             f"Статика {counts.get('st', 0)} поз., Динамика {counts.get('dyn', 0)} поз., "
+             f"Прочее {counts.get('oth', 0)} поз."]
+    lines.append(V4059_MSG_SHOWN if resp.get("shown") else V4059_MSG_HIDDEN)
+    warnings = [str(w) for w in (resp.get("warnings") or []) if str(w).strip()]
+    if warnings:
+        lines.append("")
+        lines.append("Предупреждения сервера:")
+        lines.extend(f"• {w}" for w in warnings)
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------
+# «Статус из цеха» (п. 6) — строки таблицы
+# ---------------------------------------------------------------------
+V4059_STATUS_COLUMNS = (("pos", "№", 50), ("art", "Артикул", 210), ("kind", "Раздел", 80),
+                  ("qty", "Количество", 90), ("pct", "Готовность", 85),
+                  ("stages", "Этапы / отметки", 330), ("marks", "Пометки", 150))
+
+
+def _v4059_num(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _v4059_fmt_qty(item):
+    qty, order = item.get("qty"), item.get("qty_order")
+    q, o = _v4059_num(qty), _v4059_num(order)
+    if q is not None and o is not None and q != o:
+        return f"{_v4059_fmt_n(q)} из {_v4059_fmt_n(o)}"
+    return _v4059_fmt_n(q) if q is not None else str(qty or "")
+
+
+def _v4059_fmt_n(x):
+    return str(int(x)) if float(x).is_integer() else str(x).replace(".", ",")
+
+
+def _v4059_fmt_stage(stage, qty=None):
+    """Этап {k, t, f}. f: true/false — отметка; дробное 0..1 — доля; целое — штук готово."""
+    if not isinstance(stage, dict):
+        return str(stage)
+    title = str(stage.get("t") or stage.get("k") or "")
+    f = stage.get("f")
+    if isinstance(f, bool) or f is None:
+        return f"{title} {'✓' if f else '—'}"
+    v = _v4059_num(f)
+    if v is None:
+        return f"{title} {f}"
+    if isinstance(f, int):
+        q = _v4059_num(qty)
+        if v <= 0:
+            return f"{title} —"
+        if q is None or v >= q:
+            return f"{title} ✓"
+        return f"{title} {_v4059_fmt_n(v)} из {_v4059_fmt_n(q)}"
+    if v <= 0:
+        return f"{title} —"
+    return f"{title} ✓" if v >= 1 else f"{title} {round(v * 100)} %"
+
+
+def _v4059_status_rows(resp):
+    rows = []
+    for item in resp.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "")
+        if kind == "oth":
+            marks = [("Чертёж", item.get("draw")), ("Оплачен", item.get("paid")), ("Получен", item.get("got"))]
+            stages = ", ".join(f"{t} {'✓' if v else '—'}" for t, v in marks)
+            pct = ""
+        else:
+            stages = ", ".join(_v4059_fmt_stage(s, item.get("qty")) for s in (item.get("stages") or []))
+            p = _v4059_num(item.get("pct"))
+            pct = f"{round(p * 100)} %" if p is not None else ""
+        notes = []
+        if item.get("cancelled"):
+            notes.append("вычеркнута")
+        if item.get("hidden"):
+            notes.append("скрыта от цеха")
+        rows.append({
+            "pos": str(item.get("pos") if item.get("pos") is not None else ""),
+            "art": str(item.get("art") or ""),
+            "kind": V4059_KIND_TITLES.get(kind, kind),
+            "qty": _v4059_fmt_qty(item),
+            "pct": pct,
+            "stages": stages,
+            "marks": ", ".join(notes),
+            "muted": bool(item.get("cancelled") or item.get("hidden")),
+        })
+    return rows
+
+
+def _v4059_status_header(resp):
+    parts = ["Цеху показан" if resp.get("shown") else "Цеху не показан"]
+    if resp.get("due"):
+        parts.append(f"Срок: {resp.get('due')}")
+    if resp.get("updated"):
+        parts.append(f"Обновлено: {_v4059_format_when(resp.get('updated'))}")
+    if resp.get("archived"):
+        parts.append("в архиве")
+    if resp.get("frozen"):
+        parts.append("заморожен")
+    return " · ".join(parts)
+
+
+# ---------------------------------------------------------------------
+# Сравнение с образцом (ПРИМЕР_ОТПРАВКИ_ИЗ_КОНСТРУКТОРА.json)
+# ---------------------------------------------------------------------
+def _v4059_compare_bodies(ours, sample):
+    """Сравнение по полям. Нет поля и null считаются одинаковыми.
+    uid и saved_at не сравниваются (они разные у каждой отправки)."""
+    out = []
+
+    def same(a, b):
+        return a == b   # .get() даёт None и для «нет поля», и для null
+
+    for key in ("format", "v"):
+        if ours.get(key) != sample.get(key):
+            out.append(f"{key}: у нас {ours.get(key)!r}, в образце {sample.get(key)!r}")
+    po, ps = ours.get("project") or {}, sample.get("project") or {}
+    for key in sorted(set(po) | set(ps)):
+        if key in ("uid", "saved_at"):
+            continue
+        if not same(po.get(key), ps.get(key)):
+            out.append(f"project.{key}: у нас {po.get(key)!r}, в образце {ps.get(key)!r}")
+    extra_top = sorted(set(sample) - {"format", "v", "project", "static_signs", "screens", "manual_items"})
+    if extra_top:
+        out.append(f"В образце есть разделы, которых нет у нас: {', '.join(extra_top)}")
+    for section, _fields in V4059_SECTIONS:
+        a, b = list(ours.get(section) or []), list(sample.get(section) or [])
+        if len(a) != len(b):
+            out.append(f"{section}: у нас {len(a)} записей, в образце {len(b)}")
+        for i in range(min(len(a), len(b))):
+            ra, rb = a[i] or {}, b[i] or {}
+            for key in sorted(set(ra) | set(rb)):
+                if not same(ra.get(key), rb.get(key)):
+                    label = rb.get("article") or ra.get("article") or rb.get("module_article") or ""
+                    out.append(f"{section}[{i}] {label}: {key} — у нас {ra.get(key)!r}, в образце {rb.get(key)!r}")
+    return out
+
+
+# ---------------------------------------------------------------------
+# Вкладка «Онлайн-платформа» (после «Счетов»)
+# ---------------------------------------------------------------------
+V4059_TAB_TITLE = "Онлайн-платформа"
+V4059_GREEN, V4059_RED, V4059_GRAY = "#1C803A", "#B42318", "#6B7280"
+V4059_SYNC_KEYS = ("project_uid", "server", "last_sent_at", "last_sent_revision")
+
+
+def _v4059_state(self):
+    st = getattr(self, "_v4059_sync", None)
+    if st is None:
+        settings = _v4059_load_settings()
+        st = {"sync": {}, "sync_name": "", "busy": False, "events": queue.Queue(),
+              "settings": settings, "w": {}}
+        st["log"] = V4059SyncLog(secrets=(settings.get("token"),))
+        st["log"].listeners.append(lambda line: st["events"].put(("log", line)))
+        self._v4059_sync = st
+    return st
+
+
+def _v4059_debug(self, text):
+    try:
+        self._print_debug_log("V40.59: " + _v4059_state(self)["log"].mask(text))
+    except Exception:
+        pass
+
+
+def _v4059_build_tab(self, tab):
+    st = _v4059_state(self)
+    w = st["w"]
+    tab.columnconfigure(0, weight=1)
+    tab.rowconfigure(2, weight=1)
+
+    top = ttk.Frame(tab)
+    top.grid(row=0, column=0, sticky="ew")
+    top.columnconfigure(1, weight=1)
+
+    # --- настройки «Онлайн-платформа»
+    box = ttk.LabelFrame(top, text="Онлайн-платформа", padding=(10, 6))
+    box.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+    box.columnconfigure(1, weight=1)
+    ttk.Label(box, text="Адрес сервера").grid(row=0, column=0, sticky="w")
+    w["server"] = tk.StringVar(value=st["settings"].get("server") or V4059_DEFAULT_SERVER)
+    ttk.Entry(box, textvariable=w["server"], width=38).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
+    ttk.Label(box, text="Ключ").grid(row=1, column=0, sticky="w", padx=(0, 8))
+    w["token"] = tk.StringVar(value=st["settings"].get("token") or "")
+    w["token_entry"] = ttk.Entry(box, textvariable=w["token"], show="•", width=30)
+    w["token_entry"].grid(row=1, column=1, sticky="ew", pady=2)
+    w["show_btn"] = ttk.Button(box, text="Показать", width=9, command=lambda: _v4059_toggle_token(self))
+    w["show_btn"].grid(row=1, column=2, padx=(6, 0))
+    w["ping_btn"] = ttk.Button(box, text="Проверить связь", command=lambda: _v4059_ping(self))
+    w["ping_btn"].grid(row=2, column=1, sticky="w", pady=(6, 0))
+    w["ping_label"] = ttk.Label(box, text="", wraplength=330, justify="left")
+    w["ping_label"].grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 0))
+
+    # --- проект и кнопки
+    pbox = ttk.LabelFrame(top, text="Проект", padding=(10, 6))
+    pbox.grid(row=0, column=1, sticky="nsew")
+    pbox.columnconfigure(0, weight=1)
+    w["name"], w["file"] = tk.StringVar(), tk.StringVar()
+    w["counts"], w["sent"] = tk.StringVar(), tk.StringVar()
+    bold = ("Arial", 11, "bold")
+    ttk.Label(pbox, textvariable=w["name"], font=bold).grid(row=0, column=0, sticky="w")
+    ttk.Label(pbox, textvariable=w["file"], foreground=V4059_GRAY).grid(row=1, column=0, sticky="w")
+    ttk.Label(pbox, textvariable=w["counts"]).grid(row=2, column=0, sticky="w", pady=(4, 0))
+    ttk.Label(pbox, textvariable=w["sent"]).grid(row=3, column=0, sticky="w", pady=(2, 0))
+    bar = ttk.Frame(pbox)
+    bar.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+    w["send_btn"] = ttk.Button(bar, text="Отправить в цех", command=lambda: _v4059_send(self))
+    w["send_btn"].pack(side="left")
+    w["status_btn"] = ttk.Button(bar, text="Статус из цеха", command=lambda: _v4059_status(self))
+    w["status_btn"].pack(side="left", padx=(6, 0))
+    w["compare_btn"] = ttk.Button(bar, text="Сравнить с образцом…", command=lambda: _v4059_compare(self))
+    w["compare_btn"].pack(side="right")
+    w["json_btn"] = ttk.Button(bar, text="Сохранить JSON…", command=lambda: _v4059_save_json(self))
+    w["json_btn"].pack(side="right", padx=(0, 6))
+    w["busy"] = tk.StringVar()
+    ttk.Label(pbox, textvariable=w["busy"], foreground=V4059_GRAY).grid(row=5, column=0, sticky="w", pady=(4, 0))
+
+    # --- статус из цеха
+    sbox = ttk.LabelFrame(tab, text="Статус из цеха", padding=(8, 4))
+    sbox.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+    sbox.columnconfigure(0, weight=1)
+    sbox.rowconfigure(1, weight=1)
+    w["status_head"] = tk.StringVar(value="Нажмите «Статус из цеха», чтобы получить готовность позиций.")
+    ttk.Label(sbox, textvariable=w["status_head"]).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+    cols = [c[0] for c in V4059_STATUS_COLUMNS]
+    tree = ttk.Treeview(sbox, columns=cols, show="headings", height=10)
+    for key, title, width in V4059_STATUS_COLUMNS:
+        tree.heading(key, text=title)
+        tree.column(key, width=width, minwidth=40, stretch=key == "stages",
+                    anchor="center" if key in ("pos", "kind", "qty", "pct") else "w")
+    tree.tag_configure("muted", foreground="#9CA3AF")
+    ys = ttk.Scrollbar(sbox, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=ys.set)
+    tree.grid(row=1, column=0, sticky="nsew")
+    ys.grid(row=1, column=1, sticky="ns")
+    w["tree"] = tree
+
+    # --- журнал отправки
+    lbox = ttk.LabelFrame(tab, text="Журнал отправки", padding=(6, 4))
+    lbox.grid(row=3, column=0, sticky="ew", pady=(8, 0))
+    lbox.columnconfigure(0, weight=1)
+    log = tk.Text(lbox, height=6, wrap="word", font="TkFixedFont", state="disabled", relief="flat")
+    lys = ttk.Scrollbar(lbox, orient="vertical", command=log.yview)
+    log.configure(yscrollcommand=lys.set)
+    log.grid(row=0, column=0, sticky="ew")
+    lys.grid(row=0, column=1, sticky="ns")
+    w["log"] = log
+
+
+def _v4059_toggle_token(self):
+    w = _v4059_state(self)["w"]
+    hidden = str(w["token_entry"].cget("show")) != ""
+    w["token_entry"].configure(show="" if hidden else "•")
+    w["show_btn"].configure(text="Скрыть" if hidden else "Показать")
+
+
+def _v4059_store_settings(self):
+    st = _v4059_state(self)
+    w = st["w"]
+    if "server" in w:
+        st["settings"]["server"] = _v4059_normalize_server(w["server"].get())
+        st["settings"]["token"] = "".join(w["token"].get().split())
+        if w["server"].get().strip() != st["settings"]["server"]:
+            w["server"].set(st["settings"]["server"])
+    st["log"].set_secrets(st["settings"].get("token"))
+    try:
+        _v4059_save_settings(st["settings"])
+    except Exception as exc:
+        st["log"].write(f"не удалось сохранить настройки: {exc}")
+
+
+def _v4059_client(self):
+    _v4059_store_settings(self)
+    st = _v4059_state(self)
+    return V4059SyncClient(st["settings"]["server"], st["settings"]["token"], log=st["log"])
+
+
+def _v4059_live_counts(self):
+    """Числа по текущему проекту в памяти (для вкладки, без пересчёта комплектующих)."""
+    screens = []
+    for s in list(getattr(self, "saved_screens", []) or []):
+        try:
+            screens.append(self._serialize_screen(s) if not isinstance(s, dict) else s)
+        except Exception:
+            pass
+    return _v4059_summarize({"static_signs": list(getattr(self, "saved_static_signs", []) or []),
+                             "screens": screens,
+                             "manual_items": list(getattr(self, "saved_manual_items", []) or [])})
+
+
+def _v4059_refresh(self):
+    st = _v4059_state(self)
+    w = st["w"]
+    if "name" not in w:
+        return
+    try:
+        name = (self.project_name_var.get() or "").strip()
+    except Exception:
+        name = str(getattr(self, "project_name", "") or "")
+    w["name"].set(f"«{name}»" if name else "Проект без названия")
+    path = str(getattr(self, "current_project_path", "") or "")
+    dirty = bool(getattr(self, "_project_dirty", False))
+    w["file"].set((path or "Проект ещё не сохранён в файл")
+                  + (" · есть несохранённые изменения" if dirty else ""))
+    try:
+        w["counts"].set(_v4059_summary_text(_v4059_live_counts(self)))
+    except Exception:
+        w["counts"].set("")
+    sync = st["sync"]
+    if not sync.get("project_uid"):
+        w["sent"].set("В цех: ещё не отправлялся")
+    else:
+        text = "В цех: отправлен"
+        if sync.get("last_sent_at"):
+            text += f" {_v4059_format_when(sync.get('last_sent_at'))}"
+        if sync.get("last_sent_revision") is not None:
+            text += f", ревизия {sync.get('last_sent_revision')}"
+            try:
+                rev = int(getattr(self, "_v3073_base_revision", 0) or 0)
+                if dirty or rev > int(sync.get("last_sent_revision")):
+                    text += " · после отправки проект изменён"
+            except (TypeError, ValueError):
+                pass
+        w["sent"].set(text)
+    _v4059_update_buttons(self)
+
+
+def _v4059_update_buttons(self):
+    st = _v4059_state(self)
+    w = st["w"]
+    if "send_btn" not in w:
+        return
+    idle = not st["busy"]
+    has_uid = bool(st["sync"].get("project_uid"))
+    for key, flag in (("send_btn", idle), ("status_btn", idle and has_uid), ("ping_btn", idle)):
+        try:
+            w[key].configure(state="normal" if flag else "disabled")
+        except Exception:
+            pass
+
+
+# --- фоновые запросы: окно не замирает --------------------------------
+def _v4059_run_bg(self, label, fn, on_ok, on_err):
+    st = _v4059_state(self)
+    if st["busy"]:
+        return
+    st["busy"] = True
+    st["w"]["busy"].set(label)
+    _v4059_update_buttons(self)
+
+    def work():
+        try:
+            st["events"].put(("done", on_ok, on_err, fn(), None))
+        except V4059SyncError as exc:
+            st["events"].put(("done", on_ok, on_err, None, exc))
+        except Exception as exc:
+            st["log"].write(f"ошибка: {exc!r}")
+            st["events"].put(("done", on_ok, on_err, None, V4059SyncError(f"Ошибка: {exc}")))
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+def _v4059_poll(self):
+    st = _v4059_state(self)
+    try:
+        while True:
+            item = st["events"].get_nowait()
+            if item[0] == "log":
+                log = st["w"].get("log")
+                if log is not None:
+                    log.configure(state="normal")
+                    log.insert("end", item[1] + "\n")
+                    log.see("end")
+                    log.configure(state="disabled")
+            elif item[0] == "done":
+                _, on_ok, on_err, result, error = item
+                st["busy"] = False
+                st["w"]["busy"].set("")
+                _v4059_update_buttons(self)
+                try:
+                    if error is None:
+                        on_ok(result)
+                    else:
+                        on_err(error)
+                except Exception as exc:
+                    _v4059_debug(self, f"обработка ответа: {exc!r}")
+    except queue.Empty:
+        pass
+    except Exception as exc:
+        _v4059_debug(self, f"poll: {exc!r}")
+    try:
+        self.after(150, lambda: _v4059_poll(self))
+    except Exception:
+        pass
+
+
+# --- «Проверить связь» ------------------------------------------------
+def _v4059_ping(self):
+    w = _v4059_state(self)["w"]
+    client = _v4059_client(self)
+    w["ping_label"].configure(text="Проверка…", foreground=V4059_GRAY)
+
+    def ok(_data):
+        w["ping_label"].configure(text=V4059_MSG_PING_OK, foreground=V4059_GREEN)
+
+    def err(exc):
+        w["ping_label"].configure(text=exc.message, foreground=V4059_RED)
+
+    _v4059_run_bg(self, "Проверка связи…", client.ping, ok, err)
+
+
+# --- сохранённая версия проекта -----------------------------------------
+def _v4059_saved_payload(self, action):
+    """Сохраняет проект при необходимости и читает сохранённый файл."""
+    try:
+        self._commit_active_product_edits(refresh_views=False)
+    except Exception:
+        pass
+    path = str(getattr(self, "current_project_path", "") or "")
+    if not path or getattr(self, "_project_dirty", False):
+        text = ("Проект ещё не сохранён в файл." if not path else "В проекте есть несохранённые изменения.") \
+            + "\n\nОтправляется сохранённая версия проекта."
+        answer = _v4003_show("question", action, text,
+                             [("Сохранить и отправить", True), ("Отмена", False)], parent=self, default=True)
+        if answer is not True:
+            return None, None
+        if not self._save_project(quiet=True):
+            return None, None
+        path = str(getattr(self, "current_project_path", "") or "")
+        if not path:
+            return None, None
+    try:
+        return path, _v4059_read_project(path)
+    except V4059SyncError as exc:
+        messagebox.showerror(action, exc.message)
+        return None, None
+
+
+# --- «Отправить в цех» ------------------------------------------------
+def _v4059_send(self):
+    st = _v4059_state(self)
+    if st["busy"]:
+        return
+    path, payload = _v4059_saved_payload(self, "Отправить в цех")
+    if payload is None:
+        return
+    client = _v4059_client(self)
+    name = str(payload.get("project_name") or Path(path).stem)
+    counts = _v4059_summarize(payload)
+    known_uid = st["sync"].get("project_uid")
+    lines = [f"Проект «{name}»", "", _v4059_summary_text(counts), "", f"Сервер: {client.server}"]
+    if known_uid and st["sync"].get("last_sent_at"):
+        lines.append(f"Прошлая отправка: {_v4059_format_when(st['sync'].get('last_sent_at'))}")
+    answer = _v4003_show("question", "Отправить в цех", "\n".join(lines),
+                         [("Отправить", True), ("Отмена", False)], parent=self, default=True)
+    if answer is not True:
+        return
+    uid = known_uid or str(uuid.uuid4())
+    body = _v4059_build_sync_body(payload, uid)
+    settings = st["settings"]
+
+    def ok(resp):
+        sync = {"project_uid": uid, "server": client.server,
+                "last_sent_at": datetime.now().isoformat(timespec="seconds"),
+                "last_sent_revision": payload.get("revision")}
+        _v4059_remember_project(settings, path, sync, name)
+        try:
+            _v4059_save_settings(settings)
+        except Exception:
+            pass
+        note = _v4059_persist_sync(self, path, sync, name)
+        msg = _v4059_success_message(name, resp)
+        st["log"].write(msg.replace("\n", " · "))
+        _v4059_refresh(self)
+        messagebox.showinfo("Отправить в цех", msg)
+        if note:
+            messagebox.showwarning("Отправить в цех", note)
+
+    def err(exc):
+        messagebox.showerror("Отправить в цех", exc.message)
+
+    _v4059_run_bg(self, "Отправка в цех…", lambda: client.send(body), ok, err)
+
+
+def _v4059_persist_sync(self, path, sync, name):
+    """Записывает ключ sync в отправленный файл проекта.
+
+    Пишется только ключ sync (остальное содержимое файла не меняется) — так
+    несохранённые правки, сделанные во время отправки, не попадают в файл молча.
+    Подпись файла обновляется, чтобы следующее сохранение не приняло запись
+    за «Проект изменён другим пользователем».
+    """
+    st = _v4059_state(self)
+    same = str(getattr(self, "current_project_path", "") or "") == str(path)
+    if same:
+        st["sync"] = dict(sync)
+        st["sync_name"] = name
+    try:
+        _v4059_write_sync_block(path, sync)
+    except Exception as exc:
+        text = exc.message if isinstance(exc, V4059SyncError) else f"Не удалось записать идентификатор в файл проекта: {exc}"
+        st["log"].write(text)
+        if same:
+            try:
+                self._mark_project_dirty()
+            except Exception:
+                pass
+        return text + "\nИдентификатор сохранён в настройках программы и попадёт в файл при следующем сохранении."
+    st["log"].write(f"идентификатор записан в файл проекта: {Path(path).name}")
+    if same:
+        try:
+            self._v3073_file_sig = _v3073_file_signature(path)
+            base = getattr(self, "_v3073_base_payload", None)
+            if isinstance(base, dict):
+                base["sync"] = dict(sync)
+        except Exception as exc:
+            _v4059_debug(self, f"подпись файла: {exc!r}")
+    return ""
+
+
+# --- «Статус из цеха» -------------------------------------------------
+def _v4059_status(self):
+    st = _v4059_state(self)
+    uid = st["sync"].get("project_uid")
+    if not uid:
+        messagebox.showinfo("Статус из цеха", V4059_MSG_NOT_SENT)
+        return
+    client = _v4059_client(self)
+
+    def ok(resp):
+        w = st["w"]
+        tree = w["tree"]
+        tree.delete(*tree.get_children())
+        rows = _v4059_status_rows(resp)
+        for r in rows:
+            tree.insert("", "end", values=[r[c[0]] for c in V4059_STATUS_COLUMNS],
+                        tags=("muted",) if r["muted"] else ())
+        head = _v4059_status_header(resp)
+        w["status_head"].set(f"«{resp.get('name') or ''}» · {head}")
+        st["log"].write(f"статус из цеха: {head}; позиций {len(rows)}")
+
+    def err(exc):
+        messagebox.showerror("Статус из цеха", exc.message)
+
+    _v4059_run_bg(self, "Запрос статуса…", lambda: client.status(uid), ok, err)
+
+
+# --- JSON отправки и сравнение с образцом -------------------------------
+def _v4059_current_body(self, action):
+    path, payload = _v4059_saved_payload(self, action)
+    if payload is None:
+        return None, None
+    uid = _v4059_state(self)["sync"].get("project_uid") or ""
+    return path, _v4059_build_sync_body(payload, uid)
+
+
+def _v4059_save_json(self):
+    path, body = _v4059_current_body(self, "Сохранить JSON")
+    if body is None:
+        return
+    name = body["project"].get("name") or Path(path).stem
+    out = filedialog.asksaveasfilename(
+        title="Сохранить JSON отправки", defaultextension=".json",
+        initialdir=str(Path(path).parent), initialfile=f"{name}_отправка_в_цех.json",
+        filetypes=[("JSON (*.json)", "*.json"), ("Все файлы", "*.*")])
+    if not out:
+        return
+    Path(out).write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding="utf-8")
+    _v4059_state(self)["log"].write(
+        f"JSON отправки сохранён: {Path(out).name}, {len(_v4059_body_bytes(body)) / 1024:.1f} КБ")
+
+
+def _v4059_compare(self):
+    path, body = _v4059_current_body(self, "Сравнить с образцом")
+    if body is None:
+        return
+    sample_path = filedialog.askopenfilename(
+        title="Образец отправки (ПРИМЕР_ОТПРАВКИ_ИЗ_КОНСТРУКТОРА.json)", initialdir=str(Path(path).parent),
+        filetypes=[("JSON (*.json)", "*.json"), ("Все файлы", "*.*")])
+    if not sample_path:
+        return
+    try:
+        sample = json.loads(Path(sample_path).read_text(encoding="utf-8"))
+    except Exception as exc:
+        messagebox.showerror("Сравнить с образцом", f"Не удалось прочитать образец:\n{exc}")
+        return
+    log = _v4059_state(self)["log"]
+    diffs = _v4059_compare_bodies(body, sample)
+    if not diffs:
+        log.write(f"сравнение с {Path(sample_path).name}: совпадает по всем полям")
+        messagebox.showinfo("Сравнить с образцом", "Совпадает с образцом по всем полям.")
+        return
+    log.write(f"сравнение с {Path(sample_path).name}: отличий {len(diffs)}")
+    for line in diffs:
+        log.write("  " + line)
+    messagebox.showwarning("Сравнить с образцом", f"Отличий: {len(diffs)}. Список — в «Журнале отправки».")
+
+
+# ---------------------------------------------------------------------
+# Хуки: интерфейс, файл проекта (ключ sync), открытие, «Сохранить как»
+# ---------------------------------------------------------------------
+_v4059_orig_build_ui = ScreenDesigner._build_ui
+
+
+def _v4059_build_ui(self, *args, **kwargs):
+    result = _v4059_orig_build_ui(self, *args, **kwargs)
+    try:
+        nb = self.notebook
+        tab = ttk.Frame(nb, padding=8)
+        self.online_platform_tab = tab
+        try:
+            index = nb.index(self.invoices_tab) + 1
+        except Exception:
+            index = "end"
+        if index == "end" or index >= nb.index("end"):
+            nb.add(tab, text=V4059_TAB_TITLE)
+        else:
+            nb.insert(index, tab, text=V4059_TAB_TITLE)
+        _v4059_build_tab(self, tab)
+
+        def on_tab(_event=None):
+            try:
+                if nb.select() == str(tab):
+                    _v4059_refresh(self)
+            except Exception:
+                pass
+
+        nb.bind("<<NotebookTabChanged>>", on_tab, add="+")
+        try:
+            _v3094_schedule_center(nb)
+        except Exception:
+            pass
+        _v4059_refresh(self)
+        self.after(300, lambda: _v4059_poll(self))
+    except Exception as exc:
+        _v4059_debug(self, f"вкладка: {exc!r}")
+    return result
+
+
+ScreenDesigner._build_ui = _v4059_build_ui
+
+_v4059_orig_project_payload = ScreenDesigner._project_payload
+
+
+def _v4059_project_payload(self):
+    payload = _v4059_orig_project_payload(self)
+    try:
+        sync = _v4059_state(self)["sync"]
+        if _v4059_valid_uid(sync.get("project_uid")):
+            payload["sync"] = {k: sync.get(k) for k in V4059_SYNC_KEYS}
+        else:
+            payload.pop("sync", None)
+    except Exception as exc:
+        _v4059_debug(self, f"payload: {exc!r}")
+    return payload
+
+
+ScreenDesigner._project_payload = _v4059_project_payload
+
+_v4059_orig_open_project = ScreenDesigner._open_project
+
+
+def _v4059_open_project(self, *args, **kwargs):
+    st = _v4059_state(self)
+    before = str(getattr(self, "current_project_path", "") or "")
+    result = _v4059_orig_open_project(self, *args, **kwargs)
+    try:
+        opened = str(getattr(self, "current_project_path", "") or "")
+        if opened and opened != before:
+            payload = getattr(self, "_v3073_base_payload", None)
+            if not isinstance(payload, dict):
+                payload = _v3073_read_project_file(opened) or {}
+            info, source = _v4059_sync_info(payload, opened, st["settings"])
+            st["sync"] = {k: info.get(k) for k in V4059_SYNC_KEYS} if info else {}
+            st["sync_name"] = str(payload.get("project_name") or "")
+            if source == "настройки программы":
+                st["log"].write("идентификатор цеха взят из настроек программы — "
+                                "в файл он запишется при следующем сохранении")
+            w = st["w"]
+            if "tree" in w:
+                w["tree"].delete(*w["tree"].get_children())
+                w["status_head"].set("Нажмите «Статус из цеха», чтобы получить готовность позиций.")
+        _v4059_refresh(self)
+    except Exception as exc:
+        _v4059_debug(self, f"открытие: {exc!r}")
+    return result
+
+
+ScreenDesigner._open_project = _v4059_open_project
+
+_v4059_orig_save_project = ScreenDesigner._save_project
+
+
+def _v4059_save_project(self, *args, **kwargs):
+    ok = _v4059_orig_save_project(self, *args, **kwargs)
+    try:
+        _v4059_refresh(self)
+    except Exception:
+        pass
+    return ok
+
+
+ScreenDesigner._save_project = _v4059_save_project
+
+_v4059_orig_save_project_as = ScreenDesigner._save_project_as
+
+
+def _v4059_save_project_as(self, *args, **kwargs):
+    """«Сохранить как» под другим названием проекта — на платформе это новый проект."""
+    st = _v4059_state(self)
+    kept, kept_name = dict(st["sync"]), st["sync_name"]
+    try:
+        name_now = (self.project_name_var.get() or "").strip()
+    except Exception:
+        name_now = ""
+    reset = bool(kept.get("project_uid")) and name_now != (kept_name or "").strip()
+    if reset:
+        st["sync"], st["sync_name"] = {}, ""
+    ok = _v4059_orig_save_project_as(self, *args, **kwargs)
+    if reset and not ok:
+        st["sync"], st["sync_name"] = kept, kept_name
+    elif reset and ok:
+        st["log"].write(f"«Сохранить как» с новым названием «{name_now}» — идентификатор цеха сброшен, "
+                        "при отправке это будет новый проект")
+    try:
+        _v4059_refresh(self)
+    except Exception:
+        pass
+    return ok
+
+
+ScreenDesigner._save_project_as = _v4059_save_project_as
+
+
+# =====================================================================
+# V40.59.1 — ТЕМА ПРОГРАММЫ: «Светлая» (стандартный вид Windows) / «Тёмная».
 # Переключатель — в верхней панели (справа от «Журнал проектов»).
 # Выбор сохраняется в %APPDATA%\LED Screen Designer\ui_settings.json.
 #
@@ -42177,7 +46232,7 @@ ScreenDesigner._build_ui = _uitheme_build_ui
 ScreenDesigner.apply_theme = lambda self, theme: _uitheme_apply_theme(self, theme, save=True)
 
 
-# V40.53.1 — после сортировки по столбцу (V30.90) серая градация статических строк
+# V40.59.1 — после сортировки по столбцу (V30.90) серая градация статических строк
 # раздаётся заново в новом порядке строк.
 _uitheme_orig_v3090_apply_sort = _v3090_apply_sort
 
@@ -42190,7 +46245,7 @@ def _v3090_apply_sort(self):
         pass
 
 
-# V40.53.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
+# V40.59.1 — после смены темы заново центрируем вкладки (V30.94): отступ хранится
 # в стиле ttk, а у светлой и тёмной темы стили раздельные.
 _uitheme_orig_apply_theme_v3094 = _uitheme_apply_theme
 

@@ -4,6 +4,7 @@ numpy
 openpyxl
 xlrd
 reportlab
+certifi
 tkinterdnd2
 paddleocr
 paddlepaddle
