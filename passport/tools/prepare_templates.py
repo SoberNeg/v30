@@ -1036,3 +1036,78 @@ def normalize_order(path):
                 fixed += 1
     d.save(path)
     return fixed
+
+
+def fit_maket_zone(path, margin_mm=3.0):
+    """Поле под макет (Приложение 1) — всё свободное место страницы: от строки
+    «Приложение 1 Макет №…» до колонтитула. Картинка-заглушка в шаблоне растягивается
+    на это поле, а движок вписывает в него настоящий макет с сохранением пропорций."""
+    import re
+    import subprocess
+
+    import numpy as np
+    from PIL import Image
+    path = Path(path)
+    TMP.mkdir(parents=True, exist_ok=True)
+    key = "{{ИЗОБРАЖЕНИЕ_МАКЕТА}}"
+
+    # пробный документ: макет — узкая красная полоса без отступов, метки пустые
+    probe = docx.Document(path)
+    for t in probe.element.iter(qn("w:t")):
+        if t.text and "{{" in t.text:      # убираем только метки, текст вокруг нужен
+            t.text = re.sub(r"\{\{[^{}]*\}\}", "", t.text)
+    red = TMP / "maket_probe.png"
+    Image.new("RGB", (40, 4), (255, 0, 0)).save(red)
+    band = None
+    for dp in probe.element.iter(qn("wp:docPr")):
+        if key not in (dp.get("descr") or ""):
+            continue
+        holder = dp.getparent()
+        para = holder
+        while para is not None and para.tag != qn("w:p"):
+            para = para.getparent()
+        cx = int(holder.find(qn("wp:extent")).get("cx"))
+        cy = int(round(4.0 * 36000))                     # 4 мм — тонкая полоска
+        engine._put_picture(probe, para, str(red), cx, cy)
+        sp = para.get_or_add_pPr().get_or_add_spacing()
+        sp.set(qn("w:before"), "0")
+        sp.set(qn("w:after"), "0")
+        band = True
+    if not band:
+        return None
+    tmp = TMP / ("maket_" + path.name)
+    probe.save(tmp)
+    pdf = render_pdf(tmp)
+    # «Приложение» есть и в оглавлении — берём последнюю страницу, это сам раздел
+    page = max(w[0] for w in words_bbox(pdf) if "Приложение" in w[5])
+    subprocess.run(["pdftoppm", "-r", "100", "-png", "-f", str(page + 1), "-l", str(page + 1),
+                    str(pdf), str(TMP / "mzone")], capture_output=True)
+    png = sorted(TMP.glob("mzone-*.png"))[-1]
+    im = np.asarray(Image.open(png).convert("RGB")).astype(int)
+    png.unlink()
+    H, W, _ = im.shape
+    k = 25.4 / 100                                        # мм на пиксель при 100 dpi
+    red_rows = np.where(((im[:, :, 0] > 180) & (im[:, :, 1] < 90) & (im[:, :, 2] < 90)).any(axis=1))[0]
+    if not len(red_rows):
+        return None
+    top = red_rows[0] * k                                 # верх свободного поля
+    ink = (im.sum(axis=2) < 720).any(axis=1)              # любые непустые строки
+    below = np.where(ink[red_rows[-1] + 6:])[0]
+    bottom = ((red_rows[-1] + 6 + below[0]) * k) if len(below) else (H * k)
+    free_h = bottom - top - margin_mm
+    if free_h <= 10:
+        return None
+    d = docx.Document(path)
+    for dp in d.element.iter(qn("wp:docPr")):
+        if key not in (dp.get("descr") or ""):
+            continue
+        holder = dp.getparent()
+        cx = int(holder.find(qn("wp:extent")).get("cx"))
+        cy = int(round(free_h * 36000))
+        holder.find(qn("wp:extent")).set("cy", str(cy))
+        for ext in holder.iter(qn("a:ext")):
+            if ext.get("cx") is not None:
+                ext.set("cx", str(cx))
+                ext.set("cy", str(cy))
+    d.save(path)
+    return {"верх_мм": round(top, 1), "низ_мм": round(bottom, 1), "поле_мм": round(free_h, 1)}

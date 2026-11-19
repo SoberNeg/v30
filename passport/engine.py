@@ -447,6 +447,18 @@ def _empty_line(document):
     return p
 
 
+def _line_height(document):
+    """Высота пустой строки обычного текста, EMU (кегль × 1,15)."""
+    pt = 11.0
+    try:
+        sz = document.styles["Normal"].font.size
+        if sz:
+            pt = sz.pt
+    except Exception:
+        pass
+    return int(pt * 1.15 * 12700)
+
+
 def replace_image(document, key: str, image_paths) -> bool:
     """Заменяет рисунок с меткой key в «Замещающем тексте». image_paths — один путь
     или список (сторона 1, сторона 2 …): рисунки встают один под другим, между ними
@@ -468,7 +480,10 @@ def replace_image(document, key: str, image_paths) -> bool:
         while para is not None and para.tag != W_P:
             para = para.getparent()
         proto = copy.deepcopy(para)
-        _put_picture(document, para, paths[0], box_cx, box_cy)
+        # поле делится между сторонами: между картинками — одна пустая строка
+        gap_cy = _line_height(document)
+        each_cy = max(1, int((box_cy - (len(paths) - 1) * gap_cy) / len(paths)))
+        _put_picture(document, para, paths[0], box_cx, each_cy)
         chain = [para]
         prev = para.getprevious()
         if prev is not None and prev.tag == W_P and paragraph_text(prev).strip():
@@ -483,7 +498,7 @@ def replace_image(document, key: str, image_paths) -> bool:
             max_id += 1
             for e in list(new_p.iter(qn("wp:docPr"))) + list(new_p.iter(qn("pic:cNvPr"))):
                 e.set("id", str(max_id))
-            _put_picture(document, new_p, path, box_cx, box_cy)
+            _put_picture(document, new_p, path, box_cx, each_cy)
             chain += [gap, new_p]
             last = new_p
         # «Не отрывать от следующего» — макеты не разрываются между страницами

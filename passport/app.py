@@ -25,7 +25,7 @@ import project_import
 from widgets import PALETTES, GradientList, ScrollFrame, install_clipboard
 
 APP_NAME = "Утилита заполнения паспортов"
-APP_VERSION = "V2.3"
+APP_VERSION = "V2.4"
 
 # ------------------------------------------------------------------ пути
 if getattr(sys, "frozen", False):
@@ -339,6 +339,37 @@ class DownloadStore:
     def get(self, item):
         return self.data["изделия"].get(self.key(item), {})
 
+    def _save(self):
+        try:
+            self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), "utf-8")
+        except Exception:
+            pass
+
+    def sale_date(self):
+        """Дата продажи, назначенная всему проекту кнопкой «Дата продажи:»."""
+        return self.data.get("дата_продажи", "")
+
+    def set_sale_date(self, value):
+        self.data["дата_продажи"] = value
+        for rec in self.data["изделия"].values():       # ручные даты заменяются общей
+            rec.pop("дата_продажи", None)
+        self._save()
+
+    def item_sale_date(self, item):
+        return self.get(item).get("дата_продажи", "")
+
+    def set_item_sale_date(self, item, value):
+        """Дата, назначенная одному изделию вручную."""
+        rec = self.data["изделия"].setdefault(self.key(item), {"скачан": 0, "файлы": []})
+        if value:
+            rec["дата_продажи"] = value
+        else:
+            rec.pop("дата_продажи", None)
+        self._save()
+
+    def manual_sale_dates(self):
+        return [k for k, rec in self.data["изделия"].items() if rec.get("дата_продажи")]
+
     def register(self, item, file, serial=""):
         rec = self.data["изделия"].setdefault(self.key(item), {"скачан": 0, "файлы": []})
         rec["скачан"] = rec.get("скачан", 0) + 1
@@ -357,10 +388,7 @@ class DownloadStore:
         """Макеты изделия: [{"номер", "тираж", "картинки": [путь/PDF-спец, …]}, …]."""
         rec = self.data["изделия"].setdefault(self.key(item), {"скачан": 0, "файлы": []})
         rec["макеты"] = list(makets)
-        try:
-            self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), "utf-8")
-        except Exception:
-            pass
+        self._save()
 
     def all_serials(self):
         out = []
@@ -849,6 +877,14 @@ class App(tk.Tk):
         ttk.Button(bar, text="Открыть проект…", command=self._choose_project).pack(side="left")
         ttk.Button(bar, text="Обновить", command=self._reload_project).pack(side="left", padx=6)
         ttk.Button(bar, text="Закрыть проект", command=self._close_project).pack(side="left")
+        self.sale_date_all = tk.StringVar()
+        dt = ttk.Frame(bar)
+        dt.pack(side="right", padx=(12, 0))
+        self.sale_date_btn = ttk.Button(dt, text="Дата продажи:", command=self._apply_sale_date_all)
+        self.sale_date_btn.pack(side="left")
+        self.sale_date_entry = ttk.Entry(dt, textvariable=self.sale_date_all, width=12)
+        self.sale_date_entry.pack(side="left", padx=(6, 0))
+        self.sale_date_entry.bind("<Return>", lambda e: self._apply_sale_date_all())
         ttk.Button(bar, text="Правила расчёта", command=lambda: open_path(RULES_FILE)).pack(side="right")
         self.proj_label = ttk.Label(bar, text="Проект не открыт", style="Proj.TLabel")
         self.proj_label.pack(side="left", padx=16)
@@ -1029,6 +1065,7 @@ class App(tk.Tk):
         self.items_list.set_rows([], keep_selection=False)
         self.proj_label.configure(text="Проект не открыт")
         self.project_name.set("")
+        self.sale_date_all.set("")
         self.calc_label.configure(text="")
 
     def _open_project(self, path, quiet=False):
@@ -1043,6 +1080,7 @@ class App(tk.Tk):
         self.project = p
         self.store = DownloadStore(path)
         self.project_name.set(p["проект"])
+        self.sale_date_all.set(self.store.sale_date())      # общая дата проекта, если назначалась
         self.proj_label.configure(text=f'{p["проект"]}  ·  изделий: {len(p["изделия"])}  ·  '
                                        f'{Path(path).name}')
         self._deselect_item()
@@ -1120,6 +1158,7 @@ class App(tk.Tk):
         self._set_table(rows)
         self.qty.set(str(it.get("тираж", 1)))
         self._restore_makets(it)
+        self._set_sale_date_field(self._sale_date_for_item(it))
         self.project_name.set(self.project["проект"])
         if it["тип"] == "Динамика МЦД":
             info = (f'Расчёт {it.get("префикс")}: модулей {v["модулей_по_ширине"]}×{v["модулей_по_высоте"]} '
@@ -1213,6 +1252,7 @@ class App(tk.Tk):
                 cell.columnconfigure(0, weight=0)      # при нехватке места сжимается подсказка,
                 cell.columnconfigure(3, weight=1)      # а не поле даты
                 v.trace_add("write", lambda *a, v=v, lab=lab: self._preview_date(v, lab))
+                v.trace_add("write", lambda *a: self._sale_date_edited())
                 self._preview_date(v, lab)
                 self.field_widgets[key] = ("var", v)
             elif kind == "serial":
@@ -1260,12 +1300,83 @@ class App(tk.Tk):
         except ValueError:
             return 1
 
+    def _apply_sale_date_all(self):
+        """Кнопка «Дата продажи:» — ставит дату из поля всем изделиям проекта.
+        Дата каждого изделия остаётся доступной для правки в карточке."""
+        raw = self.sale_date_all.get().strip()
+        if not raw:
+            messagebox.showinfo(APP_NAME, "Укажите дату продажи в поле справа от кнопки "
+                                          "(ДД.ММ.ГГГГ) — она будет поставлена всем изделиям проекта.")
+            self.sale_date_entry.focus_set()
+            return
+        try:
+            value = engine.parse_date(raw).strftime("%d.%m.%Y")
+        except ValueError as e:
+            messagebox.showerror(APP_NAME, f"Дата продажи: {e}")
+            self.sale_date_entry.focus_set()
+            return
+        if not self.store:
+            self._set_sale_date_field(value)
+            self.sale_date_all.set(value)
+            self.status.set(f"Дата продажи {value} поставлена.")
+            return
+        manual = self.store.manual_sale_dates()
+        if self.store.sale_date() or manual:
+            n = len(manual)
+            msg = f"Поставить дату продажи {value} всем изделиям проекта?"
+            if n:
+                msg += (f"\n\nДаты, которые вы меняли вручную у отдельных изделий "
+                        f"({plural(n, 'изделие', 'изделия', 'изделий')}), будут заменены общей. "
+                        f"Чтобы вернуть им свои даты, их придётся назначить заново — "
+                        f"в карточке каждого изделия.")
+            else:
+                msg += f"\n\nСейчас всем изделиям назначена дата {self.store.sale_date()}."
+            if not messagebox.askyesno(APP_NAME, msg):
+                return
+        self.store.set_sale_date(value)
+        self.sale_date_all.set(value)
+        self._set_sale_date_field(value)
+        self.status.set(f"Дата продажи {value} поставлена всем изделиям проекта "
+                        f"({len(self.project['изделия']) if self.project else 0}). "
+                        f"У любого изделия её можно изменить в карточке.")
+
+    def _set_sale_date_field(self, value):
+        """Ставит дату в карточку, не помечая её как изменённую вручную."""
+        if "ДАТА_ПРОДАЖИ" not in self.field_widgets:
+            return
+        self._date_quiet = True
+        try:
+            self._set("ДАТА_ПРОДАЖИ", value)
+        finally:
+            self._date_quiet = False
+
+    def _sale_date_edited(self):
+        """Дату в карточке изменили руками — запоминаем её для этого изделия."""
+        if getattr(self, "_date_quiet", False) or not (self.store and self.current_item):
+            return
+        raw = self._get_or("ДАТА_ПРОДАЖИ").strip()
+        if raw == self.store.sale_date():      # вернули общую дату — ручной больше нет
+            raw = ""
+        self.store.set_item_sale_date(self.current_item, raw)
+
     def _qty_changed(self):
         """Тираж изделия поменяли руками — разница уходит в последнюю строку макетов."""
         mk = self._makets()
         if mk is not None:
             mk.set_total(self._qty())
         self._update_name_preview()
+
+    def _sale_date_for_item(self, item=None):
+        """Дата продажи изделия: назначенная ему вручную, иначе общая по проекту,
+        иначе сегодняшняя."""
+        item = item if item is not None else self.current_item
+        if self.store and item:
+            own = self.store.item_sale_date(item)
+            if own:
+                return own
+        if self.store and self.store.sale_date():
+            return self.store.sale_date()
+        return date.today().strftime("%d.%m.%Y")
 
     def _restore_makets(self, it):
         """Номера макетов, деление тиража и картинки: из «<проект>.паспорта.json»,
@@ -1602,7 +1713,7 @@ class App(tk.Tk):
             if k in vals:
                 self._set(k, vals[k])
         if "ДАТА_ПРОДАЖИ" in self.field_widgets and not vals.get("ДАТА_ПРОДАЖИ"):
-            self._set("ДАТА_ПРОДАЖИ", date.today().strftime("%d.%m.%Y"))
+            self._set("ДАТА_ПРОДАЖИ", self._sale_date_for_item())
         self._set_table(st.get("таблица") or self.tpl_table)
         if not self.project:
             self.project_name.set(st.get("проект", ""))

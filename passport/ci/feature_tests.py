@@ -268,6 +268,46 @@ try:
 except Exception as e:
     check("Рукописная дата", False, repr(e))
 
+# 5б. кнопка «Дата продажи:» — общая дата всему проекту
+try:
+    for k in A.store.manual_sale_dates():          # чистый старт: до этого даты правили в блоках 4–5
+        A.store.data["изделия"][k].pop("дата_продажи", None)
+    A.store._save()
+    asks.clear()
+    A.items_list.select(0)
+    A.update()
+    A.sale_date_all.set("01.12.2026")
+    A._apply_sale_date_all()
+    A.update()
+    first = A._get("ДАТА_ПРОДАЖИ")
+    A.items_list.select(1)
+    A.update()
+    check("Дата продажи: кнопка ставит дату всем изделиям без лишних вопросов",
+          first == "01.12.2026" and A._get("ДАТА_ПРОДАЖИ") == "01.12.2026" and not asks,
+          f"{first} / {A._get('ДАТА_ПРОДАЖИ')} / вопросов {len(asks)}")
+    A._set("ДАТА_ПРОДАЖИ", "15.12.2026")
+    A.update()
+    own = A.store.item_sale_date(A.current_item)
+    A.items_list.select(0)
+    A.update()
+    other = A._get("ДАТА_ПРОДАЖИ")
+    A.items_list.select(1)
+    A.update()
+    check("Дата продажи: ручная дата изделия живёт отдельно от общей",
+          own == "15.12.2026" and other == "01.12.2026" and A._get("ДАТА_ПРОДАЖИ") == "15.12.2026",
+          f"{own} / {other} / {A._get('ДАТА_ПРОДАЖИ')}")
+    asks.clear()
+    A.sale_date_all.set("20.12.2026")
+    A._apply_sale_date_all()
+    A.update()
+    ask = asks[-1] if asks else ""
+    check("Дата продажи: повторное нажатие спрашивает и предупреждает о ручных датах",
+          len(asks) == 1 and "вручную" in ask and "заново" in ask and
+          A._get("ДАТА_ПРОДАЖИ") == "20.12.2026" and not A.store.manual_sale_dates(),
+          ask.replace("\n", " | ")[:160])
+except Exception as e:
+    check("Общая дата продажи", False, repr(e))
+
 # 6. копирование / вставка при русской раскладке
 try:
     plat = widgets._platform()
